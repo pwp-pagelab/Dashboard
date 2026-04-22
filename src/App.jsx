@@ -1,20 +1,4 @@
-import React from 'react'
-
-const summaryCards = [
-  { label: 'Total Spend', value: 'SAR 12,450' },
-  { label: 'Impressions', value: '485,320' },
-  { label: 'Clicks', value: '14,280' },
-  { label: 'Conversions', value: '126' },
-  { label: 'CTR', value: '2.94%' },
-  { label: 'ROAS', value: '3.82x' }
-]
-
-const campaignRows = [
-  { platform: 'Meta', campaign: 'Prospecting', spend: 'SAR 3,200', clicks: '4,120', conversions: '31' },
-  { platform: 'Meta', campaign: 'Retargeting', spend: 'SAR 1,850', clicks: '2,010', conversions: '28' },
-  { platform: 'Google Ads', campaign: 'Brand Search', spend: 'SAR 2,100', clicks: '3,430', conversions: '35' },
-  { platform: 'Google Ads', campaign: 'Shopping', spend: 'SAR 5,300', clicks: '4,720', conversions: '32' }
-]
+import React, { useEffect, useState } from 'react'
 
 function SectionCard({ title, children }) {
   return (
@@ -33,6 +17,46 @@ function SectionCard({ title, children }) {
 }
 
 export default function App() {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        setLoading(true)
+        const res = await fetch('/api/dashboard')
+        if (!res.ok) {
+          throw new Error('Failed to load dashboard data')
+        }
+        const json = await res.json()
+        setData(json)
+      } catch (err) {
+        setError(err.message || 'Something went wrong')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>
+        Loading dashboard...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: 'crimson' }}>
+        Error: {error}
+      </div>
+    )
+  }
+
   return (
     <div
       style={{
@@ -82,7 +106,9 @@ export default function App() {
             }}
           >
             <div style={{ fontSize: '13px', color: '#6b7280' }}>Last Updated</div>
-            <div style={{ marginTop: '6px', fontWeight: 700 }}>Today · 1:30 PM</div>
+            <div style={{ marginTop: '6px', fontWeight: 700 }}>
+              {new Date(data.updatedAt).toLocaleString()}
+            </div>
           </div>
         </div>
 
@@ -94,7 +120,7 @@ export default function App() {
             marginBottom: '26px'
           }}
         >
-          {summaryCards.map((card) => (
+          {data.summaryCards.map((card) => (
             <div
               key={card.label}
               style={{
@@ -131,7 +157,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {campaignRows.map((row) => (
+                  {data.campaignRows.map((row) => (
                     <tr key={`${row.platform}-${row.campaign}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: '14px 8px' }}>{row.platform}</td>
                       <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
@@ -146,29 +172,32 @@ export default function App() {
           </SectionCard>
 
           <SectionCard title="Platform Split">
-            <div
-              style={{
-                display: 'grid',
-                gap: '14px'
-              }}
-            >
+            <div style={{ display: 'grid', gap: '14px' }}>
               <div style={{ background: '#f7f4ef', borderRadius: '16px', padding: '16px' }}>
                 <div style={{ color: '#6b7280', fontSize: '13px' }}>Meta</div>
-                <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>SAR 5,050</div>
-                <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>59 conversions</div>
+                <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>
+                  {data.platformSplit.meta.spend}
+                </div>
+                <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>
+                  {data.platformSplit.meta.conversions} conversions
+                </div>
               </div>
 
               <div style={{ background: '#f4f1fb', borderRadius: '16px', padding: '16px' }}>
                 <div style={{ color: '#6b7280', fontSize: '13px' }}>Google Ads</div>
-                <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>SAR 7,400</div>
-                <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>67 conversions</div>
+                <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>
+                  {data.platformSplit.google.spend}
+                </div>
+                <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>
+                  {data.platformSplit.google.conversions} conversions
+                </div>
               </div>
 
               <div style={{ background: '#f5f5f5', borderRadius: '16px', padding: '16px' }}>
                 <div style={{ color: '#6b7280', fontSize: '13px' }}>Status</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>Ready for API connection</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>Backend connected</div>
                 <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>
-                  Next step is to replace sample values with live Meta and Google Ads data.
+                  The dashboard is now reading from a serverless API route.
                 </div>
               </div>
             </div>
