@@ -21,7 +21,7 @@ function getRangeConfig(range) {
     }
   }
 
-    if (range === 'max') {
+  if (range === 'max') {
     const today = new Date()
     const metaStart = new Date(today)
     metaStart.setMonth(metaStart.getMonth() - 36)
@@ -67,7 +67,10 @@ export default async function handler(req, res) {
     const rangeConfig = getRangeConfig(range)
 
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
-      const metaRow = await getMetaData(clientId,...rangeConfig.meta)})
+      const metaRow = await getMetaData({
+        clientId,
+        ...rangeConfig.meta
+      })
       if (metaRow) rows.push(metaRow)
     }
 
@@ -98,7 +101,10 @@ export default async function handler(req, res) {
         .filter(([, config]) => config?.enabled)
         .map(([key]) => key),
       summaryCards: [
-        { label: 'Total Spend', value: `SAR ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+        {
+          label: 'Total Spend',
+          value: `SAR ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+        },
         { label: 'Impressions', value: totalImpressions.toLocaleString() },
         { label: 'Clicks', value: totalClicks.toLocaleString() },
         { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
