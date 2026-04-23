@@ -2,20 +2,23 @@ import React, { useEffect, useState } from 'react'
 
 function cardStyle() {
   return {
-    background: '#ffffff',
-    borderRadius: '20px',
-    padding: '20px',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.06)'
+    background: 'rgba(255,255,255,0.86)',
+    borderRadius: '22px',
+    padding: '22px',
+    border: '1px solid rgba(229,231,235,0.9)',
+    boxShadow: '0 14px 35px rgba(15,23,42,0.08)',
+    backdropFilter: 'blur(10px)'
   }
 }
 
 function inputStyle() {
   return {
     width: '100%',
-    padding: '12px',
+    padding: '12px 14px',
     borderRadius: '12px',
     border: '1px solid #d1d5db',
-    fontSize: '14px'
+    fontSize: '14px',
+    background: '#fff'
   }
 }
 
@@ -24,9 +27,9 @@ function buttonStyle(primary = false) {
     padding: '12px 18px',
     borderRadius: '14px',
     border: primary ? 'none' : '1px solid #d1d5db',
-    background: primary ? '#1f2937' : '#fff',
-    color: primary ? '#fff' : '#1f2937',
-    fontWeight: 600,
+    background: primary ? '#111827' : '#fff',
+    color: primary ? '#fff' : '#111827',
+    fontWeight: 700,
     cursor: 'pointer'
   }
 }
@@ -41,6 +44,7 @@ export default function OnboardingHelper({ setView }) {
   const [clientSlug, setClientSlug] = useState('')
   const [matchValue, setMatchValue] = useState('')
   const [googleEnabled, setGoogleEnabled] = useState(false)
+  const [snapEnabled, setSnapEnabled] = useState(false)
 
   useEffect(() => {
     async function loadAccounts() {
@@ -74,18 +78,22 @@ export default function OnboardingHelper({ setView }) {
   }, [businessKey])
 
   const generatedSnippet = `{
-  id: '${clientSlug || 'client_slug'}',
+  id: '${clientSlug || 'clientslug'}',
   name: '${clientName || 'Client Name'}',
   metaBusinessKey: '${businessKey}',
   metaMatch: {
     type: 'includes',
     value: '${matchValue || 'match_value'}'
   },
+  snapMatch: ${snapEnabled ? `{
+    type: 'includes',
+    value: '${clientName || 'Client Name'}'
+  }` : 'null'},
   platforms: {
     meta: { enabled: true },
     google: { enabled: ${googleEnabled ? 'true' : 'false'} },
     tiktok: { enabled: false },
-    snapchat: { enabled: false }
+    snapchat: { enabled: ${snapEnabled ? 'true' : 'false'} }
   }
 }`
 
@@ -93,33 +101,44 @@ export default function OnboardingHelper({ setView }) {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #f8f7f5 0%, #f2f0ec 100%)',
-        color: '#1f2937'
+        background:
+          'radial-gradient(circle at top left, rgba(196,181,253,0.18), transparent 25%), radial-gradient(circle at top right, rgba(251,191,36,0.12), transparent 20%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%)',
+        color: '#111827'
       }}
     >
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 20px 60px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
+      <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '32px 20px 60px' }}>
+        <div
+          style={{
+            ...cardStyle(),
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap'
+          }}
+        >
           <div>
             <div
               style={{
                 display: 'inline-block',
-                background: '#ece7df',
-                color: '#6b5c4b',
+                background: '#ede9fe',
+                color: '#5b21b6',
                 padding: '8px 14px',
                 borderRadius: '999px',
-                fontSize: '13px',
+                fontSize: '12px',
+                fontWeight: 800,
                 marginBottom: '14px'
               }}
             >
               Onboarding Helper
             </div>
-            <h1 style={{ margin: 0, fontSize: '38px' }}>Add a New Meta Client</h1>
+            <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900 }}>Add a New Client</h1>
             <p style={{ marginTop: '10px', color: '#6b7280' }}>
-              Pick a portfolio, inspect its ad accounts, and generate the client config snippet.
+              Inspect Meta portfolio accounts and generate a clean client config snippet.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div>
             <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
               Back to Dashboard
             </button>
@@ -129,15 +148,17 @@ export default function OnboardingHelper({ setView }) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1.2fr',
+            gridTemplateColumns: '0.95fr 1.25fr',
             gap: '20px'
           }}
         >
           <div style={cardStyle()}>
-            <h3 style={{ marginTop: 0 }}>Setup</h3>
+            <h3 style={{ marginTop: 0, fontSize: '20px', fontWeight: 800 }}>Client Setup</h3>
 
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Portfolio</div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+                Portfolio
+              </div>
               <select value={businessKey} onChange={(e) => setBusinessKey(e.target.value)} style={inputStyle()}>
                 <option value="PWP_MAIN">PWP_MAIN</option>
                 <option value="PWP_SECOND">PWP_SECOND</option>
@@ -145,28 +166,45 @@ export default function OnboardingHelper({ setView }) {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Client Name</div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+                Client Name
+              </div>
               <input value={clientName} onChange={(e) => setClientName(e.target.value)} style={inputStyle()} placeholder="Calistra" />
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Client Slug</div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+                Client Slug
+              </div>
               <input value={clientSlug} onChange={(e) => setClientSlug(e.target.value)} style={inputStyle()} placeholder="calistrafitness" />
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Meta Match Value</div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+                Meta Match Value
+              </div>
               <input value={matchValue} onChange={(e) => setMatchValue(e.target.value)} style={inputStyle()} placeholder="calistra" />
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
-              <input
-                type="checkbox"
-                checked={googleEnabled}
-                onChange={(e) => setGoogleEnabled(e.target.checked)}
-              />
-              This client also uses Google Ads
-            </label>
+            <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
+                <input
+                  type="checkbox"
+                  checked={googleEnabled}
+                  onChange={(e) => setGoogleEnabled(e.target.checked)}
+                />
+                Client also uses Google Ads
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px' }}>
+                <input
+                  type="checkbox"
+                  checked={snapEnabled}
+                  onChange={(e) => setSnapEnabled(e.target.checked)}
+                />
+                Client also uses Snapchat
+              </label>
+            </div>
 
             {error ? (
               <div style={{ marginTop: '16px', color: 'crimson', whiteSpace: 'pre-wrap' }}>
@@ -176,7 +214,7 @@ export default function OnboardingHelper({ setView }) {
           </div>
 
           <div style={cardStyle()}>
-            <h3 style={{ marginTop: 0 }}>Available Meta Ad Accounts</h3>
+            <h3 style={{ marginTop: 0, fontSize: '20px', fontWeight: 800 }}>Available Meta Ad Accounts</h3>
 
             {loading ? (
               <div>Loading accounts...</div>
@@ -190,10 +228,11 @@ export default function OnboardingHelper({ setView }) {
                     style={{
                       border: '1px solid #e5e7eb',
                       borderRadius: '16px',
-                      padding: '14px'
+                      padding: '14px',
+                      background: '#fff'
                     }}
                   >
-                    <div style={{ fontWeight: 700 }}>{account.name}</div>
+                    <div style={{ fontWeight: 800 }}>{account.name}</div>
                     <div style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>
                       Account ID: {account.account_id || account.id}
                     </div>
@@ -220,19 +259,20 @@ export default function OnboardingHelper({ setView }) {
               </div>
             )}
 
-            <h3>Generated Client Config</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Generated Client Config</h3>
             <textarea
               readOnly
               value={generatedSnippet}
               style={{
                 width: '100%',
-                minHeight: '280px',
+                minHeight: '300px',
                 borderRadius: '16px',
                 border: '1px solid #d1d5db',
                 padding: '16px',
                 fontFamily: 'monospace',
                 fontSize: '13px',
-                resize: 'vertical'
+                resize: 'vertical',
+                background: '#fcfcfd'
               }}
             />
             <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '10px' }}>
