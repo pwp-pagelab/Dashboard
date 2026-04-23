@@ -1,228 +1,91 @@
-export default async function handler(req, res) {
-  const metaAccessToken = process.env.META_ACCESS_TOKEN
-  const metaAdAccountId = process.env.META_AD_ACCOUNT_ID
+import { clients, getClientById } from '../data/clients.js'
+import { getMetaData } from '../lib/meta.js'
+import { getGoogleAdsData } from '../lib/googleAds.js'
 
-  const googleDeveloperToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN
-  const googleClientId = process.env.GOOGLE_ADS_CLIENT_ID
-  const googleClientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET
-  const googleRefreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN
-  const googleCustomerIdRaw = process.env.GOOGLE_ADS_CUSTOMER_ID
-  const googleLoginCustomerIdRaw = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID || ''
+function mapRangeToMeta(range) {
+  if (range === '7d') return 'last_7d'
+  if (range === 'this_month') return 'this_month'
+  return 'last_30d'
+}
+
+function mapRangeToGoogle(range) {
+  if (range === '7d') return 'LAST_7_DAYS'
+  if (range === 'this_month') return 'THIS_MONTH'
+  return 'LAST_30_DAYS'
+}
+
+export default async function handler(req, res) {
+  const clientId = req.query.client || 'rimiya'
+  const platformFilter = req.query.platform || 'all'
+  const range = req.query.range || '30d'
+
+  const client = getClientById(clientId)
+
+  if (!client) {
+    return res.status(404).json({
+      ok: false,
+      error: 'Client not found',
+      availableClients: clients.map((c) => ({ id: c.id, name: c.name }))
+    })
+  }
 
   try {
-    // ---------- META ----------
-    let meta = {
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      ctr: 0,
-      cpc: 0,
-      name: 'Meta'
+    const rows = []
+
+    if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
+      const metaRow = await getMetaData({ datePreset: mapRangeToMeta(range) })
+      if (metaRow) rows.push(metaRow)
     }
 
-    if (metaAccessToken && metaAdAccountId) {
-      const token = String(metaAccessToken).trim()
-      const accountId = String(metaAdAccountId).replace(/^act_/, '')
-      const accountPath = `act_${accountId}`
-
-      const metaFields = ['account_name', 'spend', 'impressions', 'clicks', 'ctr', 'cpc'].join(',')
-
-      const metaUrl =
-        `https://graph.facebook.com/v19.0/${accountPath}/insights` +
-        `?date_preset=last_30d` +
-        `&level=account` +
-        `&fields=${encodeURIComponent(metaFields)}` +
-        `&access_token=${encodeURIComponent(token)}`
-
-      const metaResp = await fetch(metaUrl)
-      const metaData = await metaResp.json()
-
-      if (!metaResp.ok) {
-        return res.status(metaResp.status).json({
-          ok: false,
-          stage: 'meta_insights',
-          metaError: metaData
-        })
-      }
-
-      const row = metaData?.data?.[0]
-      if (row) {
-        meta = {
-          spend: Number(row.spend || 0),
-          impressions: Number(row.impressions || 0),
-          clicks: Number(row.clicks || 0),
-          ctr: Number(row.ctr || 0),
-          cpc: Number(row.cpc || 0),
-          name: row.account_name || 'Meta'
-        }
-      }
+    if ((platformFilter === 'all' || platformFilter === 'google') && client.platforms.google?.enabled) {
+      const googleRow = await getGoogleAdsData({ dateRange: mapRangeToGoogle(range) })
+      if (googleRow) rows.push(googleRow)
     }
 
-    // ---------- GOOGLE ADS ----------
-    let google = {
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      ctr: 0,
-      cpc: 0,
-      conversions: 0,
-      name: 'Google Ads'
-    }
-
-    if (
-      googleDeveloperToken &&
-      googleClientId &&
-      googleClientSecret &&
-      googleRefreshToken &&
-      googleCustomerIdRaw
-    ) {
-      const customerId = String(googleCustomerIdRaw).replace(/-/g, '').trim()
-      const loginCustomerId = String(googleLoginCustomerIdRaw).replace(/-/g, '').trim()
-
-      const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: googleClientId,
-          client_secret: googleClientSecret,
-          refresh_token: googleRefreshToken,
-          grant_type: 'refresh_token'
-        })
-      })
-
-      const tokenText = await tokenResp.text()
-      let tokenData
-
-      try {
-        tokenData = JSON.parse(tokenText)
-      } catch {
-        return res.status(500).json({
-          ok: false,
-          stage: 'google_oauth_non_json',
-          snippet: tokenText.slice(0, 500)
-        })
-      }
-
-      if (!tokenResp.ok || !tokenData.access_token) {
-        return res.status(401).json({
-          ok: false,
-          stage: 'google_oauth',
-          googleError: tokenData
-        })
-      }
-
-      const query = `
-        SELECT
-          customer.descriptive_name,
-          metrics.impressions,
-          metrics.clicks,
-          metrics.ctr,
-          metrics.average_cpc,
-          metrics.cost_micros,
-          metrics.conversions
-        FROM customer
-        WHERE segments.date DURING LAST_30_DAYS
-      `.trim()
-
-      const headers = {
-        Authorization: `Bearer ${tokenData.access_token}`,
-        'developer-token': googleDeveloperToken,
-        'Content-Type': 'application/json'
-      }
-
-      if (loginCustomerId) {
-        headers['login-customer-id'] = loginCustomerId
-      }
-
-      const googleResp = await fetch(
-        `https://googleads.googleapis.com/v24/customers/${customerId}/googleAds:searchStream`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ query })
-        }
-      )
-
-      const googleText = await googleResp.text()
-      let googleData
-
-      try {
-        googleData = JSON.parse(googleText)
-      } catch {
-        return res.status(500).json({
-          ok: false,
-          stage: 'google_ads_non_json',
-          snippet: googleText.slice(0, 500)
-        })
-      }
-
-      if (!googleResp.ok) {
-        return res.status(400).json({
-          ok: false,
-          stage: 'google_ads',
-          googleError: googleData
-        })
-      }
-
-      const firstBatch = googleData?.[0]
-      const firstRow = firstBatch?.results?.[0]
-      const metrics = firstRow?.metrics
-      const customer = firstRow?.customer
-
-      if (metrics) {
-        google = {
-          spend: Number(metrics.costMicros || 0) / 1_000_000,
-          impressions: Number(metrics.impressions || 0),
-          clicks: Number(metrics.clicks || 0),
-          ctr: Number(metrics.ctr || 0) * 100,
-          cpc: Number(metrics.averageCpc || 0) / 1_000_000,
-          conversions: Number(metrics.conversions || 0),
-          name: customer?.descriptiveName || 'Google Ads'
-        }
-      }
-    }
-
-    const totalSpend = meta.spend + google.spend
-    const totalImpressions = meta.impressions + google.impressions
-    const totalClicks = meta.clicks + google.clicks
+    const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
+    const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
+    const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
+    const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
     const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
 
     return res.status(200).json({
       updatedAt: new Date().toISOString(),
+      client: {
+        id: client.id,
+        name: client.name
+      },
+      filters: {
+        client: clientId,
+        platform: platformFilter,
+        range
+      },
+      availableClients: clients.map((c) => ({ id: c.id, name: c.name })),
+      availablePlatforms: Object.entries(client.platforms)
+        .filter(([, config]) => config?.enabled)
+        .map(([key]) => key),
       summaryCards: [
         { label: 'Total Spend', value: `SAR ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
         { label: 'Impressions', value: totalImpressions.toLocaleString() },
         { label: 'Clicks', value: totalClicks.toLocaleString() },
         { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
-        { label: 'Meta Spend', value: `SAR ${meta.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
-        { label: 'Google Spend', value: `SAR ${google.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}` }
+        { label: 'Conversions', value: totalConversions.toLocaleString() },
+        { label: 'Platforms Active', value: rows.length.toString() }
       ],
-      campaignRows: [
-        {
-          platform: 'Meta',
-          campaign: meta.name,
-          spend: `SAR ${meta.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-          clicks: meta.clicks.toLocaleString(),
-          conversions: 'N/A'
-        },
-        {
-          platform: 'Google Ads',
-          campaign: google.name,
-          spend: `SAR ${google.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-          clicks: google.clicks.toLocaleString(),
-          conversions: google.conversions.toLocaleString()
+      campaignRows: rows.map((row) => ({
+        platform: row.platform,
+        campaign: row.campaign,
+        spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+        clicks: row.clicks.toLocaleString(),
+        conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
+      })),
+      platformSplit: rows.reduce((acc, row) => {
+        const key = row.platform.toLowerCase().replace(/\s+/g, '_')
+        acc[key] = {
+          spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
         }
-      ],
-      platformSplit: {
-        meta: {
-          spend: `SAR ${meta.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-          conversions: 'N/A'
-        },
-        google: {
-          spend: `SAR ${google.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-          conversions: google.conversions.toLocaleString()
-        }
-      }
+        return acc
+      }, {})
     })
   } catch (error) {
     return res.status(500).json({
