@@ -1,6 +1,7 @@
 import { clients, getClientById } from '../data/clients.js'
 import { getMetaData } from '../lib/meta.js'
 import { getGoogleAdsData } from '../lib/googleAds.js'
+import { getSnapchatData } from '../lib/snapchat.js'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -78,7 +79,13 @@ export default async function handler(req, res) {
       const googleRow = await getGoogleAdsData(rangeConfig.google)
       if (googleRow) rows.push(googleRow)
     }
-
+    if ((platformFilter === 'all' || platformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
+      const snapRow = await getSnapchatData({
+        clientId,
+        range
+      })
+      if (snapRow) rows.push(snapRow)
+    }
     const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
     const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
     const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
