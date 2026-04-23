@@ -16,9 +16,21 @@ function SectionCard({ title, children }) {
   )
 }
 
-function ReportView({ data, client, platform, range, setView }) {
-  const summaryCards = data.summaryCards || []
-  const campaignRows = data.campaignRows || []
+function buttonStyle(primary = false) {
+  return {
+    padding: '12px 18px',
+    borderRadius: '14px',
+    border: primary ? 'none' : '1px solid #ddd',
+    background: primary ? '#1f2937' : '#fff',
+    color: primary ? '#fff' : '#1f2937',
+    fontWeight: 600,
+    cursor: 'pointer'
+  }
+}
+
+function ReportView({ data, platform, range, setView }) {
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
 
   return (
     <div
@@ -31,7 +43,7 @@ function ReportView({ data, client, platform, range, setView }) {
     >
       <style>{`
         @media print {
-          button, .no-print {
+          .no-print {
             display: none !important;
           }
           body {
@@ -41,26 +53,21 @@ function ReportView({ data, client, platform, range, setView }) {
       `}</style>
 
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-          <button
-            onClick={() => setView('dashboard')}
-            style={{ padding: '12px 18px', borderRadius: '12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-          >
+        <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
             Back to Dashboard
           </button>
-          <button
-            onClick={() => window.print()}
-            style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', background: '#1f2937', color: '#fff', cursor: 'pointer' }}
-          >
+          <button onClick={() => window.print()} style={buttonStyle(true)}>
             Export PDF
           </button>
         </div>
 
         <div style={{ marginBottom: '28px' }}>
           <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>Client Report</div>
-          <h1 style={{ margin: 0, fontSize: '38px' }}>{data.client?.name || 'Report'}</h1>
+          <h1 style={{ margin: 0, fontSize: '38px' }}>{data?.client?.name || 'Report'}</h1>
           <p style={{ color: '#6b7280', marginTop: '10px' }}>
-            Platform: {platform} · Range: {range} · Generated: {new Date(data.updatedAt).toLocaleString()}
+            Platform: {platform} · Range: {range} · Generated:{' '}
+            {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
           </p>
         </div>
 
@@ -73,7 +80,14 @@ function ReportView({ data, client, platform, range, setView }) {
           }}
         >
           {summaryCards.map((card) => (
-            <div key={card.label} style={{ border: '1px solid #e5e7eb', borderRadius: '18px', padding: '18px' }}>
+            <div
+              key={card.label}
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: '18px',
+                padding: '18px'
+              }}
+            >
               <div style={{ fontSize: '14px', color: '#6b7280' }}>{card.label}</div>
               <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px' }}>{card.value}</div>
             </div>
@@ -93,15 +107,23 @@ function ReportView({ data, client, platform, range, setView }) {
                 </tr>
               </thead>
               <tbody>
-                {campaignRows.map((row, index) => (
-                  <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '14px 8px' }}>{row.platform}</td>
-                    <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
-                    <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                    <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                    <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                {campaignRows.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '16px 8px', color: '#6b7280' }}>
+                      No data available for this report.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  campaignRows.map((row, index) => (
+                    <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '14px 8px' }}>{row.platform}</td>
+                      <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.spend}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -134,7 +156,14 @@ export default function App() {
         })
 
         const res = await fetch(`/api/dashboard?${params.toString()}`)
-        const json = await res.json()
+        const text = await res.text()
+
+        let json
+        try {
+          json = JSON.parse(text)
+        } catch {
+          throw new Error(text.slice(0, 300) || 'Server returned non-JSON response')
+        }
 
         if (!res.ok) {
           throw new Error(json.error || 'Failed to load dashboard data')
@@ -142,6 +171,7 @@ export default function App() {
 
         setData(json)
       } catch (err) {
+        setData(null)
         setError(err.message || 'Something went wrong')
       } finally {
         setLoading(false)
@@ -151,8 +181,14 @@ export default function App() {
     loadDashboard()
   }, [client, platform, range])
 
-  const availableClients = useMemo(() => data?.availableClients || [], [data])
-  const availablePlatforms = useMemo(() => ['all', ...(data?.availablePlatforms || [])], [data])
+  const availableClients = useMemo(() => {
+    return Array.isArray(data?.availableClients) ? data.availableClients : []
+  }, [data])
+
+  const availablePlatforms = useMemo(() => {
+    const platforms = Array.isArray(data?.availablePlatforms) ? data.availablePlatforms : []
+    return ['all', ...platforms]
+  }, [data])
 
   if (loading) {
     return <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>Loading dashboard...</div>
@@ -160,7 +196,7 @@ export default function App() {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: 'crimson' }}>
+      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: 'crimson', whiteSpace: 'pre-wrap' }}>
         Error: {error}
       </div>
     )
@@ -178,7 +214,6 @@ export default function App() {
     return (
       <ReportView
         data={data}
-        client={client}
         platform={platform}
         range={range}
         setView={setView}
@@ -186,9 +221,12 @@ export default function App() {
     )
   }
 
-  const summaryCards = data.summaryCards || []
-  const campaignRows = data.campaignRows || []
-  const platformSplit = data.platformSplit || {}
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
+  const platformSplit =
+    data?.platformSplit && typeof data.platformSplit === 'object' && !Array.isArray(data.platformSplit)
+      ? data.platformSplit
+      : {}
 
   return (
     <div
@@ -224,7 +262,7 @@ export default function App() {
               Paid Media Dashboard
             </div>
             <h1 style={{ margin: 0, fontSize: '40px', lineHeight: 1.1 }}>
-              {data.client?.name || 'Dashboard'}
+              {data?.client?.name || 'Dashboard'}
             </h1>
             <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '16px' }}>
               Multi-client paid media reporting with platform and date filtering.
@@ -250,7 +288,7 @@ export default function App() {
             >
               <div style={{ fontSize: '13px', color: '#6b7280' }}>Last Updated</div>
               <div style={{ marginTop: '6px', fontWeight: 700 }}>
-                {data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
               </div>
             </div>
 
@@ -281,16 +319,26 @@ export default function App() {
         >
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Client</div>
-            <select value={client} onChange={(e) => setClient(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+            <select
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
+            >
               {availableClients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Platform</div>
-            <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+            <select
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
+            >
               {availablePlatforms.map((p) => (
                 <option key={p} value={p}>
                   {p === 'all' ? 'All Platforms' : p}
@@ -301,7 +349,11 @@ export default function App() {
 
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Date Range</div>
-            <select value={range} onChange={(e) => setRange(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+            <select
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
+            >
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
               <option value="this_month">This Month</option>
@@ -390,10 +442,10 @@ export default function App() {
                       {key.replace(/_/g, ' ')}
                     </div>
                     <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>
-                      {value.spend}
+                      {value?.spend || 'N/A'}
                     </div>
                     <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>
-                      {value.conversions} conversions
+                      {value?.conversions ?? 'N/A'} conversions
                     </div>
                   </div>
                 ))
