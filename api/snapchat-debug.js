@@ -42,7 +42,6 @@ export default async function handler(req, res) {
   try {
     const accessToken = await getSnapAccessToken()
 
-    // Mode 1: list all orgs + ad accounts
     if (!organizationId) {
       const response = await fetch(
         'https://adsapi.snapchat.com/v1/me/organizations?with_ad_accounts=true',
@@ -81,7 +80,6 @@ export default async function handler(req, res) {
       })
     }
 
-    // Mode 2: list ad accounts for one org
     const response = await fetch(
       `https://adsapi.snapchat.com/v1/organizations/${organizationId}/adaccounts`,
       {
