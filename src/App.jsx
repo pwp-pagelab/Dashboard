@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import OnboardingHelper from './OnboardingHelper.jsx'
 
 function SectionCard({ title, children }) {
   return (
@@ -33,14 +34,7 @@ function ReportView({ data, platform, range, setView }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#ffffff',
-        color: '#1f2937',
-        padding: '32px'
-      }}
-    >
+    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#1f2937', padding: '32px' }}>
       <style>{`
         @media print {
           .no-print {
@@ -80,14 +74,7 @@ function ReportView({ data, platform, range, setView }) {
           }}
         >
           {summaryCards.map((card) => (
-            <div
-              key={card.label}
-              style={{
-                border: '1px solid #e5e7eb',
-                borderRadius: '18px',
-                padding: '18px'
-              }}
-            >
+            <div key={card.label} style={{ border: '1px solid #e5e7eb', borderRadius: '18px', padding: '18px' }}>
               <div style={{ fontSize: '14px', color: '#6b7280' }}>{card.label}</div>
               <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px' }}>{card.value}</div>
             </div>
@@ -144,6 +131,8 @@ export default function App() {
   const [view, setView] = useState('dashboard')
 
   useEffect(() => {
+    if (view !== 'dashboard' && view !== 'report') return
+
     async function loadDashboard() {
       try {
         setLoading(true)
@@ -179,7 +168,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range])
+  }, [client, platform, range, view])
 
   const availableClients = useMemo(() => {
     return Array.isArray(data?.availableClients) ? data.availableClients : []
@@ -189,6 +178,10 @@ export default function App() {
     const platforms = Array.isArray(data?.availablePlatforms) ? data.availablePlatforms : []
     return ['all', ...platforms]
   }, [data])
+
+  if (view === 'onboarding') {
+    return <OnboardingHelper setView={setView} />
+  }
 
   if (loading) {
     return <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>Loading dashboard...</div>
@@ -211,14 +204,7 @@ export default function App() {
   }
 
   if (view === 'report') {
-    return (
-      <ReportView
-        data={data}
-        platform={platform}
-        range={range}
-        setView={setView}
-      />
-    )
+    return <ReportView data={data} platform={platform} range={range} setView={setView} />
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -269,14 +255,7 @@ export default function App() {
             </p>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap',
-              alignItems: 'stretch'
-            }}
-          >
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'stretch' }}>
             <div
               style={{
                 background: '#ffffff',
@@ -292,19 +271,12 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={() => setView('report')}
-              style={{
-                padding: '14px 20px',
-                borderRadius: '18px',
-                border: 'none',
-                background: '#1f2937',
-                color: '#fff',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
+            <button onClick={() => setView('report')} style={buttonStyle(false)}>
               Open Report View
+            </button>
+
+            <button onClick={() => setView('onboarding')} style={buttonStyle(true)}>
+              Onboarding Helper
             </button>
           </div>
         </div>
@@ -319,11 +291,7 @@ export default function App() {
         >
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Client</div>
-            <select
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
-            >
+            <select value={client} onChange={(e) => setClient(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
               {availableClients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -334,11 +302,7 @@ export default function App() {
 
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Platform</div>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
-            >
+            <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
               {availablePlatforms.map((p) => (
                 <option key={p} value={p}>
                   {p === 'all' ? 'All Platforms' : p}
@@ -349,11 +313,7 @@ export default function App() {
 
           <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Date Range</div>
-            <select
-              value={range}
-              onChange={(e) => setRange(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '10px' }}
-            >
+            <select value={range} onChange={(e) => setRange(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
               <option value="this_month">This Month</option>
