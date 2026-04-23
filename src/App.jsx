@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 function SectionCard({ title, children }) {
   return (
@@ -16,6 +16,101 @@ function SectionCard({ title, children }) {
   )
 }
 
+function ReportView({ data, client, platform, range, setView }) {
+  const summaryCards = data.summaryCards || []
+  const campaignRows = data.campaignRows || []
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#ffffff',
+        color: '#1f2937',
+        padding: '32px'
+      }}
+    >
+      <style>{`
+        @media print {
+          button, .no-print {
+            display: none !important;
+          }
+          body {
+            background: white !important;
+          }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+          <button
+            onClick={() => setView('dashboard')}
+            style={{ padding: '12px 18px', borderRadius: '12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+          >
+            Back to Dashboard
+          </button>
+          <button
+            onClick={() => window.print()}
+            style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', background: '#1f2937', color: '#fff', cursor: 'pointer' }}
+          >
+            Export PDF
+          </button>
+        </div>
+
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>Client Report</div>
+          <h1 style={{ margin: 0, fontSize: '38px' }}>{data.client?.name || 'Report'}</h1>
+          <p style={{ color: '#6b7280', marginTop: '10px' }}>
+            Platform: {platform} · Range: {range} · Generated: {new Date(data.updatedAt).toLocaleString()}
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '16px',
+            marginBottom: '28px'
+          }}
+        >
+          {summaryCards.map((card) => (
+            <div key={card.label} style={{ border: '1px solid #e5e7eb', borderRadius: '18px', padding: '18px' }}>
+              <div style={{ fontSize: '14px', color: '#6b7280' }}>{card.label}</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px' }}>{card.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <SectionCard title="Performance Breakdown">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                  <th style={{ padding: '12px 8px' }}>Platform</th>
+                  <th style={{ padding: '12px 8px' }}>Campaign</th>
+                  <th style={{ padding: '12px 8px' }}>Spend</th>
+                  <th style={{ padding: '12px 8px' }}>Clicks</th>
+                  <th style={{ padding: '12px 8px' }}>Conversions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaignRows.map((row, index) => (
+                  <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '14px 8px' }}>{row.platform}</td>
+                    <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
+                    <td style={{ padding: '14px 8px' }}>{row.spend}</td>
+                    <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                    <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -24,6 +119,7 @@ export default function App() {
   const [client, setClient] = useState('rimiya')
   const [platform, setPlatform] = useState('all')
   const [range, setRange] = useState('30d')
+  const [view, setView] = useState('dashboard')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -55,6 +151,9 @@ export default function App() {
     loadDashboard()
   }, [client, platform, range])
 
+  const availableClients = useMemo(() => data?.availableClients || [], [data])
+  const availablePlatforms = useMemo(() => ['all', ...(data?.availablePlatforms || [])], [data])
+
   if (loading) {
     return <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>Loading dashboard...</div>
   }
@@ -75,8 +174,18 @@ export default function App() {
     )
   }
 
-  const availableClients = data.availableClients || []
-  const availablePlatforms = ['all', ...(data.availablePlatforms || [])]
+  if (view === 'report') {
+    return (
+      <ReportView
+        data={data}
+        client={client}
+        platform={platform}
+        range={range}
+        setView={setView}
+      />
+    )
+  }
+
   const summaryCards = data.summaryCards || []
   const campaignRows = data.campaignRows || []
   const platformSplit = data.platformSplit || {}
@@ -124,17 +233,41 @@ export default function App() {
 
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: '18px',
-              padding: '14px 18px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-              minWidth: '260px'
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'stretch'
             }}
           >
-            <div style={{ fontSize: '13px', color: '#6b7280' }}>Last Updated</div>
-            <div style={{ marginTop: '6px', fontWeight: 700 }}>
-              {data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '18px',
+                padding: '14px 18px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+                minWidth: '260px'
+              }}
+            >
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>Last Updated</div>
+              <div style={{ marginTop: '6px', fontWeight: 700 }}>
+                {data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+              </div>
             </div>
+
+            <button
+              onClick={() => setView('report')}
+              style={{
+                padding: '14px 20px',
+                borderRadius: '18px',
+                border: 'none',
+                background: '#1f2937',
+                color: '#fff',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Open Report View
+            </button>
           </div>
         </div>
 
@@ -172,6 +305,7 @@ export default function App() {
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
               <option value="this_month">This Month</option>
+              <option value="max">Maximum</option>
             </select>
           </div>
         </div>
