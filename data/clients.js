@@ -7,6 +7,7 @@ export const clients = [
       type: 'includes',
       value: 'Rimiya'
     },
+    snapMatch: null,
     platforms: {
       meta: { enabled: true },
       google: { enabled: true },
@@ -22,11 +23,15 @@ export const clients = [
       type: 'includes',
       value: 'calistra'
     },
+    snapMatch: {
+      type: 'includes',
+      value: 'Calistra'
+    },
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
       tiktok: { enabled: false },
-      snapchat: { enabled: false }
+      snapchat: { enabled: true }
     }
   },
   {
@@ -37,6 +42,7 @@ export const clients = [
       type: 'includes',
       value: 'PWP'
     },
+    snapMatch: null,
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
