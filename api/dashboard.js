@@ -2,16 +2,43 @@ import { clients, getClientById } from '../data/clients.js'
 import { getMetaData } from '../lib/meta.js'
 import { getGoogleAdsData } from '../lib/googleAds.js'
 
-function mapRangeToMeta(range) {
-  if (range === '7d') return 'last_7d'
-  if (range === 'this_month') return 'this_month'
-  return 'last_30d'
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
 }
 
-function mapRangeToGoogle(range) {
-  if (range === '7d') return 'LAST_7_DAYS'
-  if (range === 'this_month') return 'THIS_MONTH'
-  return 'LAST_30_DAYS'
+function getRangeConfig(range) {
+  if (range === '7d') {
+    return {
+      meta: { datePreset: 'last_7d', timeRange: null },
+      google: { dateRange: 'LAST_7_DAYS', startDate: null, endDate: null }
+    }
+  }
+
+  if (range === 'this_month') {
+    return {
+      meta: { datePreset: 'this_month', timeRange: null },
+      google: { dateRange: 'THIS_MONTH', startDate: null, endDate: null }
+    }
+  }
+
+  if (range === 'max') {
+    return {
+      meta: {
+        datePreset: null,
+        timeRange: { since: '2000-01-01', until: todayISO() }
+      },
+      google: {
+        dateRange: null,
+        startDate: '2000-01-01',
+        endDate: todayISO()
+      }
+    }
+  }
+
+  return {
+    meta: { datePreset: 'last_30d', timeRange: null },
+    google: { dateRange: 'LAST_30_DAYS', startDate: null, endDate: null }
+  }
 }
 
 export default async function handler(req, res) {
@@ -31,14 +58,15 @@ export default async function handler(req, res) {
 
   try {
     const rows = []
+    const rangeConfig = getRangeConfig(range)
 
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
-      const metaRow = await getMetaData({ datePreset: mapRangeToMeta(range) })
+      const metaRow = await getMetaData(rangeConfig.meta)
       if (metaRow) rows.push(metaRow)
     }
 
     if ((platformFilter === 'all' || platformFilter === 'google') && client.platforms.google?.enabled) {
-      const googleRow = await getGoogleAdsData({ dateRange: mapRangeToGoogle(range) })
+      const googleRow = await getGoogleAdsData(rangeConfig.google)
       if (googleRow) rows.push(googleRow)
     }
 
