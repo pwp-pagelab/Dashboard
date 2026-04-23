@@ -67,7 +67,7 @@ export default async function handler(req, res) {
     const rangeConfig = getRangeConfig(range)
 
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
-      const metaRow = await getMetaData(clientId,rangeConfig.meta)
+      const metaRow = await getMetaData(clientId,...rangeConfig.meta)})
       if (metaRow) rows.push(metaRow)
     }
 
