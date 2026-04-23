@@ -11,8 +11,7 @@ function navItemStyle(active) {
     background: active ? '#eef3ff' : 'transparent',
     color: active ? '#1d4ed8' : '#4b5563',
     fontWeight: active ? 800 : 600,
-    borderLeft: active ? '4px solid #2563eb' : '4px solid transparent',
-    cursor: 'pointer'
+    borderLeft: active ? '4px solid #2563eb' : '4px solid transparent'
   }
 }
 
@@ -25,14 +24,12 @@ function cardStyle() {
   }
 }
 
-function metricCardStyle(accent = '#2563eb') {
+function metricCardStyle(accent) {
   return {
     ...cardStyle(),
     padding: '18px',
     minHeight: '112px',
-    position: 'relative',
-    overflow: 'hidden',
-    borderBottom: `4px solid ${accent}`
+    borderBottom: `4px solid ${accent || '#2563eb'}`
   }
 }
 
@@ -94,7 +91,7 @@ function PlatformBadge({ label }) {
         padding: '6px 10px',
         borderRadius: '999px',
         background: bg,
-        color,
+        color: color,
         fontSize: '12px',
         fontWeight: 800
       }}
@@ -104,25 +101,13 @@ function PlatformBadge({ label }) {
   )
 }
 
-function SectionTitle({ title, subtitle, right }) {
+function SectionTitle({ title, subtitle }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: '12px',
-        flexWrap: 'wrap',
-        marginBottom: '18px'
-      }}
-    >
-      <div>
-        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>{title}</h3>
-        {subtitle ? (
-          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>{subtitle}</p>
-        ) : null}
-      </div>
-      {right}
+    <div style={{ marginBottom: '18px' }}>
+      <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>{title}</h3>
+      {subtitle ? (
+        <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>{subtitle}</p>
+      ) : null}
     </div>
   )
 }
@@ -147,17 +132,14 @@ function EmptyState({ text }) {
 function ReportView({ data, platform, range, setView }) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
+  const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb']
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '28px', color: '#111827' }}>
       <style>{`
         @media print {
-          .no-print {
-            display: none !important;
-          }
-          body {
-            background: white !important;
-          }
+          .no-print { display: none !important; }
+          body { background: white !important; }
         }
       `}</style>
 
@@ -191,7 +173,7 @@ function ReportView({ data, platform, range, setView }) {
           }}
         >
           {summaryCards.map((card, i) => (
-            <div key={card.label} style={metricCardStyle(['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb'][i % 5])}>
+            <div key={card.label} style={metricCardStyle(accentColors[i % accentColors.length])}>
               <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{card.label}</div>
               <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 900, lineHeight: 1.1 }}>
                 {card.value}
@@ -201,10 +183,7 @@ function ReportView({ data, platform, range, setView }) {
         </div>
 
         <div style={panelStyle()}>
-          <SectionTitle
-            title="Performance Table"
-            subtitle="Filtered performance across active platforms."
-          />
+          <SectionTitle title="Performance Table" subtitle="Filtered performance across active platforms." />
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
@@ -343,7 +322,7 @@ export default function App() {
   const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb', '#06b6d4']
 
   return (
-    <div style={shellStyle()}>
+    <div style={{ minHeight: '100vh', background: '#f5f7fb', color: '#111827' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '100vh' }}>
         <aside
           style={{
