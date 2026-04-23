@@ -28,7 +28,18 @@ export default async function handler(req, res) {
       })
     })
 
-    const tokenData = await tokenResp.json()
+    const tokenText = await tokenResp.text()
+
+    let tokenData
+    try {
+      tokenData = JSON.parse(tokenText)
+    } catch {
+      return res.status(500).json({
+        ok: false,
+        stage: 'oauth_non_json',
+        snippet: tokenText.slice(0, 500)
+      })
+    }
 
     if (!tokenResp.ok || !tokenData.access_token) {
       return res.status(401).json({
@@ -70,10 +81,21 @@ export default async function handler(req, res) {
       }
     )
 
-    const adsData = await adsResp.json()
+    const adsText = await adsResp.text()
+
+    let adsData
+    try {
+      adsData = JSON.parse(adsText)
+    } catch {
+      return res.status(500).json({
+        ok: false,
+        stage: 'google_ads_non_json',
+        snippet: adsText.slice(0, 500)
+      })
+    }
 
     if (!adsResp.ok) {
-      return res.status(adsResp.status).json({
+      return res.status(400).json({
         ok: false,
         stage: 'google_ads',
         googleError: adsData
