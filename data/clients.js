@@ -2,7 +2,7 @@ export const clients = [
   {
     id: 'rimiya',
     name: 'Rimiya',
-    metaBusinessKey: 'PWP_MAIN',
+    metaBusinessKey: 'PWP_SECOND',
     metaMatch: {
       type: 'includes',
       value: 'Rimiya'
