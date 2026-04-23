@@ -13,6 +13,21 @@ export const clients = [
       tiktok: { enabled: false },
       snapchat: { enabled: false }
     }
+  },
+  {
+    id: 'calistrafitness',
+    name: 'Calistra',
+    metaBusinessKey: 'PWP_SECOND',
+    metaMatch: {
+      type: 'includes',
+      value: 'calistra'
+    },
+    platforms: {
+      meta: { enabled: true },
+      google: { enabled: false },
+      tiktok: { enabled: false },
+      snapchat: { enabled: false }
+    }
   }
 ]
 
