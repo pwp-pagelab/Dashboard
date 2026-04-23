@@ -21,11 +21,17 @@ function getRangeConfig(range) {
     }
   }
 
-  if (range === 'max') {
+    if (range === 'max') {
+    const today = new Date()
+    const metaStart = new Date(today)
+    metaStart.setMonth(metaStart.getMonth() - 36)
+
+    const metaStartISO = metaStart.toISOString().slice(0, 10)
+
     return {
       meta: {
         datePreset: null,
-        timeRange: { since: '2000-01-01', until: todayISO() }
+        timeRange: { since: metaStartISO, until: todayISO() }
       },
       google: {
         dateRange: null,
