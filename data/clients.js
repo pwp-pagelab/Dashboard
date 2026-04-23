@@ -30,6 +30,21 @@ export const clients = [
     }
   }
 ]
+{
+  id: 'pwp',
+  name: 'PWP',
+  metaBusinessKey: 'PWP_MAIN',
+  metaMatch: {
+    type: 'includes',
+    value: 'PWP'
+  },
+  platforms: {
+    meta: { enabled: true },
+    google: { enabled: false },
+    tiktok: { enabled: false },
+    snapchat: { enabled: false }
+  }
+}
 
 export function getClientById(clientId) {
   return clients.find((client) => client.id === clientId) || null
