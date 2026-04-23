@@ -15,3 +15,7 @@ export const clients = [
     }
   }
 ]
+
+export function getClientById(clientId) {
+  return clients.find((client) => client.id === clientId) || null
+}
