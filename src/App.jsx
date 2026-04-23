@@ -5,54 +5,74 @@ function shellStyle() {
   return {
     minHeight: '100vh',
     background:
-      'radial-gradient(circle at top left, rgba(196,181,253,0.18), transparent 25%), radial-gradient(circle at top right, rgba(251,191,36,0.12), transparent 20%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%)',
-    color: '#111827'
+      'radial-gradient(circle at top left, rgba(229,213,255,0.28), transparent 22%), radial-gradient(circle at top right, rgba(254,240,138,0.18), transparent 18%), linear-gradient(180deg, #faf7f4 0%, #f6f2ee 100%)',
+    color: '#1f1f1f'
   }
 }
 
-function glassCard() {
+function cardStyle() {
   return {
-    background: 'rgba(255,255,255,0.82)',
-    border: '1px solid rgba(229,231,235,0.9)',
-    borderRadius: '24px',
-    boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
-    backdropFilter: 'blur(10px)'
+    background: 'rgba(255,255,255,0.78)',
+    border: '1px solid rgba(231,224,217,0.95)',
+    borderRadius: '28px',
+    boxShadow: '0 18px 45px rgba(64,43,24,0.07)',
+    backdropFilter: 'blur(12px)'
   }
 }
 
 function sectionCardStyle() {
   return {
-    ...glassCard(),
-    padding: '24px'
+    ...cardStyle(),
+    padding: '26px'
   }
 }
 
 function metricCardStyle() {
   return {
-    ...glassCard(),
-    padding: '20px',
-    minHeight: '118px'
+    ...cardStyle(),
+    padding: '22px',
+    minHeight: '126px'
   }
 }
 
-function filterCardStyle() {
+function controlCardStyle() {
   return {
-    ...glassCard(),
-    padding: '16px'
+    ...cardStyle(),
+    padding: '16px 16px 18px'
   }
+}
+
+function sectionLabel(text) {
+  return (
+    <div
+      style={{
+        display: 'inline-block',
+        padding: '8px 14px',
+        borderRadius: '999px',
+        background: '#efe7ff',
+        color: '#6b46c1',
+        fontSize: '11px',
+        fontWeight: 800,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase'
+      }}
+    >
+      {text}
+    </div>
+  )
 }
 
 function buttonStyle(primary = false) {
   return {
     padding: '12px 18px',
-    borderRadius: '14px',
-    border: primary ? 'none' : '1px solid #d1d5db',
-    background: primary ? '#111827' : '#ffffff',
-    color: primary ? '#ffffff' : '#111827',
-    fontWeight: 700,
+    borderRadius: '999px',
+    border: primary ? 'none' : '1px solid #d8cec5',
+    background: primary ? '#1f1f1f' : '#ffffff',
+    color: primary ? '#ffffff' : '#1f1f1f',
+    fontWeight: 800,
     fontSize: '14px',
     cursor: 'pointer',
-    boxShadow: primary ? '0 10px 25px rgba(17,24,39,0.18)' : 'none'
+    boxShadow: primary ? '0 14px 30px rgba(31,31,31,0.18)' : 'none'
   }
 }
 
@@ -60,12 +80,47 @@ function selectStyle() {
   return {
     width: '100%',
     padding: '12px 14px',
-    borderRadius: '12px',
-    border: '1px solid #d1d5db',
+    borderRadius: '14px',
+    border: '1px solid #d8cec5',
     fontSize: '14px',
-    background: '#fff',
-    color: '#111827'
+    background: '#fffdfb',
+    color: '#1f1f1f',
+    outline: 'none'
   }
+}
+
+function PlatformBadge({ label }) {
+  const lower = String(label || '').toLowerCase()
+
+  let bg = '#f3f4f6'
+  let color = '#374151'
+
+  if (lower.includes('meta')) {
+    bg = '#eef2ff'
+    color = '#4338ca'
+  } else if (lower.includes('google')) {
+    bg = '#ecfeff'
+    color = '#0f766e'
+  } else if (lower.includes('snap')) {
+    bg = '#fef9c3'
+    color = '#92400e'
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '7px 11px',
+        borderRadius: '999px',
+        background: bg,
+        color,
+        fontSize: '12px',
+        fontWeight: 800
+      }}
+    >
+      {label}
+    </span>
+  )
 }
 
 function SectionCard({ title, subtitle, children, right }) {
@@ -82,9 +137,11 @@ function SectionCard({ title, subtitle, children, right }) {
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 900 }}>{title}</h3>
           {subtitle ? (
-            <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '14px' }}>{subtitle}</p>
+            <p style={{ margin: '7px 0 0', color: '#7a6f66', fontSize: '14px', lineHeight: 1.6 }}>
+              {subtitle}
+            </p>
           ) : null}
         </div>
         {right}
@@ -94,59 +151,12 @@ function SectionCard({ title, subtitle, children, right }) {
   )
 }
 
-function badgeStyle(label) {
-  const lower = String(label || '').toLowerCase()
-
-  if (lower.includes('meta')) {
-    return {
-      background: '#eef2ff',
-      color: '#3730a3'
-    }
-  }
-
-  if (lower.includes('google')) {
-    return {
-      background: '#ecfeff',
-      color: '#155e75'
-    }
-  }
-
-  if (lower.includes('snap')) {
-    return {
-      background: '#fef9c3',
-      color: '#854d0e'
-    }
-  }
-
-  return {
-    background: '#f3f4f6',
-    color: '#374151'
-  }
-}
-
-function PlatformBadge({ label }) {
-  return (
-    <span
-      style={{
-        ...badgeStyle(label),
-        padding: '6px 10px',
-        borderRadius: '999px',
-        fontSize: '12px',
-        fontWeight: 700,
-        display: 'inline-block'
-      }}
-    >
-      {label}
-    </span>
-  )
-}
-
 function ReportView({ data, platform, range, setView }) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
 
   return (
-    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#111827', padding: '32px' }}>
+    <div style={{ minHeight: '100vh', background: '#fbf8f5', color: '#1f1f1f', padding: '34px' }}>
       <style>{`
         @media print {
           .no-print {
@@ -158,7 +168,7 @@ function ReportView({ data, platform, range, setView }) {
         }
       `}</style>
 
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
         <div
           className="no-print"
           style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}
@@ -173,29 +183,19 @@ function ReportView({ data, platform, range, setView }) {
 
         <div
           style={{
-            borderBottom: '1px solid #e5e7eb',
+            borderBottom: '1px solid #e7e0d9',
             paddingBottom: '24px',
             marginBottom: '26px'
           }}
         >
-          <div
-            style={{
-              display: 'inline-block',
-              padding: '8px 12px',
-              borderRadius: '999px',
-              background: '#f3f4f6',
-              color: '#4b5563',
-              fontSize: '12px',
-              fontWeight: 800,
-              marginBottom: '12px'
-            }}
-          >
-            Client Performance Report
-          </div>
-          <h1 style={{ margin: 0, fontSize: '40px', fontWeight: 900 }}>
-            {data?.client?.name || 'Report'}
+          {sectionLabel('Report · تقرير')}
+          <h1 style={{ margin: '16px 0 0', fontSize: '42px', fontWeight: 900, lineHeight: 1.05 }}>
+            {data?.client?.name || 'Client Report'}
           </h1>
-          <p style={{ color: '#6b7280', marginTop: '10px', fontSize: '15px' }}>
+          <p style={{ color: '#7a6f66', marginTop: '12px', fontSize: '15px', lineHeight: 1.7 }}>
+            A branded snapshot of current paid media performance across the selected platforms and date range.
+          </p>
+          <p style={{ color: '#8a8178', marginTop: '10px', fontSize: '13px' }}>
             Platform: {platform} · Range: {range} · Generated:{' '}
             {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
           </p>
@@ -213,25 +213,28 @@ function ReportView({ data, platform, range, setView }) {
             <div
               key={card.label}
               style={{
-                border: '1px solid #e5e7eb',
-                borderRadius: '18px',
-                padding: '18px'
+                border: '1px solid #e7e0d9',
+                borderRadius: '22px',
+                padding: '18px',
+                background: '#fff'
               }}
             >
-              <div style={{ fontSize: '13px', color: '#6b7280' }}>{card.label}</div>
-              <div style={{ fontSize: '30px', fontWeight: 800, marginTop: '8px' }}>{card.value}</div>
+              <div style={{ fontSize: '12px', color: '#7a6f66', fontWeight: 700 }}>{card.label}</div>
+              <div style={{ fontSize: '31px', fontWeight: 900, marginTop: '8px', lineHeight: 1.1 }}>
+                {card.value}
+              </div>
             </div>
           ))}
         </div>
 
         <SectionCard
           title="Performance Breakdown"
-          subtitle="Summary of the selected client, platform, and date range."
+          subtitle="A clean summary of active channels and top-level totals for the selected view."
         >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e7e0d9' }}>
                   <th style={{ padding: '12px 8px' }}>Platform</th>
                   <th style={{ padding: '12px 8px' }}>Campaign</th>
                   <th style={{ padding: '12px 8px' }}>Spend</th>
@@ -242,7 +245,7 @@ function ReportView({ data, platform, range, setView }) {
               <tbody>
                 {campaignRows.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ padding: '16px 8px', color: '#6b7280' }}>
+                    <td colSpan="5" style={{ padding: '18px 8px', color: '#7a6f66' }}>
                       No data available for this report.
                     </td>
                   </tr>
@@ -250,12 +253,12 @@ function ReportView({ data, platform, range, setView }) {
                   campaignRows.map((row, index) => (
                     <tr
                       key={`${row.platform}-${row.campaign}-${index}`}
-                      style={{ borderBottom: '1px solid #f3f4f6' }}
+                      style={{ borderBottom: '1px solid #f1ece7' }}
                     >
                       <td style={{ padding: '14px 8px' }}>
                         <PlatformBadge label={row.platform} />
                       </td>
-                      <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
+                      <td style={{ padding: '14px 8px', fontWeight: 800 }}>{row.campaign}</td>
                       <td style={{ padding: '14px 8px' }}>{row.spend}</td>
                       <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
                       <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
@@ -340,14 +343,7 @@ export default function App() {
 
   if (error) {
     return (
-      <div
-        style={{
-          padding: '40px',
-          fontFamily: 'Arial, sans-serif',
-          color: 'crimson',
-          whiteSpace: 'pre-wrap'
-        }}
-      >
+      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: 'crimson', whiteSpace: 'pre-wrap' }}>
         Error: {error}
       </div>
     )
@@ -377,8 +373,8 @@ export default function App() {
       <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '32px 20px 60px' }}>
         <div
           style={{
-            ...glassCard(),
-            padding: '24px',
+            ...cardStyle(),
+            padding: '28px',
             marginBottom: '24px'
           }}
         >
@@ -391,42 +387,31 @@ export default function App() {
               flexWrap: 'wrap'
             }}
           >
-            <div>
-              <div
-                style={{
-                  display: 'inline-block',
-                  background: '#ede9fe',
-                  color: '#5b21b6',
-                  padding: '8px 14px',
-                  borderRadius: '999px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  marginBottom: '14px'
-                }}
-              >
-                Paid Media Intelligence
-              </div>
-              <h1 style={{ margin: 0, fontSize: '42px', lineHeight: 1.05, fontWeight: 900 }}>
-                {data?.client?.name || 'Dashboard'}
+            <div style={{ maxWidth: '760px' }}>
+              {sectionLabel('Performance · الأداء')}
+              <h1 style={{ margin: '18px 0 0', fontSize: '48px', lineHeight: 1.02, fontWeight: 900 }}>
+                Turning performance
+                <br />
+                into a clearer story.
               </h1>
-              <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '15px', maxWidth: '720px' }}>
-                Unified cross-platform reporting for client performance across Meta, Google Ads,
-                and Snapchat.
+              <p style={{ marginTop: '14px', color: '#7a6f66', fontSize: '15px', lineHeight: 1.8 }}>
+                A brand-aligned dashboard for following client performance across channels, filtering fast,
+                and turning active campaign data into a presentable report.
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'stretch' }}>
               <div
                 style={{
-                  background: '#ffffff',
-                  borderRadius: '18px',
-                  padding: '14px 18px',
-                  border: '1px solid #e5e7eb',
-                  minWidth: '250px'
+                  background: '#fffdfb',
+                  borderRadius: '20px',
+                  padding: '16px 18px',
+                  border: '1px solid #e7e0d9',
+                  minWidth: '255px'
                 }}
               >
-                <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 700 }}>Last Updated</div>
-                <div style={{ marginTop: '8px', fontWeight: 800, fontSize: '15px' }}>
+                <div style={{ fontSize: '12px', color: '#7a6f66', fontWeight: 800 }}>Last Updated</div>
+                <div style={{ marginTop: '8px', fontWeight: 900, fontSize: '15px' }}>
                   {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
                 </div>
               </div>
@@ -450,8 +435,8 @@ export default function App() {
             marginBottom: '24px'
           }}
         >
-          <div style={filterCardStyle()}>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+          <div style={controlCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#7a6f66', marginBottom: '8px', fontWeight: 800 }}>
               Client
             </div>
             <select value={client} onChange={(e) => setClient(e.target.value)} style={selectStyle()}>
@@ -463,8 +448,8 @@ export default function App() {
             </select>
           </div>
 
-          <div style={filterCardStyle()}>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+          <div style={controlCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#7a6f66', marginBottom: '8px', fontWeight: 800 }}>
               Platform
             </div>
             <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle()}>
@@ -476,8 +461,8 @@ export default function App() {
             </select>
           </div>
 
-          <div style={filterCardStyle()}>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+          <div style={controlCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#7a6f66', marginBottom: '8px', fontWeight: 800 }}>
               Date Range
             </div>
             <select value={range} onChange={(e) => setRange(e.target.value)} style={selectStyle()}>
@@ -499,8 +484,8 @@ export default function App() {
         >
           {summaryCards.map((card) => (
             <div key={card.label} style={metricCardStyle()}>
-              <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: 700 }}>{card.label}</div>
-              <div style={{ fontSize: '30px', fontWeight: 900, marginTop: '10px', lineHeight: 1.1 }}>
+              <div style={{ fontSize: '12px', color: '#7a6f66', fontWeight: 800 }}>{card.label}</div>
+              <div style={{ fontSize: '32px', fontWeight: 900, marginTop: '12px', lineHeight: 1.08 }}>
                 {card.value}
               </div>
             </div>
@@ -510,19 +495,19 @@ export default function App() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.5fr 0.95fr',
+            gridTemplateColumns: '1.55fr 0.95fr',
             gap: '20px',
             marginBottom: '20px'
           }}
         >
           <SectionCard
             title="Campaign / Platform Performance"
-            subtitle="Current totals for the selected client, platform, and reporting window."
+            subtitle="A clear summary of active channels for the selected client and reporting window."
           >
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e7e0d9' }}>
                     <th style={{ padding: '12px 8px' }}>Platform</th>
                     <th style={{ padding: '12px 8px' }}>Campaign</th>
                     <th style={{ padding: '12px 8px' }}>Spend</th>
@@ -533,20 +518,17 @@ export default function App() {
                 <tbody>
                   {campaignRows.length === 0 ? (
                     <tr>
-                      <td colSpan="5" style={{ padding: '18px 8px', color: '#6b7280' }}>
+                      <td colSpan="5" style={{ padding: '18px 8px', color: '#7a6f66' }}>
                         No data available for this filter selection.
                       </td>
                     </tr>
                   ) : (
                     campaignRows.map((row, index) => (
-                      <tr
-                        key={`${row.platform}-${row.campaign}-${index}`}
-                        style={{ borderBottom: '1px solid #f3f4f6' }}
-                      >
+                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece7' }}>
                         <td style={{ padding: '14px 8px' }}>
                           <PlatformBadge label={row.platform} />
                         </td>
-                        <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
+                        <td style={{ padding: '14px 8px', fontWeight: 800 }}>{row.campaign}</td>
                         <td style={{ padding: '14px 8px' }}>{row.spend}</td>
                         <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
                         <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
@@ -560,17 +542,17 @@ export default function App() {
 
           <SectionCard
             title="Platform Split"
-            subtitle="Spend and conversion view by active platform."
+            subtitle="Spend and conversion totals by active platform."
           >
             <div style={{ display: 'grid', gap: '14px' }}>
               {Object.keys(platformSplit).length === 0 ? (
                 <div
                   style={{
-                    background: '#f9fafb',
-                    borderRadius: '16px',
+                    background: '#fff',
+                    borderRadius: '18px',
                     padding: '16px',
-                    color: '#6b7280',
-                    border: '1px dashed #d1d5db'
+                    color: '#7a6f66',
+                    border: '1px dashed #d8cec5'
                   }}
                 >
                   No connected platform data for this selection.
@@ -580,19 +562,19 @@ export default function App() {
                   <div
                     key={key}
                     style={{
-                      borderRadius: '18px',
+                      borderRadius: '20px',
                       padding: '16px',
-                      border: '1px solid #e5e7eb',
-                      background: '#ffffff'
+                      border: '1px solid #e7e0d9',
+                      background: '#fffdfb'
                     }}
                   >
                     <div style={{ marginBottom: '10px' }}>
                       <PlatformBadge label={key.replace(/_/g, ' ')} />
                     </div>
-                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.1 }}>
+                    <div style={{ fontSize: '28px', fontWeight: 900, lineHeight: 1.1 }}>
                       {value?.spend || 'N/A'}
                     </div>
-                    <div style={{ marginTop: '8px', color: '#6b7280', fontSize: '13px' }}>
+                    <div style={{ marginTop: '8px', color: '#7a6f66', fontSize: '13px' }}>
                       {value?.conversions ?? 'N/A'} conversions
                     </div>
                   </div>
