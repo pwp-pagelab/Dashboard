@@ -1,32 +1,144 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import OnboardingHelper from './OnboardingHelper.jsx'
 
-function SectionCard({ title, children }) {
-  return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: '22px',
-        padding: '24px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.06)'
-      }}
-    >
-      <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '20px' }}>{title}</h3>
-      {children}
-    </div>
-  )
+function shellStyle() {
+  return {
+    minHeight: '100vh',
+    background:
+      'radial-gradient(circle at top left, rgba(196,181,253,0.18), transparent 25%), radial-gradient(circle at top right, rgba(251,191,36,0.12), transparent 20%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%)',
+    color: '#111827'
+  }
+}
+
+function glassCard() {
+  return {
+    background: 'rgba(255,255,255,0.82)',
+    border: '1px solid rgba(229,231,235,0.9)',
+    borderRadius: '24px',
+    boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
+    backdropFilter: 'blur(10px)'
+  }
+}
+
+function sectionCardStyle() {
+  return {
+    ...glassCard(),
+    padding: '24px'
+  }
+}
+
+function metricCardStyle() {
+  return {
+    ...glassCard(),
+    padding: '20px',
+    minHeight: '118px'
+  }
+}
+
+function filterCardStyle() {
+  return {
+    ...glassCard(),
+    padding: '16px'
+  }
 }
 
 function buttonStyle(primary = false) {
   return {
     padding: '12px 18px',
     borderRadius: '14px',
-    border: primary ? 'none' : '1px solid #ddd',
-    background: primary ? '#1f2937' : '#fff',
-    color: primary ? '#fff' : '#1f2937',
-    fontWeight: 600,
-    cursor: 'pointer'
+    border: primary ? 'none' : '1px solid #d1d5db',
+    background: primary ? '#111827' : '#ffffff',
+    color: primary ? '#ffffff' : '#111827',
+    fontWeight: 700,
+    fontSize: '14px',
+    cursor: 'pointer',
+    boxShadow: primary ? '0 10px 25px rgba(17,24,39,0.18)' : 'none'
   }
+}
+
+function selectStyle() {
+  return {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '12px',
+    border: '1px solid #d1d5db',
+    fontSize: '14px',
+    background: '#fff',
+    color: '#111827'
+  }
+}
+
+function SectionCard({ title, subtitle, children, right }) {
+  return (
+    <div style={sectionCardStyle()}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: '16px',
+          marginBottom: '18px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div>
+          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{title}</h3>
+          {subtitle ? (
+            <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '14px' }}>{subtitle}</p>
+          ) : null}
+        </div>
+        {right}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function badgeStyle(label) {
+  const lower = String(label || '').toLowerCase()
+
+  if (lower.includes('meta')) {
+    return {
+      background: '#eef2ff',
+      color: '#3730a3'
+    }
+  }
+
+  if (lower.includes('google')) {
+    return {
+      background: '#ecfeff',
+      color: '#155e75'
+    }
+  }
+
+  if (lower.includes('snap')) {
+    return {
+      background: '#fef9c3',
+      color: '#854d0e'
+    }
+  }
+
+  return {
+    background: '#f3f4f6',
+    color: '#374151'
+  }
+}
+
+function PlatformBadge({ label }) {
+  return (
+    <span
+      style={{
+        ...badgeStyle(label),
+        padding: '6px 10px',
+        borderRadius: '999px',
+        fontSize: '12px',
+        fontWeight: 700,
+        display: 'inline-block'
+      }}
+    >
+      {label}
+    </span>
+  )
 }
 
 function ReportView({ data, platform, range, setView }) {
@@ -34,7 +146,7 @@ function ReportView({ data, platform, range, setView }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
 
   return (
-    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#1f2937', padding: '32px' }}>
+    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#111827', padding: '32px' }}>
       <style>{`
         @media print {
           .no-print {
@@ -47,7 +159,10 @@ function ReportView({ data, platform, range, setView }) {
       `}</style>
 
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div
+          className="no-print"
+          style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}
+        >
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
             Back to Dashboard
           </button>
@@ -56,10 +171,31 @@ function ReportView({ data, platform, range, setView }) {
           </button>
         </div>
 
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>Client Report</div>
-          <h1 style={{ margin: 0, fontSize: '38px' }}>{data?.client?.name || 'Report'}</h1>
-          <p style={{ color: '#6b7280', marginTop: '10px' }}>
+        <div
+          style={{
+            borderBottom: '1px solid #e5e7eb',
+            paddingBottom: '24px',
+            marginBottom: '26px'
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-block',
+              padding: '8px 12px',
+              borderRadius: '999px',
+              background: '#f3f4f6',
+              color: '#4b5563',
+              fontSize: '12px',
+              fontWeight: 800,
+              marginBottom: '12px'
+            }}
+          >
+            Client Performance Report
+          </div>
+          <h1 style={{ margin: 0, fontSize: '40px', fontWeight: 900 }}>
+            {data?.client?.name || 'Report'}
+          </h1>
+          <p style={{ color: '#6b7280', marginTop: '10px', fontSize: '15px' }}>
             Platform: {platform} · Range: {range} · Generated:{' '}
             {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
           </p>
@@ -74,14 +210,24 @@ function ReportView({ data, platform, range, setView }) {
           }}
         >
           {summaryCards.map((card) => (
-            <div key={card.label} style={{ border: '1px solid #e5e7eb', borderRadius: '18px', padding: '18px' }}>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>{card.label}</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px' }}>{card.value}</div>
+            <div
+              key={card.label}
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: '18px',
+                padding: '18px'
+              }}
+            >
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>{card.label}</div>
+              <div style={{ fontSize: '30px', fontWeight: 800, marginTop: '8px' }}>{card.value}</div>
             </div>
           ))}
         </div>
 
-        <SectionCard title="Performance Breakdown">
+        <SectionCard
+          title="Performance Breakdown"
+          subtitle="Summary of the selected client, platform, and date range."
+        >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
@@ -102,9 +248,14 @@ function ReportView({ data, platform, range, setView }) {
                   </tr>
                 ) : (
                   campaignRows.map((row, index) => (
-                    <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '14px 8px' }}>{row.platform}</td>
-                      <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
+                    <tr
+                      key={`${row.platform}-${row.campaign}-${index}`}
+                      style={{ borderBottom: '1px solid #f3f4f6' }}
+                    >
+                      <td style={{ padding: '14px 8px' }}>
+                        <PlatformBadge label={row.platform} />
+                      </td>
+                      <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
                       <td style={{ padding: '14px 8px' }}>{row.spend}</td>
                       <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
                       <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
@@ -189,7 +340,14 @@ export default function App() {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: 'crimson', whiteSpace: 'pre-wrap' }}>
+      <div
+        style={{
+          padding: '40px',
+          fontFamily: 'Arial, sans-serif',
+          color: 'crimson',
+          whiteSpace: 'pre-wrap'
+        }}
+      >
         Error: {error}
       </div>
     )
@@ -215,83 +373,88 @@ export default function App() {
       : {}
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, #f8f7f5 0%, #f2f0ec 100%)',
-        color: '#1f2937'
-      }}
-    >
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 20px 60px' }}>
+    <div style={shellStyle()}>
+      <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '32px 20px 60px' }}>
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '20px',
-            flexWrap: 'wrap',
-            marginBottom: '28px'
+            ...glassCard(),
+            padding: '24px',
+            marginBottom: '24px'
           }}
         >
-          <div>
-            <div
-              style={{
-                display: 'inline-block',
-                background: '#ece7df',
-                color: '#6b5c4b',
-                padding: '8px 14px',
-                borderRadius: '999px',
-                fontSize: '13px',
-                marginBottom: '14px'
-              }}
-            >
-              Paid Media Dashboard
-            </div>
-            <h1 style={{ margin: 0, fontSize: '40px', lineHeight: 1.1 }}>
-              {data?.client?.name || 'Dashboard'}
-            </h1>
-            <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '16px' }}>
-              Multi-client paid media reporting with platform and date filtering.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'stretch' }}>
-            <div
-              style={{
-                background: '#ffffff',
-                borderRadius: '18px',
-                padding: '14px 18px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-                minWidth: '260px'
-              }}
-            >
-              <div style={{ fontSize: '13px', color: '#6b7280' }}>Last Updated</div>
-              <div style={{ marginTop: '6px', fontWeight: 700 }}>
-                {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '20px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'inline-block',
+                  background: '#ede9fe',
+                  color: '#5b21b6',
+                  padding: '8px 14px',
+                  borderRadius: '999px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  marginBottom: '14px'
+                }}
+              >
+                Paid Media Intelligence
               </div>
+              <h1 style={{ margin: 0, fontSize: '42px', lineHeight: 1.05, fontWeight: 900 }}>
+                {data?.client?.name || 'Dashboard'}
+              </h1>
+              <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '15px', maxWidth: '720px' }}>
+                Unified cross-platform reporting for client performance across Meta, Google Ads,
+                and Snapchat.
+              </p>
             </div>
 
-            <button onClick={() => setView('report')} style={buttonStyle(false)}>
-              Open Report View
-            </button>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'stretch' }}>
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '18px',
+                  padding: '14px 18px',
+                  border: '1px solid #e5e7eb',
+                  minWidth: '250px'
+                }}
+              >
+                <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 700 }}>Last Updated</div>
+                <div style={{ marginTop: '8px', fontWeight: 800, fontSize: '15px' }}>
+                  {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                </div>
+              </div>
 
-            <button onClick={() => setView('onboarding')} style={buttonStyle(true)}>
-              Onboarding Helper
-            </button>
+              <button onClick={() => setView('report')} style={buttonStyle(false)}>
+                Open Report View
+              </button>
+
+              <button onClick={() => setView('onboarding')} style={buttonStyle(true)}>
+                Onboarding Helper
+              </button>
+            </div>
           </div>
         </div>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '16px',
             marginBottom: '24px'
           }}
         >
-          <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Client</div>
-            <select value={client} onChange={(e) => setClient(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+          <div style={filterCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+              Client
+            </div>
+            <select value={client} onChange={(e) => setClient(e.target.value)} style={selectStyle()}>
               {availableClients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -300,9 +463,11 @@ export default function App() {
             </select>
           </div>
 
-          <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Platform</div>
-            <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+          <div style={filterCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+              Platform
+            </div>
+            <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle()}>
               {availablePlatforms.map((p) => (
                 <option key={p} value={p}>
                   {p === 'all' ? 'All Platforms' : p}
@@ -311,9 +476,11 @@ export default function App() {
             </select>
           </div>
 
-          <div style={{ background: '#fff', borderRadius: '18px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Date Range</div>
-            <select value={range} onChange={(e) => setRange(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '10px' }}>
+          <div style={filterCardStyle()}>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 700 }}>
+              Date Range
+            </div>
+            <select value={range} onChange={(e) => setRange(e.target.value)} style={selectStyle()}>
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
               <option value="this_month">This Month</option>
@@ -325,23 +492,17 @@ export default function App() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
             gap: '16px',
             marginBottom: '26px'
           }}
         >
           {summaryCards.map((card) => (
-            <div
-              key={card.label}
-              style={{
-                background: '#ffffff',
-                borderRadius: '20px',
-                padding: '20px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.06)'
-              }}
-            >
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>{card.label}</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '10px' }}>{card.value}</div>
+            <div key={card.label} style={metricCardStyle()}>
+              <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: 700 }}>{card.label}</div>
+              <div style={{ fontSize: '30px', fontWeight: 900, marginTop: '10px', lineHeight: 1.1 }}>
+                {card.value}
+              </div>
             </div>
           ))}
         </div>
@@ -349,12 +510,15 @@ export default function App() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.4fr 1fr',
+            gridTemplateColumns: '1.5fr 0.95fr',
             gap: '20px',
             marginBottom: '20px'
           }}
         >
-          <SectionCard title="Campaign / Platform Performance">
+          <SectionCard
+            title="Campaign / Platform Performance"
+            subtitle="Current totals for the selected client, platform, and reporting window."
+          >
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
@@ -369,15 +533,20 @@ export default function App() {
                 <tbody>
                   {campaignRows.length === 0 ? (
                     <tr>
-                      <td colSpan="5" style={{ padding: '16px 8px', color: '#6b7280' }}>
+                      <td colSpan="5" style={{ padding: '18px 8px', color: '#6b7280' }}>
                         No data available for this filter selection.
                       </td>
                     </tr>
                   ) : (
                     campaignRows.map((row, index) => (
-                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: '14px 8px' }}>{row.platform}</td>
-                        <td style={{ padding: '14px 8px', fontWeight: 600 }}>{row.campaign}</td>
+                      <tr
+                        key={`${row.platform}-${row.campaign}-${index}`}
+                        style={{ borderBottom: '1px solid #f3f4f6' }}
+                      >
+                        <td style={{ padding: '14px 8px' }}>
+                          <PlatformBadge label={row.platform} />
+                        </td>
+                        <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
                         <td style={{ padding: '14px 8px' }}>{row.spend}</td>
                         <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
                         <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
@@ -389,22 +558,41 @@ export default function App() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Platform Split">
+          <SectionCard
+            title="Platform Split"
+            subtitle="Spend and conversion view by active platform."
+          >
             <div style={{ display: 'grid', gap: '14px' }}>
               {Object.keys(platformSplit).length === 0 ? (
-                <div style={{ background: '#f5f5f5', borderRadius: '16px', padding: '16px', color: '#6b7280' }}>
+                <div
+                  style={{
+                    background: '#f9fafb',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    color: '#6b7280',
+                    border: '1px dashed #d1d5db'
+                  }}
+                >
                   No connected platform data for this selection.
                 </div>
               ) : (
                 Object.entries(platformSplit).map(([key, value]) => (
-                  <div key={key} style={{ background: '#f5f5f5', borderRadius: '16px', padding: '16px' }}>
-                    <div style={{ color: '#6b7280', fontSize: '13px', textTransform: 'capitalize' }}>
-                      {key.replace(/_/g, ' ')}
+                  <div
+                    key={key}
+                    style={{
+                      borderRadius: '18px',
+                      padding: '16px',
+                      border: '1px solid #e5e7eb',
+                      background: '#ffffff'
+                    }}
+                  >
+                    <div style={{ marginBottom: '10px' }}>
+                      <PlatformBadge label={key.replace(/_/g, ' ')} />
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, marginTop: '6px' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.1 }}>
                       {value?.spend || 'N/A'}
                     </div>
-                    <div style={{ marginTop: '6px', color: '#6b7280', fontSize: '13px' }}>
+                    <div style={{ marginTop: '8px', color: '#6b7280', fontSize: '13px' }}>
                       {value?.conversions ?? 'N/A'} conversions
                     </div>
                   </div>
