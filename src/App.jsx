@@ -9,7 +9,11 @@ const COLORS = {
   muted: '#6b7280',
   line: '#e7dfd2',
   softGreen: '#e8f1ee',
-  softGold: '#f8edd0'
+  softGold: '#f8edd0',
+  softRed: '#fbe9e7',
+  red: '#b42318',
+  softBlue: '#edf3ff',
+  blue: '#3559b7'
 }
 
 function navItemStyle(active) {
@@ -20,7 +24,7 @@ function navItemStyle(active) {
     padding: '12px 14px',
     borderRadius: '12px',
     background: active ? 'rgba(231,189,82,0.18)' : 'transparent',
-    color: active ? COLORS.white || '#fff' : 'rgba(255,255,255,0.82)',
+    color: active ? '#ffffff' : 'rgba(255,255,255,0.82)',
     fontWeight: active ? 800 : 600,
     borderLeft: active ? `4px solid ${COLORS.gold}` : '4px solid transparent'
   }
@@ -35,19 +39,19 @@ function cardStyle() {
   }
 }
 
-function metricCardStyle(accent) {
-  return {
-    ...cardStyle(),
-    padding: '18px',
-    minHeight: '112px',
-    borderTop: `4px solid ${accent || COLORS.gold}`
-  }
-}
-
 function panelStyle() {
   return {
     ...cardStyle(),
     padding: '22px'
+  }
+}
+
+function metricCardStyle(accent = COLORS.gold) {
+  return {
+    ...cardStyle(),
+    padding: '18px',
+    minHeight: '122px',
+    borderTop: `4px solid ${accent}`
   }
 }
 
@@ -159,8 +163,8 @@ function PlatformBadge({ label }) {
     bg = COLORS.softGold
     color = '#8a6212'
   } else if (lower.includes('meta')) {
-    bg = '#edf3ff'
-    color = '#3559b7'
+    bg = COLORS.softBlue
+    color = COLORS.blue
   }
 
   return (
@@ -180,13 +184,25 @@ function PlatformBadge({ label }) {
   )
 }
 
-function SectionTitle({ title, subtitle }) {
+function SectionTitle({ title, subtitle, right }) {
   return (
-    <div style={{ marginBottom: '18px' }}>
-      <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: COLORS.green }}>{title}</h3>
-      {subtitle ? (
-        <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px' }}>{subtitle}</p>
-      ) : null}
+    <div
+      style={{
+        marginBottom: '18px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: '14px',
+        flexWrap: 'wrap'
+      }}
+    >
+      <div>
+        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: COLORS.green }}>{title}</h3>
+        {subtitle ? (
+          <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px' }}>{subtitle}</p>
+        ) : null}
+      </div>
+      {right}
     </div>
   )
 }
@@ -206,6 +222,109 @@ function EmptyState({ text }) {
       {text}
     </div>
   )
+}
+
+function statusTone(status) {
+  if (status === 'good') {
+    return {
+      bg: COLORS.softGreen,
+      text: COLORS.green,
+      border: `1px solid rgba(10,76,62,0.14)`
+    }
+  }
+  if (status === 'warning') {
+    return {
+      bg: COLORS.softGold,
+      text: '#8a6212',
+      border: `1px solid rgba(231,189,82,0.25)`
+    }
+  }
+  return {
+    bg: COLORS.softRed,
+    text: COLORS.red,
+    border: `1px solid rgba(180,35,24,0.15)`
+  }
+}
+
+function HealthCard({ title, value, target, status = 'warning', note }) {
+  const tone = statusTone(status)
+
+  return (
+    <div style={{ ...metricCardStyle(status === 'danger' ? COLORS.red : status === 'good' ? COLORS.green : COLORS.gold) }}>
+      <div style={{ fontSize: '12px', color: '#8a8f98', fontWeight: 700 }}>{title}</div>
+      <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
+        {value}
+      </div>
+      {target ? (
+        <div style={{ marginTop: '8px', color: COLORS.muted, fontSize: '13px' }}>
+          Target: {target}
+        </div>
+      ) : null}
+      <div
+        style={{
+          display: 'inline-block',
+          marginTop: '10px',
+          padding: '6px 10px',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 800,
+          background: tone.bg,
+          color: tone.text,
+          border: tone.border
+        }}
+      >
+        {note}
+      </div>
+    </div>
+  )
+}
+
+function InsightCard({ type = 'warning', title, text, action }) {
+  const tone = statusTone(type === 'good' ? 'good' : type === 'danger' ? 'danger' : 'warning')
+
+  return (
+    <div
+      style={{
+        ...cardStyle(),
+        padding: '18px',
+        borderTop: `4px solid ${type === 'good' ? COLORS.green : type === 'danger' ? COLORS.red : COLORS.gold}`
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-block',
+          padding: '6px 10px',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 800,
+          background: tone.bg,
+          color: tone.text,
+          border: tone.border
+        }}
+      >
+        {title}
+      </div>
+      <p style={{ margin: '12px 0 0', color: COLORS.text, fontSize: '14px', lineHeight: 1.7 }}>
+        {text}
+      </p>
+      {action ? (
+        <p style={{ margin: '10px 0 0', color: COLORS.green, fontSize: '14px', lineHeight: 1.7, fontWeight: 700 }}>
+          Action: {action}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function formatSar(value) {
+  if (value == null || Number.isNaN(Number(value))) return 'N/A'
+  return `SAR ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+function parseSarString(value) {
+  if (!value) return 0
+  const n = String(value).replace(/[^0-9.-]/g, '')
+  return Number(n || 0)
 }
 
 function ReportMetricCard({ label, value, accent }) {
@@ -231,10 +350,6 @@ function ReportMetricCard({ label, value, accent }) {
 function ReportView({ data, platform, range, setView }) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
-  const platformSplit =
-    data?.platformSplit && typeof data.platformSplit === 'object' && !Array.isArray(data.platformSplit)
-      ? data.platformSplit
-      : {}
 
   const accentColors = [COLORS.gold, COLORS.green, '#c89b2b', '#2e6b5d', '#d4aa45', '#14594a']
 
@@ -258,15 +373,7 @@ function ReportView({ data, platform, range, setView }) {
           </button>
         </div>
 
-        <div
-          className="report-card"
-          style={{
-            ...cardStyle(),
-            marginBottom: '18px',
-            padding: 0,
-            overflow: 'hidden'
-          }}
-        >
+        <div className="report-card" style={{ ...cardStyle(), marginBottom: '18px', padding: 0, overflow: 'hidden' }}>
           <div style={{ background: COLORS.green, color: '#ffffff', padding: '26px 28px' }}>
             <div
               style={{
@@ -327,104 +434,131 @@ function ReportView({ data, platform, range, setView }) {
           ))}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.5fr 0.95fr',
-            gap: '18px',
-            marginBottom: '18px'
-          }}
-        >
-          <div className="report-card" style={panelStyle()}>
-            <SectionTitle title="Performance Breakdown" subtitle="Summary of performance rows included in the selected report." />
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                    <th style={{ padding: '12px 8px' }}>Platform</th>
-                    <th style={{ padding: '12px 8px' }}>Campaign</th>
-                    <th style={{ padding: '12px 8px' }}>Spend</th>
-                    <th style={{ padding: '12px 8px' }}>Clicks</th>
-                    <th style={{ padding: '12px 8px' }}>Conversions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaignRows.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" style={{ padding: '18px 8px' }}>
-                        <EmptyState text="No data available for this report." />
-                      </td>
-                    </tr>
-                  ) : (
-                    campaignRows.map((row, index) => (
-                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                        <td style={{ padding: '14px 8px' }}>
-                          <PlatformBadge label={row.platform} />
-                        </td>
-                        <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
-                        <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                        <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                        <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="report-card" style={panelStyle()}>
-            <SectionTitle title="Platform Summary" subtitle="Quick totals by active platform." />
-            <div style={{ display: 'grid', gap: '12px' }}>
-              {Object.keys(platformSplit).length === 0 ? (
-                <EmptyState text="No platform totals available." />
-              ) : (
-                Object.entries(platformSplit).map(([key, value]) => (
-                  <div
-                    key={key}
-                    style={{
-                      border: `1px solid ${COLORS.line}`,
-                      borderRadius: '18px',
-                      background: '#fcfbf8',
-                      padding: '16px'
-                    }}
-                  >
-                    <div style={{ marginBottom: '10px' }}>
-                      <PlatformBadge label={key.replace(/_/g, ' ')} />
-                    </div>
-                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
-                      {value?.spend || 'N/A'}
-                    </div>
-                    <div style={{ marginTop: '8px', color: COLORS.muted, fontSize: '13px' }}>
-                      {value?.conversions ?? 'N/A'} conversions
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
         <div className="report-card" style={panelStyle()}>
-          <SectionTitle title="Notes" subtitle="Reserved area for observations, context, and client-facing recommendations." />
-          <div
-            style={{
-              minHeight: '120px',
-              border: `1px dashed ${COLORS.line}`,
-              borderRadius: '16px',
-              padding: '16px',
-              background: '#fbfaf7',
-              color: COLORS.muted,
-              fontSize: '14px',
-              lineHeight: 1.7
-            }}
-          >
-            Add campaign notes, performance context, media recommendations, or next-step actions here before exporting the report.
+          <SectionTitle title="Platform Performance" subtitle="Client-facing performance summary by platform." />
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                  <th style={{ padding: '12px 8px' }}>Platform</th>
+                  <th style={{ padding: '12px 8px' }}>Campaign</th>
+                  <th style={{ padding: '12px 8px' }}>Spend</th>
+                  <th style={{ padding: '12px 8px' }}>Clicks</th>
+                  <th style={{ padding: '12px 8px' }}>Conversions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaignRows.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '18px 8px' }}>
+                      <EmptyState text="No data available for this report." />
+                    </td>
+                  </tr>
+                ) : (
+                  campaignRows.map((row, index) => (
+                    <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                      <td style={{ padding: '14px 8px' }}>
+                        <PlatformBadge label={row.platform} />
+                      </td>
+                      <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.spend}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                      <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+function buildClientSummary({ totalSpend, totalImpressions, totalClicks, totalConversions, googleDiagnostics }) {
+  const spendText = formatSar(totalSpend)
+  const impressionText = totalImpressions.toLocaleString()
+  const clicksText = totalClicks.toLocaleString()
+
+  if (totalConversions === 0) {
+    if (googleDiagnostics?.interpretation?.mainLimiter === 'Rank-limited') {
+      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded. Google visibility is being limited mainly by ranking, which suggests missed demand and weaker competitiveness in search.`
+    }
+
+    if (googleDiagnostics?.interpretation?.mainLimiter === 'Budget-limited') {
+      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded. Campaign visibility appears constrained by budget, which means additional eligible demand may not be fully captured.`
+    }
+
+    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded yet. The immediate priority is to verify conversion tracking and review post-click performance before scaling spend.`
+  }
+
+  return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} conversions. Performance is producing measurable results, and the next step is to compare efficiency against target benchmarks before scaling.`
+}
+
+function buildInsights({ totalConversions, googleDiagnostics, platformRows }) {
+  const insights = []
+
+  if (totalConversions === 0) {
+    insights.push({
+      type: 'danger',
+      title: 'No tracked conversions',
+      text: 'The campaigns generated traffic, but no recorded conversions appeared in the selected period.',
+      action: 'Check conversion tracking, conversion actions, and landing page event setup immediately.'
+    })
+  }
+
+  if (googleDiagnostics?.interpretation?.mainLimiter === 'Rank-limited') {
+    insights.push({
+      type: 'warning',
+      title: 'Missed demand in Google',
+      text: 'Google Ads visibility is being limited more by ranking than by budget, so potential customers may not be seeing the ads often enough.',
+      action: 'Improve relevance, bids, and landing page competitiveness before scaling.'
+    })
+  }
+
+  if (googleDiagnostics?.interpretation?.mainLimiter === 'Budget-limited') {
+    insights.push({
+      type: 'warning',
+      title: 'Budget is restricting reach',
+      text: 'The account appears to be losing a meaningful share of available visibility because budget is limiting delivery.',
+      action: 'Review whether increasing budget is justified once conversion tracking is validated.'
+    })
+  }
+
+  const blendedCtr = totalClicksFromRows(platformRows) > 0 && totalImpressionsFromRows(platformRows) > 0
+    ? (totalClicksFromRows(platformRows) / totalImpressionsFromRows(platformRows)) * 100
+    : 0
+
+  if (blendedCtr >= 2) {
+    insights.push({
+      type: 'good',
+      title: 'Engagement is healthy',
+      text: 'The click-through rate indicates that the ads are attracting attention and generating traffic.',
+      action: 'Focus next on improving conversion efficiency after the click.'
+    })
+  }
+
+  if (!insights.length) {
+    insights.push({
+      type: 'warning',
+      title: 'Performance needs review',
+      text: 'The account has delivery data, but the results need additional validation against targets and tracking quality.',
+      action: 'Review goals, benchmarks, and conversion setup before presenting conclusions.'
+    })
+  }
+
+  return insights.slice(0, 4)
+}
+
+function totalClicksFromRows(rows) {
+  return rows.reduce((sum, row) => sum + Number(String(row.clicks || '0').replace(/,/g, '')), 0)
+}
+
+function totalImpressionsFromRows(rows) {
+  return rows.reduce((sum, row) => {
+    return sum
+  }, 0)
 }
 
 export default function App() {
@@ -436,6 +570,7 @@ export default function App() {
   const [platform, setPlatform] = useState('all')
   const [range, setRange] = useState('30d')
   const [view, setView] = useState('dashboard')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
     if (view !== 'dashboard' && view !== 'report') return
@@ -516,13 +651,92 @@ export default function App() {
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
-  const platformSplit =
-    data?.platformSplit && typeof data.platformSplit === 'object' && !Array.isArray(data.platformSplit)
-      ? data.platformSplit
-      : {}
   const googleDiagnostics = data?.diagnostics?.google || null
 
-  const accentColors = [COLORS.gold, COLORS.green, '#c89b2b', '#2e6b5d', '#d4aa45', '#14594a']
+  const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
+  const totalImpressions = Number((summaryCards.find((c) => c.label === 'Impressions')?.value || '0').replace(/,/g, ''))
+  const totalClicks = Number((summaryCards.find((c) => c.label === 'Clicks')?.value || '0').replace(/,/g, ''))
+  const totalConversions = Number((summaryCards.find((c) => c.label === 'Conversions')?.value || '0').replace(/,/g, ''))
+
+  const healthCards = [
+    {
+      title: 'Spend Pacing',
+      value: formatSar(totalSpend),
+      target: 'Set monthly budget',
+      status: totalSpend > 0 ? 'good' : 'warning',
+      note: totalSpend > 0 ? 'Live spend' : 'No spend'
+    },
+    {
+      title: 'Conversions',
+      value: totalConversions.toLocaleString(),
+      target: 'Set conversion goal',
+      status: totalConversions > 0 ? 'good' : 'danger',
+      note: totalConversions > 0 ? 'Tracking results' : 'Below target'
+    },
+    {
+      title: 'Cost per Conversion',
+      value:
+        totalConversions > 0
+          ? formatSar(totalSpend / totalConversions)
+          : 'N/A',
+      target: 'Set CPA target',
+      status: totalConversions > 0 ? 'good' : 'danger',
+      note: totalConversions > 0 ? 'Review efficiency' : 'No conversion data'
+    },
+    {
+      title: 'ROAS',
+      value: 'N/A',
+      target: 'Set ROAS target',
+      status: 'warning',
+      note: 'Revenue data not connected'
+    }
+  ]
+
+  const summaryText = buildClientSummary({
+    totalSpend,
+    totalImpressions,
+    totalClicks,
+    totalConversions,
+    googleDiagnostics
+  })
+
+  const insights = buildInsights({
+    totalConversions,
+    googleDiagnostics,
+    platformRows: campaignRows
+  })
+
+  const platformPerformanceRows = campaignRows.map((row) => {
+    const spendNum = parseSarString(row.spend)
+    const clicksNum = Number(String(row.clicks || '0').replace(/,/g, ''))
+    const conversionsNum =
+      row.conversions === 'N/A' ? null : Number(String(row.conversions || '0').replace(/,/g, ''))
+
+    const ctrValue =
+      row.platform === 'Google Ads'
+        ? googleDiagnostics?.snapshot?.ctr
+        : null
+
+    const cpcValue =
+      row.platform === 'Google Ads'
+        ? googleDiagnostics?.snapshot?.avgCpc
+        : clicksNum > 0
+          ? spendNum / clicksNum
+          : null
+
+    const cpaValue =
+      conversionsNum != null && conversionsNum > 0
+        ? spendNum / conversionsNum
+        : null
+
+    return {
+      ...row,
+      ctr: ctrValue,
+      cpc: cpcValue,
+      cpa: cpaValue,
+      roas: null
+    }
+  })
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
@@ -603,20 +817,26 @@ export default function App() {
           >
             <div>
               <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '8px' }}>
-                DASHBOARD
+                CLIENT VIEW
               </div>
               <h1 style={{ margin: 0, fontSize: '34px', fontWeight: 900, color: COLORS.green }}>
                 {data?.client?.name || 'Dashboard'}
               </h1>
               <p style={{ marginTop: '8px', color: COLORS.muted, fontSize: '14px' }}>
-                A clean overview of your paid media performance across active platforms.
+                A client-first view focused on results, business impact, and next actions.
               </p>
             </div>
 
-            <div style={{ ...cardStyle(), padding: '14px 18px', minWidth: '250px' }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Last Updated</div>
-              <div style={{ marginTop: '8px', fontWeight: 900, color: COLORS.green }}>
-                {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button onClick={() => setShowAdvanced((v) => !v)} style={buttonStyle(false)}>
+                {showAdvanced ? 'Hide Advanced View' : 'Show Advanced View'}
+              </button>
+
+              <div style={{ ...cardStyle(), padding: '14px 18px', minWidth: '250px' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Last Updated</div>
+                <div style={{ marginTop: '8px', fontWeight: 900, color: COLORS.green }}>
+                  {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                </div>
               </div>
             </div>
           </div>
@@ -677,96 +897,102 @@ export default function App() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '14px',
-              marginBottom: '20px'
+              marginBottom: '18px'
             }}
           >
-            {summaryCards.map((card, i) => (
-              <div key={card.label} style={metricCardStyle(accentColors[i % accentColors.length])}>
-                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{card.label}</div>
-                <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
-                  {card.value}
-                </div>
-              </div>
+            {healthCards.map((card) => (
+              <HealthCard key={card.title} {...card} />
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 0.95fr', gap: '18px' }}>
-            <div style={panelStyle()}>
-              <SectionTitle title="Campaign / Platform Performance" subtitle="Top-level numbers for the selected platforms." />
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                      <th style={{ padding: '12px 8px' }}>Platform</th>
-                      <th style={{ padding: '12px 8px' }}>Campaign</th>
-                      <th style={{ padding: '12px 8px' }}>Spend</th>
-                      <th style={{ padding: '12px 8px' }}>Clicks</th>
-                      <th style={{ padding: '12px 8px' }}>Conversions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {campaignRows.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" style={{ padding: '18px 8px' }}>
-                          <EmptyState text="No data available for this filter selection." />
-                        </td>
-                      </tr>
-                    ) : (
-                      campaignRows.map((row, index) => (
-                        <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                          <td style={{ padding: '14px 8px' }}>
-                            <PlatformBadge label={row.platform} />
-                          </td>
-                          <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
-                          <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                          <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                          <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div style={panelStyle()}>
-              <SectionTitle title="Platform Split" subtitle="Spend and conversion totals by platform." />
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {Object.keys(platformSplit).length === 0 ? (
-                  <EmptyState text="No connected platform data for this selection." />
-                ) : (
-                  Object.entries(platformSplit).map(([key, value]) => (
-                    <div
-                      key={key}
-                      style={{
-                        border: `1px solid ${COLORS.line}`,
-                        borderRadius: '18px',
-                        background: '#fcfbf8',
-                        padding: '16px'
-                      }}
-                    >
-                      <div style={{ marginBottom: '10px' }}>
-                        <PlatformBadge label={key.replace(/_/g, ' ')} />
-                      </div>
-                      <div style={{ fontSize: '27px', fontWeight: 900, lineHeight: 1.1, color: COLORS.green }}>
-                        {value?.spend || 'N/A'}
-                      </div>
-                      <div style={{ marginTop: '8px', color: COLORS.muted, fontSize: '13px' }}>
-                        {value?.conversions ?? 'N/A'} conversions
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+          <div style={{ ...panelStyle(), marginBottom: '18px' }}>
+            <SectionTitle
+              title="Summary"
+              subtitle="Plain-English interpretation of the current reporting period."
+            />
+            <div
+              style={{
+                background: '#fcfbf8',
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: '16px',
+                padding: '18px',
+                color: COLORS.text,
+                fontSize: '15px',
+                lineHeight: 1.8
+              }}
+            >
+              {summaryText}
             </div>
           </div>
 
-          {googleDiagnostics ? (
-            <div style={{ marginTop: '18px', display: 'grid', gap: '18px' }}>
+          <div style={{ ...panelStyle(), marginBottom: '18px' }}>
+            <SectionTitle
+              title="Platform Performance"
+              subtitle="Simplified performance view for client reporting."
+            />
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                    <th style={{ padding: '12px 8px' }}>Platform</th>
+                    <th style={{ padding: '12px 8px' }}>Spend</th>
+                    <th style={{ padding: '12px 8px' }}>Clicks</th>
+                    <th style={{ padding: '12px 8px' }}>CTR</th>
+                    <th style={{ padding: '12px 8px' }}>CPC</th>
+                    <th style={{ padding: '12px 8px' }}>Conversions</th>
+                    <th style={{ padding: '12px 8px' }}>CPA</th>
+                    <th style={{ padding: '12px 8px' }}>ROAS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformPerformanceRows.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" style={{ padding: '18px 8px' }}>
+                        <EmptyState text="No platform data available." />
+                      </td>
+                    </tr>
+                  ) : (
+                    platformPerformanceRows.map((row, index) => (
+                      <tr key={`${row.platform}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                        <td style={{ padding: '14px 8px' }}>
+                          <PlatformBadge label={row.platform} />
+                        </td>
+                        <td style={{ padding: '14px 8px' }}>{row.spend}</td>
+                        <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                        <td style={{ padding: '14px 8px' }}>
+                          {row.ctr != null ? `${row.ctr.toFixed(2)}%` : 'N/A'}
+                        </td>
+                        <td style={{ padding: '14px 8px' }}>
+                          {row.cpc != null ? formatSar(row.cpc) : 'N/A'}
+                        </td>
+                        <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                        <td style={{ padding: '14px 8px' }}>
+                          {row.cpa != null ? formatSar(row.cpa) : 'N/A'}
+                        </td>
+                        <td style={{ padding: '14px 8px' }}>N/A</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+            {insights.map((item, idx) => (
+              <InsightCard key={idx} {...item} />
+            ))}
+          </div>
+
+          {showAdvanced && googleDiagnostics ? (
+            <div style={{ marginTop: '8px', display: 'grid', gap: '18px' }}>
               <div style={panelStyle()}>
-                <SectionTitle title="Google Ads Diagnostics" subtitle="Visibility, efficiency, and keyword-level health." />
+                <SectionTitle
+                  title="Advanced Google View"
+                  subtitle="Agency-facing diagnostics and account health details."
+                />
                 <div
                   style={{
                     display: 'grid',
@@ -812,190 +1038,26 @@ export default function App() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: '18px'
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '18px' }}>
                 <div style={panelStyle()}>
-                  <SectionTitle title="Main Limiter" subtitle="What is restricting performance most." />
+                  <SectionTitle title="Main Limiter" subtitle="Internal diagnostic" />
                   <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
                     {googleDiagnostics.interpretation?.mainLimiter || 'N/A'}
                   </div>
                 </div>
 
                 <div style={panelStyle()}>
-                  <SectionTitle title="Efficiency Status" subtitle="How efficiently spend is converting." />
+                  <SectionTitle title="Efficiency Status" subtitle="Internal diagnostic" />
                   <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
                     {googleDiagnostics.interpretation?.efficiencyStatus || 'N/A'}
                   </div>
                 </div>
 
                 <div style={panelStyle()}>
-                  <SectionTitle title="Scale Status" subtitle="How visible the campaigns are in search." />
+                  <SectionTitle title="Scale Status" subtitle="Internal diagnostic" />
                   <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
                     {googleDiagnostics.interpretation?.scaleStatus || 'N/A'}
                   </div>
-                </div>
-              </div>
-
-              <div style={panelStyle()}>
-                <SectionTitle title="Top Converting Keywords" subtitle="Highest conversion-driving keywords." />
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                        <th style={{ padding: '12px 8px' }}>Keyword</th>
-                        <th style={{ padding: '12px 8px' }}>Match Type</th>
-                        <th style={{ padding: '12px 8px' }}>Conversions</th>
-                        <th style={{ padding: '12px 8px' }}>CPA</th>
-                        <th style={{ padding: '12px 8px' }}>Quality Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(googleDiagnostics.keywordHealth?.topConvertingKeywords || []).length === 0 ? (
-                        <tr>
-                          <td colSpan="5" style={{ padding: '18px 8px' }}>
-                            <EmptyState text="No top converting keywords available." />
-                          </td>
-                        </tr>
-                      ) : (
-                        googleDiagnostics.keywordHealth.topConvertingKeywords.map((row, index) => (
-                          <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                            <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
-                            <td style={{ padding: '14px 8px' }}>{row.matchType}</td>
-                            <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                            <td style={{ padding: '14px 8px' }}>
-                              {row.cpa != null ? `SAR ${row.cpa.toFixed(2)}` : 'N/A'}
-                            </td>
-                            <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '18px'
-                }}
-              >
-                <div style={panelStyle()}>
-                  <SectionTitle title="High Spend / Zero Conversion Keywords" subtitle="Potential waste or low-intent traffic." />
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                      <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                          <th style={{ padding: '12px 8px' }}>Keyword</th>
-                          <th style={{ padding: '12px 8px' }}>Cost</th>
-                          <th style={{ padding: '12px 8px' }}>Clicks</th>
-                          <th style={{ padding: '12px 8px' }}>QS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(googleDiagnostics.keywordHealth?.highSpendZeroConvKeywords || []).length === 0 ? (
-                          <tr>
-                            <td colSpan="4" style={{ padding: '18px 8px' }}>
-                              <EmptyState text="No waste-heavy keywords found." />
-                            </td>
-                          </tr>
-                        ) : (
-                          googleDiagnostics.keywordHealth.highSpendZeroConvKeywords.map((row, index) => (
-                            <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                              <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
-                              <td style={{ padding: '14px 8px' }}>{`SAR ${row.cost.toFixed(2)}`}</td>
-                              <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                              <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div style={panelStyle()}>
-                  <SectionTitle title="Low Quality Score Keywords" subtitle="Keywords likely constrained by relevance/rank." />
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                      <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                          <th style={{ padding: '12px 8px' }}>Keyword</th>
-                          <th style={{ padding: '12px 8px' }}>QS</th>
-                          <th style={{ padding: '12px 8px' }}>Lost IS Rank</th>
-                          <th style={{ padding: '12px 8px' }}>CTR</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(googleDiagnostics.keywordHealth?.lowQualityKeywords || []).length === 0 ? (
-                          <tr>
-                            <td colSpan="4" style={{ padding: '18px 8px' }}>
-                              <EmptyState text="No low quality score keywords found." />
-                            </td>
-                          </tr>
-                        ) : (
-                          googleDiagnostics.keywordHealth.lowQualityKeywords.map((row, index) => (
-                            <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                              <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
-                              <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
-                              <td style={{ padding: '14px 8px' }}>
-                                {row.lostIsRank != null ? `${row.lostIsRank.toFixed(1)}%` : 'N/A'}
-                              </td>
-                              <td style={{ padding: '14px 8px' }}>
-                                {row.ctr != null ? `${row.ctr.toFixed(2)}%` : 'N/A'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div style={panelStyle()}>
-                <SectionTitle title="Search Terms" subtitle="Actual search intent driving spend and clicks." />
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                        <th style={{ padding: '12px 8px' }}>Search Term</th>
-                        <th style={{ padding: '12px 8px' }}>Campaign</th>
-                        <th style={{ padding: '12px 8px' }}>Cost</th>
-                        <th style={{ padding: '12px 8px' }}>Clicks</th>
-                        <th style={{ padding: '12px 8px' }}>Conversions</th>
-                        <th style={{ padding: '12px 8px' }}>CPA</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(googleDiagnostics.tables?.searchTerms || []).length === 0 ? (
-                        <tr>
-                          <td colSpan="6" style={{ padding: '18px 8px' }}>
-                            <EmptyState text="No search term data available." />
-                          </td>
-                        </tr>
-                      ) : (
-                        googleDiagnostics.tables.searchTerms.map((row, index) => (
-                          <tr key={`${row.searchTerm}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
-                            <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.searchTerm}</td>
-                            <td style={{ padding: '14px 8px' }}>{row.campaign}</td>
-                            <td style={{ padding: '14px 8px' }}>{`SAR ${row.cost.toFixed(2)}`}</td>
-                            <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                            <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                            <td style={{ padding: '14px 8px' }}>
-                              {row.cpa != null ? `SAR ${row.cpa.toFixed(2)}` : 'N/A'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               </div>
             </div>
