@@ -5,8 +5,6 @@ const COLORS = {
   green: '#0a4c3e',
   gold: '#e7bd52',
   cream: '#f7f3ec',
-  cream2: '#efe8dd',
-  white: '#ffffff',
   text: '#1f2937',
   muted: '#6b7280',
   line: '#e7dfd2',
@@ -22,7 +20,7 @@ function navItemStyle(active) {
     padding: '12px 14px',
     borderRadius: '12px',
     background: active ? 'rgba(231,189,82,0.18)' : 'transparent',
-    color: active ? COLORS.white : 'rgba(255,255,255,0.82)',
+    color: active ? COLORS.white || '#fff' : 'rgba(255,255,255,0.82)',
     fontWeight: active ? 800 : 600,
     borderLeft: active ? `4px solid ${COLORS.gold}` : '4px solid transparent'
   }
@@ -30,7 +28,7 @@ function navItemStyle(active) {
 
 function cardStyle() {
   return {
-    background: COLORS.white,
+    background: '#ffffff',
     borderRadius: '20px',
     border: `1px solid ${COLORS.line}`,
     boxShadow: '0 10px 30px rgba(10,76,62,0.06)'
@@ -58,8 +56,8 @@ function buttonStyle(primary = false) {
     padding: '11px 16px',
     borderRadius: '12px',
     border: primary ? 'none' : `1px solid ${COLORS.line}`,
-    background: primary ? COLORS.green : COLORS.white,
-    color: primary ? COLORS.white : COLORS.green,
+    background: primary ? COLORS.green : '#ffffff',
+    color: primary ? '#ffffff' : COLORS.green,
     fontWeight: 700,
     fontSize: '14px',
     cursor: 'pointer',
@@ -73,17 +71,18 @@ function selectStyle() {
     padding: '11px 12px',
     borderRadius: '12px',
     border: `1px solid ${COLORS.line}`,
-    background: COLORS.white,
+    background: '#ffffff',
     fontSize: '14px',
     color: COLORS.text,
     outline: 'none'
   }
 }
+
 function BrandMark({ dark = false }) {
   const bg = dark ? 'rgba(255,255,255,0.08)' : '#ffffff'
-  const border = dark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e7dfd2'
-  const titleColor = dark ? '#ffffff' : '#0a4c3e'
-  const subColor = dark ? 'rgba(255,255,255,0.72)' : '#6b7280'
+  const border = dark ? '1px solid rgba(255,255,255,0.12)' : `1px solid ${COLORS.line}`
+  const titleColor = dark ? '#ffffff' : COLORS.green
+  const subColor = dark ? 'rgba(255,255,255,0.72)' : COLORS.muted
 
   return (
     <div
@@ -94,7 +93,7 @@ function BrandMark({ dark = false }) {
         padding: '12px 14px',
         borderRadius: '16px',
         background: bg,
-        border: border
+        border
       }}
     >
       <div
@@ -146,6 +145,7 @@ function BrandMark({ dark = false }) {
     </div>
   )
 }
+
 function PlatformBadge({ label }) {
   const lower = String(label || '').toLowerCase()
 
@@ -212,7 +212,7 @@ function ReportMetricCard({ label, value, accent }) {
   return (
     <div
       style={{
-        background: COLORS.white,
+        background: '#ffffff',
         borderRadius: '18px',
         border: `1px solid ${COLORS.line}`,
         padding: '18px',
@@ -263,17 +263,11 @@ function ReportView({ data, platform, range, setView }) {
           style={{
             ...cardStyle(),
             marginBottom: '18px',
-            padding: '0',
+            padding: 0,
             overflow: 'hidden'
           }}
         >
-          <div
-            style={{
-              background: COLORS.green,
-              color: COLORS.white,
-              padding: '26px 28px'
-            }}
-          >
+          <div style={{ background: COLORS.green, color: '#ffffff', padding: '26px 28px' }}>
             <div
               style={{
                 display: 'flex',
@@ -285,8 +279,8 @@ function ReportView({ data, platform, range, setView }) {
             >
               <div style={{ maxWidth: '720px' }}>
                 <div style={{ marginBottom: '14px', maxWidth: '360px' }}>
-  <BrandMark dark={true} />
-</div>
+                  <BrandMark dark={true} />
+                </div>
                 <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900, lineHeight: 1.05 }}>
                   {data?.client?.name || 'Client Report'}
                 </h1>
@@ -307,7 +301,7 @@ function ReportView({ data, platform, range, setView }) {
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', fontWeight: 700, marginBottom: '10px' }}>
                   Report Details
                 </div>
-                <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: COLORS.white }}>
+                <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: '#ffffff' }}>
                   <div><strong>Client:</strong> {data?.client?.name || 'N/A'}</div>
                   <div><strong>Platform:</strong> {platform}</div>
                   <div><strong>Range:</strong> {range}</div>
@@ -329,12 +323,7 @@ function ReportView({ data, platform, range, setView }) {
           }}
         >
           {summaryCards.map((card, i) => (
-            <ReportMetricCard
-              key={card.label}
-              label={card.label}
-              value={card.value}
-              accent={accentColors[i % accentColors.length]}
-            />
+            <ReportMetricCard key={card.label} label={card.label} value={card.value} accent={accentColors[i % accentColors.length]} />
           ))}
         </div>
 
@@ -347,11 +336,7 @@ function ReportView({ data, platform, range, setView }) {
           }}
         >
           <div className="report-card" style={panelStyle()}>
-            <SectionTitle
-              title="Performance Breakdown"
-              subtitle="Summary of performance rows included in the selected report."
-            />
-
+            <SectionTitle title="Performance Breakdown" subtitle="Summary of performance rows included in the selected report." />
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
@@ -389,11 +374,7 @@ function ReportView({ data, platform, range, setView }) {
           </div>
 
           <div className="report-card" style={panelStyle()}>
-            <SectionTitle
-              title="Platform Summary"
-              subtitle="Quick totals by active platform."
-            />
-
+            <SectionTitle title="Platform Summary" subtitle="Quick totals by active platform." />
             <div style={{ display: 'grid', gap: '12px' }}>
               {Object.keys(platformSplit).length === 0 ? (
                 <EmptyState text="No platform totals available." />
@@ -425,10 +406,7 @@ function ReportView({ data, platform, range, setView }) {
         </div>
 
         <div className="report-card" style={panelStyle()}>
-          <SectionTitle
-            title="Notes"
-            subtitle="Reserved area for observations, context, and client-facing recommendations."
-          />
+          <SectionTitle title="Notes" subtitle="Reserved area for observations, context, and client-facing recommendations." />
           <div
             style={{
               minHeight: '120px',
@@ -542,6 +520,7 @@ export default function App() {
     data?.platformSplit && typeof data.platformSplit === 'object' && !Array.isArray(data.platformSplit)
       ? data.platformSplit
       : {}
+  const googleDiagnostics = data?.diagnostics?.google || null
 
   const accentColors = [COLORS.gold, COLORS.green, '#c89b2b', '#2e6b5d', '#d4aa45', '#14594a']
 
@@ -551,16 +530,16 @@ export default function App() {
         <aside
           style={{
             background: COLORS.green,
-            borderRight: `1px solid rgba(255,255,255,0.08)`,
+            borderRight: '1px solid rgba(255,255,255,0.08)',
             padding: '26px 18px',
             boxShadow: '8px 0 30px rgba(15,23,42,0.03)'
           }}
         >
-         <div style={{ marginBottom: '28px' }}>
-  <BrandMark dark={true} />
-</div>
+          <div style={{ marginBottom: '28px' }}>
+            <BrandMark dark={true} />
+          </div>
 
-          <div style={{ color: COLORS.white, fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
+          <div style={{ color: '#ffffff', fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
             Main Menu
           </div>
 
@@ -572,15 +551,39 @@ export default function App() {
             <div style={navItemStyle(false)}>Clients</div>
           </div>
 
-          <div style={{ marginTop: '26px', background: 'rgba(255,255,255,0.06)', borderRadius: '18px', padding: '18px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div
+            style={{
+              marginTop: '26px',
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: '18px',
+              padding: '18px',
+              border: '1px solid rgba(255,255,255,0.08)'
+            }}
+          >
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.72)', marginBottom: '12px' }}>
               Quick Actions
             </div>
             <div style={{ display: 'grid', gap: '10px' }}>
-              <button onClick={() => setView('onboarding')} style={{ ...buttonStyle(true), background: COLORS.gold, color: COLORS.green, boxShadow: '0 10px 25px rgba(231,189,82,0.18)' }}>
+              <button
+                onClick={() => setView('onboarding')}
+                style={{
+                  ...buttonStyle(true),
+                  background: COLORS.gold,
+                  color: COLORS.green,
+                  boxShadow: '0 10px 25px rgba(231,189,82,0.18)'
+                }}
+              >
                 Open Onboarding
               </button>
-              <button onClick={() => setView('report')} style={{ ...buttonStyle(false), background: 'transparent', color: COLORS.white, border: '1px solid rgba(255,255,255,0.18)' }}>
+              <button
+                onClick={() => setView('report')}
+                style={{
+                  ...buttonStyle(false),
+                  background: 'transparent',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.18)'
+                }}
+              >
                 Export Report
               </button>
             </div>
@@ -610,13 +613,7 @@ export default function App() {
               </p>
             </div>
 
-            <div
-              style={{
-                ...cardStyle(),
-                padding: '14px 18px',
-                minWidth: '250px'
-              }}
-            >
+            <div style={{ ...cardStyle(), padding: '14px 18px', minWidth: '250px' }}>
               <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Last Updated</div>
               <div style={{ marginTop: '8px', fontWeight: 900, color: COLORS.green }}>
                 {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
@@ -695,19 +692,9 @@ export default function App() {
             ))}
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1.55fr 0.95fr',
-              gap: '18px'
-            }}
-          >
+          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 0.95fr', gap: '18px' }}>
             <div style={panelStyle()}>
-              <SectionTitle
-                title="Campaign / Platform Performance"
-                subtitle="Top-level numbers for the selected platforms."
-              />
-
+              <SectionTitle title="Campaign / Platform Performance" subtitle="Top-level numbers for the selected platforms." />
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                   <thead>
@@ -745,11 +732,7 @@ export default function App() {
             </div>
 
             <div style={panelStyle()}>
-              <SectionTitle
-                title="Platform Split"
-                subtitle="Spend and conversion totals by platform."
-              />
-
+              <SectionTitle title="Platform Split" subtitle="Spend and conversion totals by platform." />
               <div style={{ display: 'grid', gap: '12px' }}>
                 {Object.keys(platformSplit).length === 0 ? (
                   <EmptyState text="No connected platform data for this selection." />
@@ -779,6 +762,244 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {googleDiagnostics ? (
+            <div style={{ marginTop: '18px', display: 'grid', gap: '18px' }}>
+              <div style={panelStyle()}>
+                <SectionTitle title="Google Ads Diagnostics" subtitle="Visibility, efficiency, and keyword-level health." />
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '14px'
+                  }}
+                >
+                  <div style={metricCardStyle(COLORS.gold)}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Search IS</div>
+                    <div style={{ marginTop: '12px', fontSize: '28px', fontWeight: 900, color: COLORS.green }}>
+                      {googleDiagnostics.visibility?.searchImpressionShare != null
+                        ? `${googleDiagnostics.visibility.searchImpressionShare.toFixed(1)}%`
+                        : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div style={metricCardStyle(COLORS.green)}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Lost IS (Budget)</div>
+                    <div style={{ marginTop: '12px', fontSize: '28px', fontWeight: 900, color: COLORS.green }}>
+                      {googleDiagnostics.visibility?.lostIsBudget != null
+                        ? `${googleDiagnostics.visibility.lostIsBudget.toFixed(1)}%`
+                        : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div style={metricCardStyle('#c89b2b')}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Lost IS (Rank)</div>
+                    <div style={{ marginTop: '12px', fontSize: '28px', fontWeight: 900, color: COLORS.green }}>
+                      {googleDiagnostics.visibility?.lostIsRank != null
+                        ? `${googleDiagnostics.visibility.lostIsRank.toFixed(1)}%`
+                        : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div style={metricCardStyle('#2e6b5d')}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Avg Quality Score</div>
+                    <div style={{ marginTop: '12px', fontSize: '28px', fontWeight: 900, color: COLORS.green }}>
+                      {googleDiagnostics.keywordHealth?.avgQualityScore != null
+                        ? googleDiagnostics.keywordHealth.avgQualityScore.toFixed(1)
+                        : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '18px'
+                }}
+              >
+                <div style={panelStyle()}>
+                  <SectionTitle title="Main Limiter" subtitle="What is restricting performance most." />
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
+                    {googleDiagnostics.interpretation?.mainLimiter || 'N/A'}
+                  </div>
+                </div>
+
+                <div style={panelStyle()}>
+                  <SectionTitle title="Efficiency Status" subtitle="How efficiently spend is converting." />
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
+                    {googleDiagnostics.interpretation?.efficiencyStatus || 'N/A'}
+                  </div>
+                </div>
+
+                <div style={panelStyle()}>
+                  <SectionTitle title="Scale Status" subtitle="How visible the campaigns are in search." />
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: COLORS.green }}>
+                    {googleDiagnostics.interpretation?.scaleStatus || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={panelStyle()}>
+                <SectionTitle title="Top Converting Keywords" subtitle="Highest conversion-driving keywords." />
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                        <th style={{ padding: '12px 8px' }}>Keyword</th>
+                        <th style={{ padding: '12px 8px' }}>Match Type</th>
+                        <th style={{ padding: '12px 8px' }}>Conversions</th>
+                        <th style={{ padding: '12px 8px' }}>CPA</th>
+                        <th style={{ padding: '12px 8px' }}>Quality Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(googleDiagnostics.keywordHealth?.topConvertingKeywords || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ padding: '18px 8px' }}>
+                            <EmptyState text="No top converting keywords available." />
+                          </td>
+                        </tr>
+                      ) : (
+                        googleDiagnostics.keywordHealth.topConvertingKeywords.map((row, index) => (
+                          <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                            <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
+                            <td style={{ padding: '14px 8px' }}>{row.matchType}</td>
+                            <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                            <td style={{ padding: '14px 8px' }}>
+                              {row.cpa != null ? `SAR ${row.cpa.toFixed(2)}` : 'N/A'}
+                            </td>
+                            <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '18px'
+                }}
+              >
+                <div style={panelStyle()}>
+                  <SectionTitle title="High Spend / Zero Conversion Keywords" subtitle="Potential waste or low-intent traffic." />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                          <th style={{ padding: '12px 8px' }}>Keyword</th>
+                          <th style={{ padding: '12px 8px' }}>Cost</th>
+                          <th style={{ padding: '12px 8px' }}>Clicks</th>
+                          <th style={{ padding: '12px 8px' }}>QS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(googleDiagnostics.keywordHealth?.highSpendZeroConvKeywords || []).length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={{ padding: '18px 8px' }}>
+                              <EmptyState text="No waste-heavy keywords found." />
+                            </td>
+                          </tr>
+                        ) : (
+                          googleDiagnostics.keywordHealth.highSpendZeroConvKeywords.map((row, index) => (
+                            <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                              <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
+                              <td style={{ padding: '14px 8px' }}>{`SAR ${row.cost.toFixed(2)}`}</td>
+                              <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                              <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div style={panelStyle()}>
+                  <SectionTitle title="Low Quality Score Keywords" subtitle="Keywords likely constrained by relevance/rank." />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                          <th style={{ padding: '12px 8px' }}>Keyword</th>
+                          <th style={{ padding: '12px 8px' }}>QS</th>
+                          <th style={{ padding: '12px 8px' }}>Lost IS Rank</th>
+                          <th style={{ padding: '12px 8px' }}>CTR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(googleDiagnostics.keywordHealth?.lowQualityKeywords || []).length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={{ padding: '18px 8px' }}>
+                              <EmptyState text="No low quality score keywords found." />
+                            </td>
+                          </tr>
+                        ) : (
+                          googleDiagnostics.keywordHealth.lowQualityKeywords.map((row, index) => (
+                            <tr key={`${row.keyword}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                              <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.keyword}</td>
+                              <td style={{ padding: '14px 8px' }}>{row.qualityScore ?? 'N/A'}</td>
+                              <td style={{ padding: '14px 8px' }}>
+                                {row.lostIsRank != null ? `${row.lostIsRank.toFixed(1)}%` : 'N/A'}
+                              </td>
+                              <td style={{ padding: '14px 8px' }}>
+                                {row.ctr != null ? `${row.ctr.toFixed(2)}%` : 'N/A'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div style={panelStyle()}>
+                <SectionTitle title="Search Terms" subtitle="Actual search intent driving spend and clicks." />
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
+                        <th style={{ padding: '12px 8px' }}>Search Term</th>
+                        <th style={{ padding: '12px 8px' }}>Campaign</th>
+                        <th style={{ padding: '12px 8px' }}>Cost</th>
+                        <th style={{ padding: '12px 8px' }}>Clicks</th>
+                        <th style={{ padding: '12px 8px' }}>Conversions</th>
+                        <th style={{ padding: '12px 8px' }}>CPA</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(googleDiagnostics.tables?.searchTerms || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="6" style={{ padding: '18px 8px' }}>
+                            <EmptyState text="No search term data available." />
+                          </td>
+                        </tr>
+                      ) : (
+                        googleDiagnostics.tables.searchTerms.map((row, index) => (
+                          <tr key={`${row.searchTerm}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
+                            <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.searchTerm}</td>
+                            <td style={{ padding: '14px 8px' }}>{row.campaign}</td>
+                            <td style={{ padding: '14px 8px' }}>{`SAR ${row.cost.toFixed(2)}`}</td>
+                            <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                            <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                            <td style={{ padding: '14px 8px' }}>
+                              {row.cpa != null ? `SAR ${row.cpa.toFixed(2)}` : 'N/A'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </main>
       </div>
     </div>
