@@ -1,6 +1,6 @@
-export default async function handler(req, res) {
-  return res.status(200).json({
+export default function handler(req, res) {
+  res.status(200).json({
     ok: true,
-    message: 'meta-actions-debug route is alive'
+    message: 'route alive'
   })
 }
