@@ -1,56 +1,46 @@
-import { getMetaBusinessAdAccounts, findMatchingMetaAccount } from '../lib/metaAccounts.js'
-import { getClientById } from '../data/clients.js'
-
 export default async function handler(req, res) {
-  const clientId = req.query.client || 'rimiya'
   const accessToken = process.env.META_ACCESS_TOKEN
+  const accountId = req.query.accountId || '770445006102868'
 
   if (!accessToken) {
-    return res.status(500).json({ ok: false, error: 'Missing META_ACCESS_TOKEN' })
-  }
-
-  const client = getClientById(clientId)
-  if (!client || !client.metaBusinessKey) {
-    return res.status(404).json({
+    return res.status(500).json({
       ok: false,
-      error: 'Client not found or missing metaBusinessKey'
+      error: 'Missing META_ACCESS_TOKEN'
     })
   }
 
-  try {
-    const accounts = await getMetaBusinessAdAccounts(client.metaBusinessKey)
-    const matchedAccount = findMatchingMetaAccount(accounts, client)
+  const accountPath = String(accountId).startsWith('act_')
+    ? String(accountId)
+    : `act_${accountId}`
 
-    if (!matchedAccount) {
-      return res.status(404).json({
+  const url =
+    `https://graph.facebook.com/v19.0/${accountPath}/insights` +
+    `?level=account` +
+    `&fields=${encodeURIComponent('account_name,actions')}` +
+    `&action_report_time=conversion` +
+    `&use_account_attribution_setting=true` +
+    `&time_range=${encodeURIComponent(
+      JSON.stringify({
+        since: '2023-01-01',
+        until: new Date().toISOString().slice(0, 10)
+      })
+    )}` +
+    `&access_token=${encodeURIComponent(String(accessToken).trim())}`
+
+  try {
+    const response = await fetch(url)
+    const text = await response.text()
+
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      return res.status(500).json({
         ok: false,
-        error: 'Matching Meta account not found'
+        stage: 'non_json',
+        snippet: text.slice(0, 500)
       })
     }
-
-    const accountId = matchedAccount.account_id || matchedAccount.id
-    const accountPath = String(accountId).startsWith('act_')
-      ? String(accountId)
-      : `act_${accountId}`
-
-    const fields = ['account_name', 'actions'].join(',')
-
-    const url =
-      `https://graph.facebook.com/v19.0/${accountPath}/insights` +
-      `?level=account` +
-      `&fields=${encodeURIComponent(fields)}` +
-      `&action_report_time=conversion` +
-      `&use_account_attribution_setting=true` +
-      `&time_range=${encodeURIComponent(
-        JSON.stringify({
-          since: '2000-01-01',
-          until: new Date().toISOString().slice(0, 10)
-        })
-      )}` +
-      `&access_token=${encodeURIComponent(String(accessToken).trim())}`
-
-    const response = await fetch(url)
-    const data = await response.json()
 
     if (!response.ok) {
       return res.status(response.status).json({
@@ -71,8 +61,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      client: clientId,
-      account: matchedAccount.name,
+      accountId,
+      accountName: row?.account_name || null,
       actionTypeTotals
     })
   } catch (error) {
