@@ -99,20 +99,27 @@ function BrandMark({ dark = false }) {
     >
       <div
         style={{
-          width: '40px',
-          height: '40px',
+          width: '54px',
+          height: '54px',
           borderRadius: '14px',
-          background: '#e7bd52',
-          color: '#0a4c3e',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 900,
-          fontSize: '14px',
-          letterSpacing: '0.04em'
+          overflow: 'hidden',
+          flexShrink: 0,
+          boxShadow: dark ? 'none' : '0 4px 14px rgba(10,76,62,0.10)'
         }}
       >
-        PWP
+        <img
+          src="/logo-pwp.jpg"
+          alt="Post With Passion logo"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block'
+          }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+          }}
+        />
       </div>
 
       <div>
