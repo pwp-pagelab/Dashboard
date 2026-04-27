@@ -79,6 +79,7 @@ export default async function handler(req, res) {
       const googleRow = await getGoogleAdsData(rangeConfig.google)
       if (googleRow) rows.push(googleRow)
     }
+
     if ((platformFilter === 'all' || platformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
       const snapRow = await getSnapchatData({
         clientId,
@@ -86,11 +87,14 @@ export default async function handler(req, res) {
       })
       if (snapRow) rows.push(snapRow)
     }
+
     const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
     const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
     const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
     const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
     const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+
+    const googleData = rows.find((row) => row.platform === 'Google Ads') || null
 
     return res.status(200).json({
       updatedAt: new Date().toISOString(),
@@ -132,7 +136,18 @@ export default async function handler(req, res) {
           conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
         }
         return acc
-      }, {})
+      }, {}),
+      diagnostics: {
+        google: googleData
+          ? {
+              snapshot: googleData.snapshot,
+              visibility: googleData.visibility,
+              keywordHealth: googleData.keywordHealth,
+              interpretation: googleData.interpretation,
+              tables: googleData.tables
+            }
+          : null
+      }
     })
   } catch (error) {
     return res.status(500).json({
