@@ -36,7 +36,6 @@ export async function getMetaData({
   timeRange = null
 } = {}) {
   const accessToken = process.env.META_ACCESS_TOKEN
-
   if (!accessToken) return null
 
   const client = getClientById(clientId)
@@ -74,16 +73,14 @@ export async function getMetaData({
     `&use_account_attribution_setting=true` +
     `&access_token=${encodeURIComponent(token)}`
 
-  // IMPORTANT:
-  // for maximum / long historical view, use Meta's native maximum preset
-  // instead of custom time_range aggregation
-  const isLongHistoricalRange =
+  const isMaxRange =
     timeRange &&
+    typeof timeRange === 'object' &&
     timeRange.since &&
     timeRange.until &&
     String(timeRange.since) <= '2023-01-01'
 
-  if (isLongHistoricalRange) {
+  if (isMaxRange) {
     url += `&date_preset=maximum`
   } else if (timeRange) {
     url += `&time_range=${encodeURIComponent(JSON.stringify(timeRange))}`
@@ -92,7 +89,14 @@ export async function getMetaData({
   }
 
   const response = await fetch(url)
-  const data = await response.json()
+  const text = await response.text()
+
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`Meta returned non-JSON response: ${text.slice(0, 300)}`)
+  }
 
   if (!response.ok) {
     throw new Error(data?.error?.message || 'Meta API error')
