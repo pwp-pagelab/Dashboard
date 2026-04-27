@@ -129,21 +129,71 @@ function EmptyState({ text }) {
   )
 }
 
+function ReportMetricCard({ label, value, accent }) {
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        borderRadius: '18px',
+        border: '1px solid #e5e7eb',
+        padding: '18px',
+        minHeight: '110px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          background: accent
+        }}
+      />
+      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{label}</div>
+      <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08 }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
 function ReportView({ data, platform, range, setView }) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
-  const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb']
+  const platformSplit =
+    data?.platformSplit && typeof data.platformSplit === 'object' && !Array.isArray(data.platformSplit)
+      ? data.platformSplit
+      : {}
+
+  const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb', '#06b6d4']
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '28px', color: '#111827' }}>
       <style>{`
         @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
+          .no-print {
+            display: none !important;
+          }
+
+          body {
+            background: white !important;
+          }
+
+          .report-shell {
+            padding: 0 !important;
+          }
+
+          .report-card {
+            box-shadow: none !important;
+            border-color: #e5e7eb !important;
+          }
         }
       `}</style>
 
-      <div style={{ maxWidth: '1150px', margin: '0 auto' }}>
+      <div className="report-shell" style={{ maxWidth: '1160px', margin: '0 auto' }}>
         <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '22px', flexWrap: 'wrap' }}>
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
             Back to Dashboard
@@ -153,71 +203,192 @@ function ReportView({ data, platform, range, setView }) {
           </button>
         </div>
 
-        <div style={{ ...panelStyle(), marginBottom: '18px' }}>
-          <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: 800, marginBottom: '10px' }}>
-            CLIENT REPORT
+        <div
+          className="report-card"
+          style={{
+            ...cardStyle(),
+            marginBottom: '18px',
+            padding: '28px',
+            background:
+              'linear-gradient(135deg, #ffffff 0%, #f8fbff 55%, #eef4ff 100%)'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '18px',
+              flexWrap: 'wrap',
+              alignItems: 'flex-start'
+            }}
+          >
+            <div style={{ maxWidth: '720px' }}>
+              <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: 800, marginBottom: '10px' }}>
+                CLIENT PERFORMANCE REPORT
+              </div>
+              <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900, lineHeight: 1.05 }}>
+                {data?.client?.name || 'Client Report'}
+              </h1>
+              <p style={{ marginTop: '12px', color: '#6b7280', fontSize: '14px', lineHeight: 1.7 }}>
+                A refined summary of paid media performance across the selected client, platform mix,
+                and reporting window.
+              </p>
+            </div>
+
+            <div
+              style={{
+                minWidth: '260px',
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '18px',
+                padding: '16px'
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700, marginBottom: '10px' }}>
+                Report Details
+              </div>
+              <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: '#111827' }}>
+                <div>
+                  <strong>Client:</strong> {data?.client?.name || 'N/A'}
+                </div>
+                <div>
+                  <strong>Platform:</strong> {platform}
+                </div>
+                <div>
+                  <strong>Range:</strong> {range}
+                </div>
+                <div>
+                  <strong>Generated:</strong>{' '}
+                  {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                </div>
+              </div>
+            </div>
           </div>
-          <h1 style={{ margin: 0, fontSize: '36px', fontWeight: 900 }}>{data?.client?.name || 'Report'}</h1>
-          <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '14px' }}>
-            Platform: {platform} · Range: {range} · Generated:{' '}
-            {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
-          </p>
         </div>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
             gap: '14px',
             marginBottom: '18px'
           }}
         >
           {summaryCards.map((card, i) => (
-            <div key={card.label} style={metricCardStyle(accentColors[i % accentColors.length])}>
-              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{card.label}</div>
-              <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 900, lineHeight: 1.1 }}>
-                {card.value}
-              </div>
-            </div>
+            <ReportMetricCard
+              key={card.label}
+              label={card.label}
+              value={card.value}
+              accent={accentColors[i % accentColors.length]}
+            />
           ))}
         </div>
 
-        <div style={panelStyle()}>
-          <SectionTitle title="Performance Table" subtitle="Filtered performance across active platforms." />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.5fr 0.95fr',
+            gap: '18px',
+            marginBottom: '18px'
+          }}
+        >
+          <div className="report-card" style={panelStyle()}>
+            <SectionTitle
+              title="Performance Breakdown"
+              subtitle="Summary of performance rows included in the selected report."
+            />
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '12px 8px' }}>Platform</th>
-                  <th style={{ padding: '12px 8px' }}>Campaign</th>
-                  <th style={{ padding: '12px 8px' }}>Spend</th>
-                  <th style={{ padding: '12px 8px' }}>Clicks</th>
-                  <th style={{ padding: '12px 8px' }}>Conversions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaignRows.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ padding: '18px 8px', color: '#6b7280' }}>
-                      No data available for this report.
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                    <th style={{ padding: '12px 8px' }}>Platform</th>
+                    <th style={{ padding: '12px 8px' }}>Campaign</th>
+                    <th style={{ padding: '12px 8px' }}>Spend</th>
+                    <th style={{ padding: '12px 8px' }}>Clicks</th>
+                    <th style={{ padding: '12px 8px' }}>Conversions</th>
                   </tr>
-                ) : (
-                  campaignRows.map((row, index) => (
-                    <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 8px' }}>
-                        <PlatformBadge label={row.platform} />
+                </thead>
+                <tbody>
+                  {campaignRows.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ padding: '18px 8px' }}>
+                        <EmptyState text="No data available for this report." />
                       </td>
-                      <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    campaignRows.map((row, index) => (
+                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px 8px' }}>
+                          <PlatformBadge label={row.platform} />
+                        </td>
+                        <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
+                        <td style={{ padding: '14px 8px' }}>{row.spend}</td>
+                        <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
+                        <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="report-card" style={panelStyle()}>
+            <SectionTitle
+              title="Platform Summary"
+              subtitle="Quick totals by active platform."
+            />
+
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {Object.keys(platformSplit).length === 0 ? (
+                <EmptyState text="No platform totals available." />
+              ) : (
+                Object.entries(platformSplit).map(([key, value]) => (
+                  <div
+                    key={key}
+                    style={{
+                      border: '1px solid #edf0f5',
+                      borderRadius: '18px',
+                      background: '#fbfdff',
+                      padding: '16px'
+                    }}
+                  >
+                    <div style={{ marginBottom: '10px' }}>
+                      <PlatformBadge label={key.replace(/_/g, ' ')} />
+                    </div>
+                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.08, color: '#111827' }}>
+                      {value?.spend || 'N/A'}
+                    </div>
+                    <div style={{ marginTop: '8px', color: '#6b7280', fontSize: '13px' }}>
+                      {value?.conversions ?? 'N/A'} conversions
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="report-card" style={panelStyle()}>
+          <SectionTitle
+            title="Notes"
+            subtitle="Reserved area for insights, context, or client-facing remarks before export."
+          />
+          <div
+            style={{
+              minHeight: '120px',
+              border: '1px dashed #d6dce8',
+              borderRadius: '16px',
+              padding: '16px',
+              background: '#f8fafc',
+              color: '#6b7280',
+              fontSize: '14px',
+              lineHeight: 1.7
+            }}
+          >
+            Add key observations, budget notes, learning points, or next-step recommendations here
+            before exporting the report to PDF.
           </div>
         </div>
       </div>
