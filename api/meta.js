@@ -1,55 +1,118 @@
-export default async function handler(req, res) {
-  const accessToken = process.env.META_ACCESS_TOKEN
-  const adAccountId = process.env.META_AD_ACCOUNT_ID
+import { getMetaBusinessAdAccounts, findMatchingMetaAccount } from './metaAccounts.js'
+import { getClientById } from '../data/clients.js'
 
-  if (!accessToken || !adAccountId) {
-    return res.status(500).json({
-      ok: false,
-      error: 'Missing META_ACCESS_TOKEN or META_AD_ACCOUNT_ID'
-    })
+function getMetaConversionValue(actions = []) {
+  if (!Array.isArray(actions)) return 0
+
+  const preferredTypes = [
+    'purchase',
+    'offsite_conversion.fb_pixel_purchase',
+    'offsite_conversion.purchase',
+    'onsite_web_purchase',
+    'onsite_web_app_purchase',
+    'omni_purchase',
+    'complete_registration',
+    'offsite_conversion.fb_pixel_complete_registration',
+    'offsite_complete_registration_add_meta_leads',
+    'omni_complete_registration',
+    'lead',
+    'onsite_web_lead',
+    'omni_lead'
+  ]
+
+  for (const type of preferredTypes) {
+    const found = actions.find((a) => a.action_type === type)
+    if (found && found.value != null) {
+      return Number(found.value || 0)
+    }
   }
 
-  try {
-    const token = String(accessToken).trim()
-    const accountId = String(adAccountId).replace(/^act_/, '')
-    const accountPath = `act_${accountId}`
+  return 0
+}
 
-    const insightsFields = [
-      'account_name',
-      'spend',
-      'impressions',
-      'clicks',
-      'ctr',
-      'cpc'
-    ].join(',')
+export async function getMetaData({
+  clientId,
+  datePreset = 'last_30d',
+  timeRange = null
+} = {}) {
+  const accessToken = process.env.META_ACCESS_TOKEN
 
-    const insightsUrl =
-      `https://graph.facebook.com/v19.0/${accountPath}/insights` +
-      `?date_preset=last_30d` +
-      `&level=account` +
-      `&fields=${encodeURIComponent(insightsFields)}` +
-      `&access_token=${encodeURIComponent(token)}`
+  if (!accessToken) return null
 
-    const insightsResponse = await fetch(insightsUrl)
-    const insightsData = await insightsResponse.json()
+  const client = getClientById(clientId)
+  if (!client || !client.metaBusinessKey) return null
 
-    if (!insightsResponse.ok) {
-      return res.status(insightsResponse.status).json({
-        ok: false,
-        stage: 'insights',
-        metaError: insightsData
-      })
-    }
+  const accounts = await getMetaBusinessAdAccounts(client.metaBusinessKey)
+  if (!Array.isArray(accounts) || accounts.length === 0) return null
 
-    return res.status(200).json({
-      ok: true,
-      source: 'meta',
-      data: insightsData
-    })
-  } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      error: error.message
-    })
+  const matchedAccount = findMatchingMetaAccount(accounts, client)
+  if (!matchedAccount) return null
+
+  const token = String(accessToken).trim()
+  const accountId = matchedAccount.account_id || matchedAccount.id
+  if (!accountId) return null
+
+  const accountPath = String(accountId).startsWith('act_')
+    ? String(accountId)
+    : `act_${accountId}`
+
+  const fields = [
+    'account_name',
+    'spend',
+    'impressions',
+    'clicks',
+    'ctr',
+    'cpc',
+    'actions'
+  ].join(',')
+
+  let url =
+    `https://graph.facebook.com/v19.0/${accountPath}/insights` +
+    `?level=account` +
+    `&fields=${encodeURIComponent(fields)}` +
+    `&action_report_time=conversion` +
+    `&use_account_attribution_setting=true` +
+    `&access_token=${encodeURIComponent(token)}`
+
+  // IMPORTANT:
+  // for maximum / long historical view, use Meta's native maximum preset
+  // instead of custom time_range aggregation
+  const isLongHistoricalRange =
+    timeRange &&
+    timeRange.since &&
+    timeRange.until &&
+    String(timeRange.since) <= '2023-01-01'
+
+  if (isLongHistoricalRange) {
+    url += `&date_preset=maximum`
+  } else if (timeRange) {
+    url += `&time_range=${encodeURIComponent(JSON.stringify(timeRange))}`
+  } else {
+    url += `&date_preset=${encodeURIComponent(datePreset)}`
+  }
+
+  const response = await fetch(url)
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data?.error?.message || 'Meta API error')
+  }
+
+  const row = data?.data?.[0]
+  if (!row) return null
+
+  const conversions = getMetaConversionValue(row.actions)
+
+  return {
+    platform: 'Meta',
+    campaign: row.account_name || matchedAccount.name || 'Meta',
+    spend: Number(row.spend || 0),
+    impressions: Number(row.impressions || 0),
+    clicks: Number(row.clicks || 0),
+    ctr: Number(row.ctr || 0),
+    cpc: Number(row.cpc || 0),
+    conversions,
+    metaAccountName: matchedAccount.name,
+    metaAccountId: matchedAccount.account_id || matchedAccount.id
   }
 }
