@@ -7,8 +7,12 @@ export default async function handler(req, res) {
     : `act_${accountId}`
 
   const url =
-    `https://graph.facebook.com/v19.0/${accountPath}` +
-    `?fields=${encodeURIComponent('id,name,account_id')}` +
+    `https://graph.facebook.com/v19.0/${accountPath}/insights` +
+    `?level=account` +
+    `&fields=${encodeURIComponent('account_name,actions')}` +
+    `&date_preset=maximum` +
+    `&action_report_time=conversion` +
+    `&use_account_attribution_setting=true` +
     `&access_token=${encodeURIComponent(String(accessToken).trim())}`
 
   try {
