@@ -1,6 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import OnboardingHelper from './OnboardingHelper.jsx'
 
+const COLORS = {
+  green: '#0a4c3e',
+  gold: '#e7bd52',
+  cream: '#f7f3ec',
+  cream2: '#efe8dd',
+  white: '#ffffff',
+  text: '#1f2937',
+  muted: '#6b7280',
+  line: '#e7dfd2',
+  softGreen: '#e8f1ee',
+  softGold: '#f8edd0'
+}
+
 function navItemStyle(active) {
   return {
     display: 'flex',
@@ -8,19 +21,19 @@ function navItemStyle(active) {
     gap: '10px',
     padding: '12px 14px',
     borderRadius: '12px',
-    background: active ? '#eef3ff' : 'transparent',
-    color: active ? '#1d4ed8' : '#4b5563',
+    background: active ? 'rgba(231,189,82,0.18)' : 'transparent',
+    color: active ? COLORS.white : 'rgba(255,255,255,0.82)',
     fontWeight: active ? 800 : 600,
-    borderLeft: active ? '4px solid #2563eb' : '4px solid transparent'
+    borderLeft: active ? `4px solid ${COLORS.gold}` : '4px solid transparent'
   }
 }
 
 function cardStyle() {
   return {
-    background: '#ffffff',
+    background: COLORS.white,
     borderRadius: '20px',
-    boxShadow: '0 10px 30px rgba(15,23,42,0.06)',
-    border: '1px solid #edf0f5'
+    border: `1px solid ${COLORS.line}`,
+    boxShadow: '0 10px 30px rgba(10,76,62,0.06)'
   }
 }
 
@@ -29,7 +42,7 @@ function metricCardStyle(accent) {
     ...cardStyle(),
     padding: '18px',
     minHeight: '112px',
-    borderBottom: `4px solid ${accent || '#2563eb'}`
+    borderTop: `4px solid ${accent || COLORS.gold}`
   }
 }
 
@@ -44,13 +57,13 @@ function buttonStyle(primary = false) {
   return {
     padding: '11px 16px',
     borderRadius: '12px',
-    border: primary ? 'none' : '1px solid #d6dce8',
-    background: primary ? '#2563eb' : '#ffffff',
-    color: primary ? '#ffffff' : '#111827',
+    border: primary ? 'none' : `1px solid ${COLORS.line}`,
+    background: primary ? COLORS.green : COLORS.white,
+    color: primary ? COLORS.white : COLORS.green,
     fontWeight: 700,
     fontSize: '14px',
     cursor: 'pointer',
-    boxShadow: primary ? '0 10px 25px rgba(37,99,235,0.22)' : 'none'
+    boxShadow: primary ? '0 10px 25px rgba(10,76,62,0.18)' : 'none'
   }
 }
 
@@ -59,10 +72,10 @@ function selectStyle() {
     width: '100%',
     padding: '11px 12px',
     borderRadius: '12px',
-    border: '1px solid #d6dce8',
-    background: '#ffffff',
+    border: `1px solid ${COLORS.line}`,
+    background: COLORS.white,
     fontSize: '14px',
-    color: '#111827',
+    color: COLORS.text,
     outline: 'none'
   }
 }
@@ -70,18 +83,18 @@ function selectStyle() {
 function PlatformBadge({ label }) {
   const lower = String(label || '').toLowerCase()
 
-  let bg = '#eef2ff'
-  let color = '#4338ca'
+  let bg = COLORS.softGreen
+  let color = COLORS.green
 
   if (lower.includes('google')) {
-    bg = '#ecfeff'
+    bg = '#eef6f3'
     color = '#0f766e'
   } else if (lower.includes('snap')) {
-    bg = '#fef9c3'
-    color = '#92400e'
+    bg = COLORS.softGold
+    color = '#8a6212'
   } else if (lower.includes('meta')) {
-    bg = '#eef2ff'
-    color = '#4338ca'
+    bg = '#edf3ff'
+    color = '#3559b7'
   }
 
   return (
@@ -91,7 +104,7 @@ function PlatformBadge({ label }) {
         padding: '6px 10px',
         borderRadius: '999px',
         background: bg,
-        color: color,
+        color,
         fontSize: '12px',
         fontWeight: 800
       }}
@@ -104,9 +117,9 @@ function PlatformBadge({ label }) {
 function SectionTitle({ title, subtitle }) {
   return (
     <div style={{ marginBottom: '18px' }}>
-      <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>{title}</h3>
+      <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: COLORS.green }}>{title}</h3>
       {subtitle ? (
-        <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '13px' }}>{subtitle}</p>
+        <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px' }}>{subtitle}</p>
       ) : null}
     </div>
   )
@@ -118,9 +131,9 @@ function EmptyState({ text }) {
       style={{
         padding: '18px',
         borderRadius: '14px',
-        background: '#f8fafc',
-        border: '1px dashed #d6dce8',
-        color: '#6b7280',
+        background: '#fbfaf7',
+        border: `1px dashed ${COLORS.line}`,
+        color: COLORS.muted,
         fontSize: '14px'
       }}
     >
@@ -133,27 +146,16 @@ function ReportMetricCard({ label, value, accent }) {
   return (
     <div
       style={{
-        background: '#ffffff',
+        background: COLORS.white,
         borderRadius: '18px',
-        border: '1px solid #e5e7eb',
+        border: `1px solid ${COLORS.line}`,
         padding: '18px',
         minHeight: '110px',
-        position: 'relative',
-        overflow: 'hidden'
+        borderTop: `4px solid ${accent}`
       }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '4px',
-          background: accent
-        }}
-      />
-      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{label}</div>
-      <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08 }}>
+      <div style={{ fontSize: '12px', color: '#8a8f98', fontWeight: 700 }}>{label}</div>
+      <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
         {value}
       </div>
     </div>
@@ -168,32 +170,19 @@ function ReportView({ data, platform, range, setView }) {
       ? data.platformSplit
       : {}
 
-  const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb', '#06b6d4']
+  const accentColors = [COLORS.gold, COLORS.green, '#c89b2b', '#2e6b5d', '#d4aa45', '#14594a']
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: '28px', color: '#111827' }}>
+    <div style={{ minHeight: '100vh', background: COLORS.cream, padding: '28px', color: COLORS.text }}>
       <style>{`
         @media print {
-          .no-print {
-            display: none !important;
-          }
-
-          body {
-            background: white !important;
-          }
-
-          .report-shell {
-            padding: 0 !important;
-          }
-
-          .report-card {
-            box-shadow: none !important;
-            border-color: #e5e7eb !important;
-          }
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          .report-card { box-shadow: none !important; }
         }
       `}</style>
 
-      <div className="report-shell" style={{ maxWidth: '1160px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
         <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '22px', flexWrap: 'wrap' }}>
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
             Back to Dashboard
@@ -208,62 +197,61 @@ function ReportView({ data, platform, range, setView }) {
           style={{
             ...cardStyle(),
             marginBottom: '18px',
-            padding: '28px',
-            background:
-              'linear-gradient(135deg, #ffffff 0%, #f8fbff 55%, #eef4ff 100%)'
+            padding: '0',
+            overflow: 'hidden'
           }}
         >
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: '18px',
-              flexWrap: 'wrap',
-              alignItems: 'flex-start'
+              background: COLORS.green,
+              color: COLORS.white,
+              padding: '26px 28px'
             }}
           >
-            <div style={{ maxWidth: '720px' }}>
-              <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: 800, marginBottom: '10px' }}>
-                CLIENT PERFORMANCE REPORT
-              </div>
-              <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900, lineHeight: 1.05 }}>
-                {data?.client?.name || 'Client Report'}
-              </h1>
-              <p style={{ marginTop: '12px', color: '#6b7280', fontSize: '14px', lineHeight: 1.7 }}>
-                A refined summary of paid media performance across the selected client, platform mix,
-                and reporting window.
-              </p>
-            </div>
-
             <div
               style={{
-                minWidth: '260px',
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '18px',
-                padding: '16px'
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: '18px',
+                flexWrap: 'wrap',
+                alignItems: 'flex-start'
               }}
             >
-              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700, marginBottom: '10px' }}>
-                Report Details
+              <div style={{ maxWidth: '720px' }}>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', fontWeight: 800, marginBottom: '10px' }}>
+                  PWP · POST WITH PASSION
+                </div>
+                <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900, lineHeight: 1.05 }}>
+                  {data?.client?.name || 'Client Report'}
+                </h1>
+                <p style={{ marginTop: '10px', color: 'rgba(255,255,255,0.82)', fontSize: '14px', lineHeight: 1.7 }}>
+                  Paid media performance report across the selected platform mix and reporting window.
+                </p>
               </div>
-              <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: '#111827' }}>
-                <div>
-                  <strong>Client:</strong> {data?.client?.name || 'N/A'}
+
+              <div
+                style={{
+                  minWidth: '260px',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '18px',
+                  padding: '16px'
+                }}
+              >
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', fontWeight: 700, marginBottom: '10px' }}>
+                  Report Details
                 </div>
-                <div>
-                  <strong>Platform:</strong> {platform}
-                </div>
-                <div>
-                  <strong>Range:</strong> {range}
-                </div>
-                <div>
-                  <strong>Generated:</strong>{' '}
-                  {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: COLORS.white }}>
+                  <div><strong>Client:</strong> {data?.client?.name || 'N/A'}</div>
+                  <div><strong>Platform:</strong> {platform}</div>
+                  <div><strong>Range:</strong> {range}</div>
+                  <div><strong>Generated:</strong> {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}</div>
                 </div>
               </div>
             </div>
           </div>
+
+          <div style={{ height: '5px', background: COLORS.gold }} />
         </div>
 
         <div
@@ -301,7 +289,7 @@ function ReportView({ data, platform, range, setView }) {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                  <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
                     <th style={{ padding: '12px 8px' }}>Platform</th>
                     <th style={{ padding: '12px 8px' }}>Campaign</th>
                     <th style={{ padding: '12px 8px' }}>Spend</th>
@@ -318,7 +306,7 @@ function ReportView({ data, platform, range, setView }) {
                     </tr>
                   ) : (
                     campaignRows.map((row, index) => (
-                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
                         <td style={{ padding: '14px 8px' }}>
                           <PlatformBadge label={row.platform} />
                         </td>
@@ -348,19 +336,19 @@ function ReportView({ data, platform, range, setView }) {
                   <div
                     key={key}
                     style={{
-                      border: '1px solid #edf0f5',
+                      border: `1px solid ${COLORS.line}`,
                       borderRadius: '18px',
-                      background: '#fbfdff',
+                      background: '#fcfbf8',
                       padding: '16px'
                     }}
                   >
                     <div style={{ marginBottom: '10px' }}>
                       <PlatformBadge label={key.replace(/_/g, ' ')} />
                     </div>
-                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.08, color: '#111827' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
                       {value?.spend || 'N/A'}
                     </div>
-                    <div style={{ marginTop: '8px', color: '#6b7280', fontSize: '13px' }}>
+                    <div style={{ marginTop: '8px', color: COLORS.muted, fontSize: '13px' }}>
                       {value?.conversions ?? 'N/A'} conversions
                     </div>
                   </div>
@@ -373,22 +361,21 @@ function ReportView({ data, platform, range, setView }) {
         <div className="report-card" style={panelStyle()}>
           <SectionTitle
             title="Notes"
-            subtitle="Reserved area for insights, context, or client-facing remarks before export."
+            subtitle="Reserved area for observations, context, and client-facing recommendations."
           />
           <div
             style={{
               minHeight: '120px',
-              border: '1px dashed #d6dce8',
+              border: `1px dashed ${COLORS.line}`,
               borderRadius: '16px',
               padding: '16px',
-              background: '#f8fafc',
-              color: '#6b7280',
+              background: '#fbfaf7',
+              color: COLORS.muted,
               fontSize: '14px',
               lineHeight: 1.7
             }}
           >
-            Add key observations, budget notes, learning points, or next-step recommendations here
-            before exporting the report to PDF.
+            Add campaign notes, performance context, media recommendations, or next-step actions here before exporting the report.
           </div>
         </div>
       </div>
@@ -490,27 +477,27 @@ export default function App() {
       ? data.platformSplit
       : {}
 
-  const accentColors = ['#22c55e', '#a855f7', '#ec4899', '#facc15', '#2563eb', '#06b6d4']
+  const accentColors = [COLORS.gold, COLORS.green, '#c89b2b', '#2e6b5d', '#d4aa45', '#14594a']
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f7fb', color: '#111827' }}>
+    <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '100vh' }}>
         <aside
           style={{
-            background: '#ffffff',
-            borderRight: '1px solid #eef2f7',
+            background: COLORS.green,
+            borderRight: `1px solid rgba(255,255,255,0.08)`,
             padding: '26px 18px',
             boxShadow: '8px 0 30px rgba(15,23,42,0.03)'
           }}
         >
-          <div style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px', color: '#111827' }}>
+          <div style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px', color: COLORS.white }}>
             PWP
           </div>
-          <div style={{ color: '#6b7280', fontSize: '13px', marginBottom: '28px' }}>
+          <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '13px', marginBottom: '28px' }}>
             Performance Dashboard
           </div>
 
-          <div style={{ color: '#111827', fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
+          <div style={{ color: COLORS.white, fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
             Main Menu
           </div>
 
@@ -522,15 +509,15 @@ export default function App() {
             <div style={navItemStyle(false)}>Clients</div>
           </div>
 
-          <div style={{ marginTop: '26px', ...cardStyle(), padding: '18px' }}>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>
+          <div style={{ marginTop: '26px', background: 'rgba(255,255,255,0.06)', borderRadius: '18px', padding: '18px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.72)', marginBottom: '12px' }}>
               Quick Actions
             </div>
             <div style={{ display: 'grid', gap: '10px' }}>
-              <button onClick={() => setView('onboarding')} style={buttonStyle(true)}>
+              <button onClick={() => setView('onboarding')} style={{ ...buttonStyle(true), background: COLORS.gold, color: COLORS.green, boxShadow: '0 10px 25px rgba(231,189,82,0.18)' }}>
                 Open Onboarding
               </button>
-              <button onClick={() => setView('report')} style={buttonStyle(false)}>
+              <button onClick={() => setView('report')} style={{ ...buttonStyle(false), background: 'transparent', color: COLORS.white, border: '1px solid rgba(255,255,255,0.18)' }}>
                 Export Report
               </button>
             </div>
@@ -549,13 +536,13 @@ export default function App() {
             }}
           >
             <div>
-              <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: 800, marginBottom: '8px' }}>
+              <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '8px' }}>
                 DASHBOARD
               </div>
-              <h1 style={{ margin: 0, fontSize: '34px', fontWeight: 900, color: '#111827' }}>
+              <h1 style={{ margin: 0, fontSize: '34px', fontWeight: 900, color: COLORS.green }}>
                 {data?.client?.name || 'Dashboard'}
               </h1>
-              <p style={{ marginTop: '8px', color: '#6b7280', fontSize: '14px' }}>
+              <p style={{ marginTop: '8px', color: COLORS.muted, fontSize: '14px' }}>
                 A clean overview of your paid media performance across active platforms.
               </p>
             </div>
@@ -568,7 +555,7 @@ export default function App() {
               }}
             >
               <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>Last Updated</div>
-              <div style={{ marginTop: '8px', fontWeight: 900, color: '#111827' }}>
+              <div style={{ marginTop: '8px', fontWeight: 900, color: COLORS.green }}>
                 {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
               </div>
             </div>
@@ -638,7 +625,7 @@ export default function App() {
             {summaryCards.map((card, i) => (
               <div key={card.label} style={metricCardStyle(accentColors[i % accentColors.length])}>
                 <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>{card.label}</div>
-                <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: '#111827' }}>
+                <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
                   {card.value}
                 </div>
               </div>
@@ -661,7 +648,7 @@ export default function App() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                   <thead>
-                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                    <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
                       <th style={{ padding: '12px 8px' }}>Platform</th>
                       <th style={{ padding: '12px 8px' }}>Campaign</th>
                       <th style={{ padding: '12px 8px' }}>Spend</th>
@@ -678,7 +665,7 @@ export default function App() {
                       </tr>
                     ) : (
                       campaignRows.map((row, index) => (
-                        <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #f1ece3' }}>
                           <td style={{ padding: '14px 8px' }}>
                             <PlatformBadge label={row.platform} />
                           </td>
@@ -708,19 +695,19 @@ export default function App() {
                     <div
                       key={key}
                       style={{
-                        border: '1px solid #edf0f5',
+                        border: `1px solid ${COLORS.line}`,
                         borderRadius: '18px',
-                        background: '#fbfdff',
+                        background: '#fcfbf8',
                         padding: '16px'
                       }}
                     >
                       <div style={{ marginBottom: '10px' }}>
                         <PlatformBadge label={key.replace(/_/g, ' ')} />
                       </div>
-                      <div style={{ fontSize: '27px', fontWeight: 900, lineHeight: 1.1, color: '#111827' }}>
+                      <div style={{ fontSize: '27px', fontWeight: 900, lineHeight: 1.1, color: COLORS.green }}>
                         {value?.spend || 'N/A'}
                       </div>
-                      <div style={{ marginTop: '8px', color: '#6b7280', fontSize: '13px' }}>
+                      <div style={{ marginTop: '8px', color: COLORS.muted, fontSize: '13px' }}>
                         {value?.conversions ?? 'N/A'} conversions
                       </div>
                     </div>
