@@ -79,7 +79,66 @@ function selectStyle() {
     outline: 'none'
   }
 }
+function BrandMark({ dark = false }) {
+  const bg = dark ? 'rgba(255,255,255,0.08)' : '#ffffff'
+  const border = dark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e7dfd2'
+  const titleColor = dark ? '#ffffff' : '#0a4c3e'
+  const subColor = dark ? 'rgba(255,255,255,0.72)' : '#6b7280'
 
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 14px',
+        borderRadius: '16px',
+        background: bg,
+        border: border
+      }}
+    >
+      <div
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '14px',
+          background: '#e7bd52',
+          color: '#0a4c3e',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 900,
+          fontSize: '14px',
+          letterSpacing: '0.04em'
+        }}
+      >
+        PWP
+      </div>
+
+      <div>
+        <div
+          style={{
+            fontSize: '15px',
+            fontWeight: 900,
+            color: titleColor,
+            lineHeight: 1.1
+          }}
+        >
+          Post With Passion
+        </div>
+        <div
+          style={{
+            fontSize: '12px',
+            color: subColor,
+            marginTop: '4px'
+          }}
+        >
+          Performance Dashboard
+        </div>
+      </div>
+    </div>
+  )
+}
 function PlatformBadge({ label }) {
   const lower = String(label || '').toLowerCase()
 
@@ -218,9 +277,9 @@ function ReportView({ data, platform, range, setView }) {
               }}
             >
               <div style={{ maxWidth: '720px' }}>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', fontWeight: 800, marginBottom: '10px' }}>
-                  PWP · POST WITH PASSION
-                </div>
+                <div style={{ marginBottom: '14px', maxWidth: '360px' }}>
+  <BrandMark dark={true} />
+</div>
                 <h1 style={{ margin: 0, fontSize: '38px', fontWeight: 900, lineHeight: 1.05 }}>
                   {data?.client?.name || 'Client Report'}
                 </h1>
@@ -490,12 +549,9 @@ export default function App() {
             boxShadow: '8px 0 30px rgba(15,23,42,0.03)'
           }}
         >
-          <div style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px', color: COLORS.white }}>
-            PWP
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '13px', marginBottom: '28px' }}>
-            Performance Dashboard
-          </div>
+         <div style={{ marginBottom: '28px' }}>
+  <BrandMark dark={true} />
+</div>
 
           <div style={{ color: COLORS.white, fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
             Main Menu
