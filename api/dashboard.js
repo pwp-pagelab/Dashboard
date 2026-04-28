@@ -45,13 +45,6 @@ function getRangeConfig(range, client = null) {
     meta: { datePreset: 'last_30d', timeRange: null },
     google: { dateRange: 'LAST_30_DAYS', startDate: null, endDate: null }
   }
- }
-}
-
-  return {
-    meta: { datePreset: 'last_30d', timeRange: null },
-    google: { dateRange: 'LAST_30_DAYS', startDate: null, endDate: null }
-  }
 }
 
 export default async function handler(req, res) {
@@ -72,7 +65,7 @@ export default async function handler(req, res) {
   try {
     const rows = []
     const rangeConfig = getRangeConfig(range, client)
-    
+
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
       const metaRow = await getMetaData({
         clientId,
