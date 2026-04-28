@@ -2,6 +2,7 @@ import { clients, getClientById } from '../data/clients.js'
 import { getMetaData } from '../lib/meta.js'
 import { getGoogleAdsData } from '../lib/googleAds.js'
 import { getSnapchatData } from '../lib/snapchat.js'
+import { getTikTokData } from '../lib/tiktok.js'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -85,6 +86,14 @@ export default async function handler(req, res) {
         range
       })
       if (snapRow) rows.push(snapRow)
+    }
+
+    if ((platformFilter === 'all' || platformFilter === 'tiktok') && client.platforms.tiktok?.enabled) {
+      const tiktokRow = await getTikTokData({
+        clientId,
+        range
+      })
+      if (tiktokRow) rows.push(tiktokRow)
     }
 
     const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
