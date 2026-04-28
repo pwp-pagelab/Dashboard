@@ -17,22 +17,25 @@ export const clients = [
     }
   },
   {
-    id: 'calistrafitness',
-    name: 'Calistra',
-    reportingStartDate: '2026-04-04',
-    tiktokAdvertiserId: '7626676131768369172',
-    metaBusinessKey: 'PWP_SECOND',
-    metaMatch: {
-      type: 'includes',
-      value: 'calistra'
-    },
-    platforms: {
-      meta: { enabled: true },
-      google: { enabled: false },
-      tiktok: { enabled: true },
-      snapchat: { enabled: true }
-    }
+    {
+  id: 'clientslug',
+  name: 'Client Name',
+  metaBusinessKey: 'PWP_MAIN',
+  metaMatch: {
+    type: 'includes',
+    value: 'match_value'
   },
+  snapMatch: {
+    type: 'includes',
+    value: 'Client Name'
+  },
+  platforms: {
+    meta: { enabled: true },
+    google: { enabled: true },
+    tiktok: { enabled: false },
+    snapchat: { enabled: true }
+  }
+},
   {
     id: 'pwp',
     name: 'PWP',
