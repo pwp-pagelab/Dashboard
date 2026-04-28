@@ -3,47 +3,45 @@ export const clients = [
     id: 'rimiya',
     name: 'Rimiya',
     reportingStartDate: '2026-02-11',
+    tiktokAdvertiserId: '7605605483197759504',
     metaBusinessKey: 'PWP_SECOND',
     metaMatch: {
       type: 'includes',
       value: 'Rimiya'
     },
-    snapMatch: null,
     platforms: {
       meta: { enabled: true },
       google: { enabled: true },
-      tiktok: { enabled: false },
+      tiktok: { enabled: true },
       snapchat: { enabled: false }
     }
   },
   {
     id: 'calistrafitness',
     name: 'Calistra',
+    reportingStartDate: '2026-04-04',
+    tiktokAdvertiserId: '7626676131768369172',
     metaBusinessKey: 'PWP_SECOND',
     metaMatch: {
       type: 'includes',
       value: 'calistra'
     },
-    snapMatch: {
-      type: 'includes',
-      value: 'Calistra'
-    },
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
-      tiktok: { enabled: false },
+      tiktok: { enabled: true },
       snapchat: { enabled: true }
     }
   },
   {
     id: 'pwp',
     name: 'PWP',
+    reportingStartDate: '2026-01-01',
     metaBusinessKey: 'PWP_MAIN',
     metaMatch: {
       type: 'includes',
       value: 'PWP'
     },
-    snapMatch: null,
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
