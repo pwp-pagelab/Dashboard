@@ -888,7 +888,7 @@ export default function App() {
                   <option value="7d">Last 7 Days</option>
                   <option value="30d">Last 30 Days</option>
                   <option value="this_month">This Month</option>
-                  <option value="max">Maximum</option>
+                  <option value="max">Since onboarding</option>
                 </select>
               </div>
             </div>
