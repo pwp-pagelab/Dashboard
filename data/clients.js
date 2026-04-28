@@ -2,6 +2,7 @@ export const clients = [
   {
     id: 'rimiya',
     name: 'Rimiya',
+    reportingStartDate: '2026-02-11',
     metaBusinessKey: 'PWP_SECOND',
     metaMatch: {
       type: 'includes',
