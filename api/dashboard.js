@@ -7,7 +7,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function getRangeConfig(range) {
+function getRangeConfig(range, client = null) {
   if (range === '7d') {
     return {
       meta: { datePreset: 'last_7d', timeRange: null },
@@ -23,24 +23,30 @@ function getRangeConfig(range) {
   }
 
   if (range === 'max') {
-    const today = new Date()
-    const metaStart = new Date(today)
-    metaStart.setMonth(metaStart.getMonth() - 36)
-
-    const metaStartISO = metaStart.toISOString().slice(0, 10)
+    const startDate = client?.reportingStartDate || '2026-01-01'
 
     return {
       meta: {
         datePreset: null,
-        timeRange: { since: metaStartISO, until: todayISO() }
+        timeRange: {
+          since: startDate,
+          until: todayISO()
+        }
       },
       google: {
         dateRange: null,
-        startDate: '2000-01-01',
+        startDate,
         endDate: todayISO()
       }
     }
   }
+
+  return {
+    meta: { datePreset: 'last_30d', timeRange: null },
+    google: { dateRange: 'LAST_30_DAYS', startDate: null, endDate: null }
+  }
+ }
+}
 
   return {
     meta: { datePreset: 'last_30d', timeRange: null },
@@ -65,8 +71,8 @@ export default async function handler(req, res) {
 
   try {
     const rows = []
-    const rangeConfig = getRangeConfig(range)
-
+    const rangeConfig = getRangeConfig(range, client)
+    
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
       const metaRow = await getMetaData({
         clientId,
