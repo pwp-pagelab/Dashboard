@@ -1,30 +1,51 @@
+import {
+  getMetaBusinessAdAccountsMulti,
+  findMatchingMetaAccount
+} from '../lib/metaAccounts.js'
 import { clients, getClientById } from '../data/clients.js'
-import { getMetaBusinessAdAccounts } from '../lib/metaAccounts.js'
 
 export default async function handler(req, res) {
   const clientId = req.query.client || null
   const businessKey = req.query.businessKey || null
 
   try {
+    if (!clientId && !businessKey) {
+      return res.status(200).json({
+        ok: true,
+        message: 'Pass ?client=<clientId> or ?businessKey=<key>',
+        availableClients: clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          metaBusinessKeys: c.metaBusinessKeys || (c.metaBusinessKey ? [c.metaBusinessKey] : [])
+        }))
+      })
+    }
+
     if (clientId) {
       const client = getClientById(clientId)
 
       if (!client) {
         return res.status(404).json({
           ok: false,
-          error: 'Client not found',
-          availableClients: clients.map((c) => ({ id: c.id, name: c.name }))
+          error: 'Client not found'
         })
       }
 
-      if (!client.metaBusinessKey) {
-        return res.status(400).json({
+      const businessKeys = Array.isArray(client.metaBusinessKeys)
+        ? client.metaBusinessKeys
+        : client.metaBusinessKey
+          ? [client.metaBusinessKey]
+          : []
+
+      if (!businessKeys.length) {
+        return res.status(404).json({
           ok: false,
-          error: 'Client has no metaBusinessKey'
+          error: 'Client has no metaBusinessKeys'
         })
       }
 
-      const accounts = await getMetaBusinessAdAccounts(client.metaBusinessKey)
+      const accounts = await getMetaBusinessAdAccountsMulti(businessKeys)
+      const matched = findMatchingMetaAccount(accounts, client)
 
       return res.status(200).json({
         ok: true,
@@ -32,40 +53,21 @@ export default async function handler(req, res) {
         client: {
           id: client.id,
           name: client.name,
-          metaBusinessKey: client.metaBusinessKey,
+          metaBusinessKeys: businessKeys,
           metaMatch: client.metaMatch || null
         },
-        accounts: accounts.map((account) => ({
-          id: account.id,
-          account_id: account.account_id,
-          name: account.name
-        }))
+        matchedAccount: matched || null,
+        accounts
       })
     }
 
-    if (businessKey) {
-      const accounts = await getMetaBusinessAdAccounts(businessKey)
-
-      return res.status(200).json({
-        ok: true,
-        mode: 'business',
-        businessKey,
-        accounts: accounts.map((account) => ({
-          id: account.id,
-          account_id: account.account_id,
-          name: account.name
-        }))
-      })
-    }
+    const accounts = await getMetaBusinessAdAccountsMulti([businessKey])
 
     return res.status(200).json({
       ok: true,
-      message: 'Pass ?client=<clientId> or ?businessKey=<key>',
-      availableClients: clients.map((c) => ({
-        id: c.id,
-        name: c.name,
-        metaBusinessKey: c.metaBusinessKey || null
-      }))
+      mode: 'business',
+      businessKey,
+      accounts
     })
   } catch (error) {
     return res.status(500).json({
