@@ -45,6 +45,21 @@ export const clients = [
       linkedin: { enabled: true }
     }
   },
+  {
+    id: 'bk-saudi',
+    name: 'BK Saudi',
+    reportingStartDate: '2026-01-01',
+    linkedinAccountId: '516336109',
+    metaBusinessKeys: ['POSTWITHPASSION'],
+    metaMatch: { type: 'includes', value: 'bk' },
+    platforms: {
+      meta: { enabled: false },
+      google: { enabled: false },
+      tiktok: { enabled: true },
+      snapchat: { enabled: false },
+      linkedin: { enabled: true }
+    }
+  },
 
   {
     id: 'postwithpassion-portfolio',
