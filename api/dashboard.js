@@ -49,6 +49,32 @@ function getRangeConfig(range, client = null) {
   }
 }
 
+function combineDailyTrends(rows) {
+  const dailyByDate = new Map()
+
+  rows.forEach((row) => {
+    const daily = row.daily || []
+    daily.forEach((day) => {
+      const existing = dailyByDate.get(day.date) || {
+        date: day.date,
+        spend: 0,
+        conversions: 0
+      }
+
+      existing.spend += Number(day.spend || 0)
+      existing.conversions += Number(day.conversions || 0)
+      dailyByDate.set(day.date, existing)
+    })
+  })
+
+  return Array.from(dailyByDate.values())
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((day) => ({
+      ...day,
+      cpa: day.conversions > 0 ? day.spend / day.conversions : 0
+    }))
+}
+
 export default async function handler(req, res) {
   const clientId = req.query.client || 'rimiya'
   const platformFilter = req.query.platform || 'all'
@@ -103,7 +129,12 @@ export default async function handler(req, res) {
         clientId,
         range
       })
-      if (linkedinReport.row) rows.push(linkedinReport.row)
+      if (linkedinReport.row) {
+        rows.push({
+          ...linkedinReport.row,
+          daily: linkedinReport.daily || []
+        })
+      }
       linkedinDiagnostics = {
         ok: Boolean(linkedinReport.row),
         error: linkedinReport.error || null,
@@ -182,6 +213,9 @@ export default async function handler(req, res) {
             }
           : null,
         linkedin: linkedinDiagnostics
+      },
+      trends: {
+        daily: combineDailyTrends(rows)
       }
     })
   } catch (error) {

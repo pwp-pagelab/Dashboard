@@ -304,8 +304,8 @@ function FunnelHero({ impressions, clicks, conversions }) {
     {
       label: 'Conversions',
       value: conversions.toLocaleString(),
-      width: Math.max(convOfImpressions, conversions > 0 ? 4 : 0),
-      inside: `${percent(convOfImpressions)}`,
+      width: Math.max(convOfClicks, conversions > 0 ? 4 : 0),
+      inside: `${percent(convOfImpressions)} of impressions`,
       color: COLORS.greenLight,
       topRight: `Click-to-conversion ${percent(convOfClicks)}`
     }
@@ -360,7 +360,7 @@ function FunnelHero({ impressions, clicks, conversions }) {
                   padding: '0 12px',
                   color: '#fff',
                   fontWeight: 800,
-                  fontSize: '13px',
+                  fontSize: '12px',
                   transition: 'width 0.4s ease'
                 }}
               >
@@ -393,7 +393,7 @@ function SummaryBlock({ text }) {
   return (
     <div style={panelStyle()}>
       <SectionTitle
-        title="Summary"
+        title="Plain-English summary"
         subtitle="Plain-English interpretation of the current reporting period."
       />
       <div
@@ -441,6 +441,7 @@ function SimpleTooltipValue({ active, payload, label }) {
 
 function TrendCharts({ daily, targetCPA }) {
   const hasDaily = Array.isArray(daily) && daily.length > 0
+  const actualTargetCPA = Number.isFinite(targetCPA) && targetCPA > 0 ? targetCPA : null
 
   return (
     <div
@@ -456,7 +457,7 @@ function TrendCharts({ daily, targetCPA }) {
           subtitle="Green bars for spend, amber line for daily conversions."
         />
         {!hasDaily ? (
-          <EmptyState text="Daily trend data is not connected yet. Once the API returns trends.daily, this chart will populate automatically." />
+          <EmptyState text="Trend data is not available for this platform yet." />
         ) : (
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
@@ -499,7 +500,7 @@ function TrendCharts({ daily, targetCPA }) {
           subtitle="Trending down is good."
         />
         {!hasDaily ? (
-          <EmptyState text="Daily CPA trend needs trends.daily data from the API before it can be displayed." />
+          <EmptyState text="Cost trend data is not available for this platform yet." />
         ) : (
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
@@ -523,10 +524,10 @@ function TrendCharts({ daily, targetCPA }) {
                   fill="url(#cpaFill)"
                   strokeWidth={3}
                 />
-                {Number.isFinite(targetCPA) ? (
+                {actualTargetCPA ? (
                   <Line
                     type="monotone"
-                    dataKey={() => targetCPA}
+                    dataKey={() => actualTargetCPA}
                     name="Target CPA"
                     stroke={COLORS.amber}
                     strokeDasharray="8 6"
