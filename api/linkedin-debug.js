@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   const url =
     `https://api.linkedin.com/rest/adAnalytics` +
     `?q=analytics` +
-    `&pivot=ACCOUNT` +
+    `&pivot=CAMPAIGN` +
     `&timeGranularity=ALL` +
     `&dateRange=${dateRange}` +
     `&accounts=List(${accountUrnEncoded})` +
