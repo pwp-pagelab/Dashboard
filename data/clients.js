@@ -4,7 +4,7 @@ export const clients = [
     name: 'Rimiya',
     reportingStartDate: '2026-02-11',
     tiktokAdvertiserId: '7605605483197759504',
-    metaBusinessKeys: ['PWP_SECOND', 'PWP_MAIN'],
+    metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: {
       type: 'includes',
       value: 'Rimiya'
@@ -22,7 +22,7 @@ export const clients = [
     name: 'Calistra',
     reportingStartDate: '2026-04-04',
     tiktokAdvertiserId: '7626676131768369172',
-    metaBusinessKeys: ['PWP_SECOND', 'PWP_MAIN'],
+    metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: {
       type: 'includes',
       value: 'calistra'
@@ -43,7 +43,7 @@ export const clients = [
     id: 'pwp',
     name: 'PWP',
     reportingStartDate: '2026-01-01',
-    metaBusinessKeys: ['PWP_MAIN', 'PWP_SECOND'],
+    metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: {
       type: 'includes',
       value: 'PWP'
@@ -61,7 +61,7 @@ export const clients = [
     name: 'Ygii',
     reportingStartDate: '2026-01-01',
     tiktokAdvertiserId: '7132464754412634114',
-    metaBusinessKeys: ['PWP_MAIN', 'PWP_SECOND'],
+    metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: {
       type: 'includes',
       value: 'ygii'
@@ -79,7 +79,7 @@ export const clients = [
     name: 'Yamm',
     reportingStartDate: '2026-01-01',
     tiktokAdvertiserId: '7459712999889240080',
-    metaBusinessKeys: ['PWP_MAIN', 'PWP_SECOND'],
+    metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: {
       type: 'includes',
       value: 'yamm'
@@ -97,7 +97,7 @@ export const clients = [
     name: 'Bk.Saudi',
     reportingStartDate: '2026-01-01',
     tiktokAdvertiserId: '7524695081987915777',
-    metaBusinessKeys: ['PWP_MAIN', 'PWP_SECOND'],
+    metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: {
       type: 'includes',
       value: 'bk'
