@@ -3,7 +3,7 @@ import { getMetaData } from '../lib/meta.js'
 import { getGoogleAdsData } from '../lib/googleAds.js'
 import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
-import { getLinkedInData } from '../lib/linkedin.js'
+import { getLinkedInReport } from '../lib/linkedin.js'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -67,6 +67,7 @@ export default async function handler(req, res) {
   try {
     const rows = []
     const rangeConfig = getRangeConfig(range, client)
+    let linkedinDiagnostics = null
 
     if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
       const metaRow = await getMetaData({
@@ -98,11 +99,27 @@ export default async function handler(req, res) {
     }
 
     if ((platformFilter === 'all' || platformFilter === 'linkedin') && client.platforms.linkedin?.enabled) {
-      const linkedinRow = await getLinkedInData({
+      const linkedinReport = await getLinkedInReport({
         clientId,
         range
       })
-      if (linkedinRow) rows.push(linkedinRow)
+      if (linkedinReport.row) rows.push(linkedinReport.row)
+      linkedinDiagnostics = {
+        ok: Boolean(linkedinReport.row),
+        error: linkedinReport.error || null,
+        strategy: linkedinReport.debug?.strategy || null,
+        start: linkedinReport.debug?.start || null,
+        end: linkedinReport.debug?.end || null,
+        campaignCount: linkedinReport.debug?.campaignCount || null,
+        attempts: (linkedinReport.debug?.attempts || []).map((attempt) => ({
+          label: attempt.label,
+          url: attempt.url,
+          headers: attempt.headers,
+          status: attempt.status,
+          ok: attempt.ok,
+          response: attempt.data
+        }))
+      }
     }
 
     const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
@@ -163,7 +180,8 @@ export default async function handler(req, res) {
               interpretation: googleData.interpretation,
               tables: googleData.tables
             }
-          : null
+          : null,
+        linkedin: linkedinDiagnostics
       }
     })
   } catch (error) {
