@@ -14,20 +14,20 @@ export default async function handler(req, res) {
   const startDate = new Date(`${start}T00:00:00.000Z`)
   const endDate = new Date(`${end}T00:00:00.000Z`)
 
-  const dateRange =
-    `(start:(year:${startDate.getUTCFullYear()},month:${startDate.getUTCMonth() + 1},day:${startDate.getUTCDate()}),` +
-    `end:(year:${endDate.getUTCFullYear()},month:${endDate.getUTCMonth() + 1},day:${endDate.getUTCDate()}))`
+  const dateRange = encodeURIComponent(
+    `(start:(year:${startDate.getUTCFullYear()},month:${startDate.getUTCMonth() + 1},day:${startDate.getUTCDate()}),end:(year:${endDate.getUTCFullYear()},month:${endDate.getUTCMonth() + 1},day:${endDate.getUTCDate()}))`
+  )
 
-  const accountUrn = `urn:li:sponsoredAccount:${accountId}`
+  const accountUrnEncoded = encodeURIComponent(`urn:li:sponsoredAccount:${accountId}`)
 
   const url =
     `https://api.linkedin.com/rest/adAnalytics` +
     `?q=analytics` +
     `&pivot=ACCOUNT` +
-    `&timeGranularity=DAILY` +
-    `&accounts=List(${encodeURIComponent(accountUrn)})` +
-    `&dateRange=${encodeURIComponent(dateRange)}` +
-    `&fields=impressions,landingPageClicks,costInLocalCurrency,externalWebsiteConversions`
+    `&timeGranularity=ALL` +
+    `&dateRange=${dateRange}` +
+    `&accounts=List(${accountUrnEncoded})` +
+    `&fields=dateRange,pivotValues,costInLocalCurrency,impressions,clicks,landingPageClicks,externalWebsiteConversions`
 
   try {
     const response = await fetch(url, {
@@ -35,8 +35,7 @@ export default async function handler(req, res) {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'LinkedIn-Version': '202604',
-        'X-Restli-Protocol-Version': '2.0.0',
-        'X-RestLi-Method': 'FINDER'
+        'X-Restli-Protocol-Version': '2.0.0'
       }
     })
 
@@ -49,7 +48,8 @@ export default async function handler(req, res) {
       return res.status(500).json({
         ok: false,
         stage: 'non_json',
-        snippet: text.slice(0, 500)
+        snippet: text.slice(0, 500),
+        url
       })
     }
 
