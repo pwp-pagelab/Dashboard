@@ -9,14 +9,14 @@ export default async function handler(req, res) {
     })
   }
 
+  const accountUrn = `urn:li:sponsoredAccount:${accountId}`
+
+  const url =
+    `https://api.linkedin.com/rest/adCampaigns` +
+    `?q=search` +
+    `&search.account.value=${encodeURIComponent(accountUrn)}`
+
   try {
-    const accountUrn = `urn:li:sponsoredAccount:${accountId}`
-
-    const url =
-      `https://api.linkedin.com/rest/adCampaigns` +
-      `?q=search` +
-      `&search.account.values[0]=${encodeURIComponent(accountUrn)}`
-
     const response = await fetch(url, {
       method: 'GET',
       headers: {
