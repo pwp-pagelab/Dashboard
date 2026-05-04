@@ -217,19 +217,21 @@ function SectionTitle({ title, subtitle, right }) {
   )
 }
 
-function EmptyState({ text }) {
+function EmptyState({ title = 'Data is still building', text }) {
   return (
     <div
       style={{
-        padding: '18px',
+        padding: '16px 18px',
         borderRadius: '12px',
         background: '#FBFAF7',
         border: `1px dashed ${COLORS.line}`,
         color: COLORS.muted,
-        fontSize: '14px'
+        fontSize: '14px',
+        lineHeight: 1.55
       }}
     >
-      {text}
+      <div style={{ color: COLORS.green, fontWeight: 800, marginBottom: '4px' }}>{title}</div>
+      <div>{text}</div>
     </div>
   )
 }
@@ -277,15 +279,26 @@ function metricLabel(label) {
 
 function StatusBanner({ text }) {
   return (
-    <div
-      style={{
-        ...cardStyle(),
-        padding: '16px 18px',
-        borderLeft: `4px solid ${COLORS.amber}`,
-        background: '#FCFBF8'
-      }}
-    >
-      <div style={{ color: COLORS.green, fontWeight: 800, fontSize: '15px' }}>{text}</div>
+    <div style={panelStyle()}>
+      <SectionTitle
+        title="Next action"
+        subtitle="Recommended focus based on the current results."
+      />
+      <div
+        style={{
+          padding: '13px 15px',
+          borderRadius: '10px',
+          border: `1px solid ${COLORS.line}`,
+          borderLeft: `4px solid ${COLORS.amber}`,
+          background: '#FCFBF8',
+          color: COLORS.text,
+          fontWeight: 700,
+          fontSize: '14px',
+          lineHeight: 1.55
+        }}
+      >
+        {text}
+      </div>
     </div>
   )
 }
@@ -491,7 +504,10 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
           subtitle="Green bars for spend, amber line for daily conversions."
         />
         {!hasDaily ? (
-          <EmptyState text="Trend data is not available for this platform yet." />
+          <EmptyState
+            title="Daily trend will appear once reporting returns dates"
+            text="The dashboard still shows the period totals above. When the platform sends day-by-day results, this chart will show how spend and conversions moved over time."
+          />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
             <ResponsiveContainer>
@@ -533,8 +549,16 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
           title="Cost per conversion trend"
           subtitle="Trending down is good."
         />
-        {!hasDaily || !daily.some((row) => row.cpa != null) ? (
-          <EmptyState text="Cost trend data is not available for this platform yet." />
+        {!hasDaily ? (
+          <EmptyState
+            title="Cost trend will appear with daily reporting"
+            text="The dashboard still shows the overall performance story. Once daily data is available, this chart will show whether efficiency is improving over time."
+          />
+        ) : !daily.some((row) => row.cpa != null) ? (
+          <EmptyState
+            title="Cost per conversion will appear after conversions"
+            text="Current activity is creating reach and clicks. Once conversions are recorded, this chart will show the cost trend and make optimization easier to track."
+          />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
             <ResponsiveContainer>
@@ -617,7 +641,10 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
       />
 
       {platforms.length === 0 ? (
-        <EmptyState text="No platform data available." />
+        <EmptyState
+          title="Platform contribution will appear when results are available"
+          text="When platform data is returned, this section will show how spend, clicks, and conversions are split across each channel."
+        />
       ) : (
         <div style={{ width: '100%', height: compact ? 190 : 280 }}>
           <ResponsiveContainer>
@@ -710,7 +737,10 @@ function AdvancedTable({ rows, googleDiagnostics }) {
             {platformPerformanceRows.length === 0 ? (
               <tr>
                 <td colSpan="7" style={{ padding: '18px 8px' }}>
-                  <EmptyState text="No platform data available." />
+                  <EmptyState
+                    title="Advanced table will appear when platform rows are available"
+                    text="Once campaign or platform results are returned, this optional view will list spend, clicks, CTR, CPC, conversions, and CPA in one place."
+                  />
                 </td>
               </tr>
             ) : (
