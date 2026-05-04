@@ -57,7 +57,7 @@ function cardStyle() {
 function panelStyle() {
   return {
     ...cardStyle(),
-    padding: '20px'
+    padding: '16px'
   }
 }
 
@@ -290,7 +290,7 @@ function StatusBanner({ text }) {
   )
 }
 
-function FunnelHero({ impressions, clicks, conversions }) {
+function FunnelHero({ impressions, clicks, conversions, compact = false }) {
   const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0
   const convOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
   const convOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
@@ -340,7 +340,7 @@ function FunnelHero({ impressions, clicks, conversions }) {
         subtitle="A simple view of how attention turns into action."
       />
 
-      <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'grid', gap: compact ? '12px' : '18px' }}>
         {rows.map((row) => (
           <div key={row.label}>
             <div
@@ -364,7 +364,7 @@ function FunnelHero({ impressions, clicks, conversions }) {
                 width: '100%',
                 background: '#EFE7D5',
                 borderRadius: '8px',
-                height: '44px',
+                height: compact ? '34px' : '44px',
                 position: 'relative',
                 overflow: 'hidden'
               }}
@@ -418,7 +418,7 @@ function SummaryBlock({ text, onChange, onReset, onExport }) {
         title="Suggested insight"
         subtitle="Positive client-ready wording you can edit before sharing."
         right={
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={onReset} style={buttonStyle(false)}>Reset insight</button>
             <button onClick={onExport} style={buttonStyle(true)}>Share as PDF</button>
           </div>
@@ -429,14 +429,14 @@ function SummaryBlock({ text, onChange, onReset, onExport }) {
         onChange={(event) => onChange(event.target.value)}
         style={{
           width: '100%',
-          minHeight: '122px',
+          minHeight: '96px',
           background: '#FCFBF8',
           border: `0.5px solid ${COLORS.line}`,
           borderRadius: '12px',
-          padding: '18px',
+          padding: '14px',
           color: COLORS.text,
           fontSize: '15px',
-          lineHeight: 1.8,
+          lineHeight: 1.65,
           resize: 'vertical',
           outline: 'none',
           fontFamily: 'inherit',
@@ -473,7 +473,7 @@ function SimpleTooltipValue({ active, payload, label }) {
   )
 }
 
-function TrendCharts({ daily, targetCPA }) {
+function TrendCharts({ daily, targetCPA, compact = false }) {
   const hasDaily = Array.isArray(daily) && daily.length > 0
   const actualTargetCPA = Number.isFinite(targetCPA) && targetCPA > 0 ? targetCPA : null
 
@@ -481,8 +481,8 @@ function TrendCharts({ daily, targetCPA }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+        gap: '14px'
       }}
     >
       <div style={panelStyle()}>
@@ -493,7 +493,7 @@ function TrendCharts({ daily, targetCPA }) {
         {!hasDaily ? (
           <EmptyState text="Trend data is not available for this platform yet." />
         ) : (
-          <div style={{ width: '100%', height: 300 }}>
+          <div style={{ width: '100%', height: compact ? 220 : 300 }}>
             <ResponsiveContainer>
               <ComposedChart data={daily}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
@@ -536,7 +536,7 @@ function TrendCharts({ daily, targetCPA }) {
         {!hasDaily || !daily.some((row) => row.cpa != null) ? (
           <EmptyState text="Cost trend data is not available for this platform yet." />
         ) : (
-          <div style={{ width: '100%', height: 300 }}>
+          <div style={{ width: '100%', height: compact ? 220 : 300 }}>
             <ResponsiveContainer>
               <AreaChart data={daily}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
@@ -578,7 +578,7 @@ function TrendCharts({ daily, targetCPA }) {
   )
 }
 
-function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions }) {
+function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions, compact = false }) {
   const platforms = rows.map((row) => ({
     platform: row.platform,
     spend: parseSarString(row.spend),
@@ -619,7 +619,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions 
       {platforms.length === 0 ? (
         <EmptyState text="No platform data available." />
       ) : (
-        <div style={{ width: '100%', height: 280 }}>
+        <div style={{ width: '100%', height: compact ? 190 : 280 }}>
           <ResponsiveContainer>
             <ComposedChart
               layout="vertical"
@@ -1064,124 +1064,131 @@ export default function App() {
           </div>
         </aside>
 
-        <main style={{ padding: '26px 26px 40px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              gap: '16px',
-              flexWrap: 'wrap',
-              marginBottom: '20px'
-            }}
-          >
-            <div>
-              <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '8px' }}>
-                CLIENT VIEW
+        <main style={{ padding: '20px 22px 30px' }}>
+          <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '14px',
+                flexWrap: 'wrap',
+                marginBottom: '14px'
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
+                  CLIENT VIEW
+                </div>
+                <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
+                  {data?.client?.name || 'Dashboard'}
+                </h1>
+                <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
+                  A simple visual story of funnel performance, efficiency, and next action.
+                </p>
               </div>
-              <h1 style={{ margin: 0, fontSize: '34px', fontWeight: 900, color: COLORS.green }}>
-                {data?.client?.name || 'Dashboard'}
-              </h1>
-              <p style={{ marginTop: '8px', color: COLORS.muted, fontSize: '14px' }}>
-                A simple visual story of funnel performance, efficiency, and next action.
-              </p>
-            </div>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowAdvanced((v) => !v)} style={buttonStyle(false)}>
-                {showAdvanced ? 'Hide advanced view' : 'Show advanced view'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button onClick={() => setShowAdvanced((v) => !v)} style={buttonStyle(false)}>
+                  {showAdvanced ? 'Hide advanced view' : 'Show advanced view'}
+                </button>
 
-              <div style={{ ...cardStyle(), padding: '14px 18px', minWidth: '250px' }}>
-                <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700 }}>Last updated</div>
-                <div style={{ marginTop: '8px', fontWeight: 900, color: COLORS.green }}>
-                  {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                <div style={{ ...cardStyle(), padding: '11px 14px', minWidth: '220px' }}>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700 }}>Last updated</div>
+                  <div style={{ marginTop: '6px', fontWeight: 900, color: COLORS.green, fontSize: '13px' }}>
+                    {data?.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '14px',
-              marginBottom: '18px'
-            }}
-          >
-            <div style={cardStyle()}>
-              <div style={{ padding: '14px 16px 18px' }}>
-                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px', fontWeight: 700 }}>
-                  Client
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gap: '10px',
+                marginBottom: '12px'
+              }}
+            >
+              <div style={cardStyle()}>
+                <div style={{ padding: '11px 12px 13px' }}>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                    Client
+                  </div>
+                  <select value={client} onChange={(e) => setClient(e.target.value)} style={selectStyle()}>
+                    {availableClients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select value={client} onChange={(e) => setClient(e.target.value)} style={selectStyle()}>
-                  {availableClients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              </div>
+
+              <div style={cardStyle()}>
+                <div style={{ padding: '11px 12px 13px' }}>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                    Platform
+                  </div>
+                  <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle()}>
+                    {availablePlatforms.map((p) => (
+                      <option key={p} value={p}>
+                        {p === 'all' ? 'All platforms' : p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={cardStyle()}>
+                <div style={{ padding: '11px 12px 13px' }}>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                    Date range
+                  </div>
+                  <select value={range} onChange={(e) => setRange(e.target.value)} style={selectStyle()}>
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                    <option value="this_month">This month</option>
+                    <option value="max">Since onboarding</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div style={cardStyle()}>
-              <div style={{ padding: '14px 16px 18px' }}>
-                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px', fontWeight: 700 }}>
-                  Platform
-                </div>
-                <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle()}>
-                  {availablePlatforms.map((p) => (
-                    <option key={p} value={p}>
-                      {p === 'all' ? 'All platforms' : p}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
+              <SummaryBlock
+                text={summaryText}
+                onChange={setInsightsText}
+                onReset={() => setInsightsText(data?.insights?.suggested || '')}
+                onExport={() => setView('report')}
+              />
+
+              <FunnelHero
+                impressions={totalImpressions}
+                clicks={totalClicks}
+                conversions={totalConversions}
+                compact={true}
+              />
             </div>
 
-            <div style={cardStyle()}>
-              <div style={{ padding: '14px 16px 18px' }}>
-                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px', fontWeight: 700 }}>
-                  Date range
-                </div>
-                <select value={range} onChange={(e) => setRange(e.target.value)} style={selectStyle()}>
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="this_month">This month</option>
-                  <option value="max">Since onboarding</option>
-                </select>
+            <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
+              <TrendCharts daily={dailyChartData} targetCPA={targetCPA} compact={true} />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
+                <PlatformContribution
+                  rows={campaignRows}
+                  totalSpend={totalSpend}
+                  totalClicks={totalClicks}
+                  totalConversions={totalConversions}
+                  compact={true}
+                />
+                <StatusBanner text={nextActionText} />
               </div>
+
+              {showAdvanced ? (
+                <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
+              ) : null}
             </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: '18px' }}>
-            <SummaryBlock
-              text={summaryText}
-              onChange={setInsightsText}
-              onReset={() => setInsightsText(data?.insights?.suggested || '')}
-              onExport={() => setView('report')}
-            />
-
-            <FunnelHero
-              impressions={totalImpressions}
-              clicks={totalClicks}
-              conversions={totalConversions}
-            />
-
-            <TrendCharts daily={dailyChartData} targetCPA={targetCPA} />
-
-            <PlatformContribution
-              rows={campaignRows}
-              totalSpend={totalSpend}
-              totalClicks={totalClicks}
-              totalConversions={totalConversions}
-            />
-
-            {showAdvanced ? (
-              <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
-            ) : null}
-
-            <StatusBanner text={nextActionText} />
           </div>
         </main>
       </div>
