@@ -9,6 +9,17 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function formatSar(value) {
+  return `SAR ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+function rangeLabel(range) {
+  if (range === '7d') return 'the last 7 days'
+  if (range === 'this_month') return 'this month'
+  if (range === 'max') return 'since onboarding'
+  return 'the last 30 days'
+}
+
 function getRangeConfig(range, client = null) {
   if (range === '7d') {
     return {
@@ -71,8 +82,36 @@ function combineDailyTrends(rows) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((day) => ({
       ...day,
-      cpa: day.conversions > 0 ? day.spend / day.conversions : 0
+      cpa: day.conversions > 0 ? day.spend / day.conversions : null
     }))
+}
+
+function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, totalClicks, totalConversions, rows, daily }) {
+  const clientName = client?.name || 'this client'
+  const spendText = formatSar(totalSpend)
+  const impressionText = totalImpressions.toLocaleString()
+  const clickText = totalClicks.toLocaleString()
+  const conversionText = totalConversions.toLocaleString()
+  const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+  const clickToConversion = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
+  const activePlatforms = rows.map((row) => row.platform).join(', ') || 'the active platforms'
+  const hasDaily = daily.length > 1
+  const firstDay = hasDaily ? daily[0] : null
+  const lastDay = hasDaily ? daily[daily.length - 1] : null
+  const spendDirection =
+    firstDay && lastDay && lastDay.spend < firstDay.spend
+      ? 'Spend is becoming more controlled across the period'
+      : 'Spend is giving us a clear baseline for the next optimization step'
+
+  if (totalClicks === 0) {
+    return `${clientName} generated ${impressionText} impressions in ${rangeLabel(range)}, creating a useful visibility base on ${activePlatforms}. The next positive step is to test stronger creative hooks and calls to action so more of this reach turns into visits.`
+  }
+
+  if (totalConversions === 0) {
+    return `${clientName} spent ${spendText} in ${rangeLabel(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and conversion tracking so the existing traffic has a clearer path to convert. ${spendDirection}.`
+  }
+
+  return `${clientName} spent ${spendText} in ${rangeLabel(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${conversionText} conversions. The funnel is producing measurable action, with a ${clickToConversion.toFixed(2)}% click-to-conversion rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
 }
 
 export default async function handler(req, res) {
@@ -158,6 +197,7 @@ export default async function handler(req, res) {
     const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
     const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
     const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+    const daily = combineDailyTrends(rows)
 
     const googleData = rows.find((row) => row.platform === 'Google Ads') || null
 
@@ -179,7 +219,7 @@ export default async function handler(req, res) {
       summaryCards: [
         {
           label: 'Total Spend',
-          value: `SAR ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          value: formatSar(totalSpend)
         },
         { label: 'Impressions', value: totalImpressions.toLocaleString() },
         { label: 'Clicks', value: totalClicks.toLocaleString() },
@@ -215,7 +255,19 @@ export default async function handler(req, res) {
         linkedin: linkedinDiagnostics
       },
       trends: {
-        daily: combineDailyTrends(rows)
+        daily
+      },
+      insights: {
+        suggested: buildSuggestedInsight({
+          client,
+          range,
+          totalSpend,
+          totalImpressions,
+          totalClicks,
+          totalConversions,
+          rows,
+          daily
+        })
       }
     })
   } catch (error) {

@@ -253,6 +253,27 @@ function percent(value) {
   return `${value.toFixed(1)}%`
 }
 
+const METRIC_LABELS = {
+  'Total Spend': 'Spend (الإنفاق)',
+  Impressions: 'Impressions (الظهور)',
+  Clicks: 'Clicks (النقرات)',
+  CTR: 'CTR (معدل النقر)',
+  Conversions: 'Conversions (التحويلات)',
+  'Platforms Active': 'Platforms active (المنصات النشطة)',
+  Spend: 'Spend (الإنفاق)',
+  CPA: 'CPA (تكلفة التحويل)',
+  CPC: 'CPC (تكلفة النقرة)',
+  Platform: 'Platform',
+  Campaign: 'Campaign',
+  'Spend share': 'Spend share (حصة الإنفاق)',
+  'Click share': 'Click share (حصة النقرات)',
+  'Conversion share': 'Conversion share (حصة التحويلات)'
+}
+
+function metricLabel(label) {
+  return METRIC_LABELS[label] || label
+}
+
 function StatusBanner({ text }) {
   return (
     <div
@@ -275,18 +296,18 @@ function FunnelHero({ impressions, clicks, conversions }) {
 
   let dropOffInsight = 'Top of funnel is healthy.'
   if (clicks === 0 && impressions > 0) {
-    dropOffInsight = 'The biggest drop-off is from impressions to clicks — the main issue is getting people to engage.'
+    dropOffInsight = 'The clearest opportunity is from impressions to clicks — a stronger creative hook can help more people engage.'
   } else if (conversions === 0 && clicks > 0) {
-    dropOffInsight = 'The biggest drop-off is from clicks to conversions — traffic is arriving, but it is not converting yet.'
+    dropOffInsight = 'The clearest opportunity is from clicks to conversions — traffic is arriving, and the next win is making the post-click path easier.'
   } else if (clickRate < convOfClicks) {
-    dropOffInsight = 'The biggest drop-off is from impressions to clicks — top-of-funnel engagement is the main constraint.'
+    dropOffInsight = 'The clearest opportunity is from impressions to clicks — improving first-touch engagement can lift the whole journey.'
   } else {
-    dropOffInsight = 'The biggest drop-off is from clicks to conversions — post-click conversion efficiency is the main constraint.'
+    dropOffInsight = 'The clearest opportunity is from clicks to conversions — post-click improvements can turn more existing interest into action.'
   }
 
   const rows = [
     {
-      label: 'Impressions',
+      label: metricLabel('Impressions'),
       value: impressions.toLocaleString(),
       width: 100,
       inside: '100%',
@@ -294,7 +315,7 @@ function FunnelHero({ impressions, clicks, conversions }) {
       topRight: '100%'
     },
     {
-      label: 'Clicks',
+      label: metricLabel('Clicks'),
       value: clicks.toLocaleString(),
       width: Math.max(clickRate, clicks > 0 ? 6 : 0),
       inside: `${percent(clickRate)}`,
@@ -302,7 +323,7 @@ function FunnelHero({ impressions, clicks, conversions }) {
       topRight: `CTR ${percent(clickRate)}`
     },
     {
-      label: 'Conversions',
+      label: metricLabel('Conversions'),
       value: conversions.toLocaleString(),
       width: Math.max(convOfClicks, conversions > 0 ? 4 : 0),
       inside: `${percent(convOfImpressions)} of impressions`,
@@ -389,26 +410,38 @@ function FunnelHero({ impressions, clicks, conversions }) {
   )
 }
 
-function SummaryBlock({ text }) {
+function SummaryBlock({ text, onChange, onReset, onExport }) {
   return (
     <div style={panelStyle()}>
       <SectionTitle
-        title="Plain-English summary"
-        subtitle="Plain-English interpretation of the current reporting period."
+        title="Suggested insight"
+        subtitle="Positive client-ready wording you can edit before sharing."
+        right={
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button onClick={onReset} style={buttonStyle(false)}>Reset insight</button>
+            <button onClick={onExport} style={buttonStyle(true)}>Share as PDF</button>
+          </div>
+        }
       />
-      <div
+      <textarea
+        value={text}
+        onChange={(event) => onChange(event.target.value)}
         style={{
+          width: '100%',
+          minHeight: '122px',
           background: '#FCFBF8',
           border: `0.5px solid ${COLORS.line}`,
           borderRadius: '12px',
           padding: '18px',
           color: COLORS.text,
           fontSize: '15px',
-          lineHeight: 1.8
+          lineHeight: 1.8,
+          resize: 'vertical',
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box'
         }}
-      >
-        {text}
-      </div>
+      />
     </div>
   )
 }
@@ -429,7 +462,7 @@ function SimpleTooltipValue({ active, payload, label }) {
       <div style={{ fontWeight: 800, marginBottom: '6px', color: COLORS.text }}>{label}</div>
       {payload.map((item) => (
         <div key={item.name} style={{ fontSize: '13px', color: COLORS.text }}>
-          <span style={{ color: item.color, fontWeight: 800 }}>{item.name}:</span>{' '}
+          <span style={{ color: item.color, fontWeight: 800 }}>{metricLabel(item.name)}:</span>{' '}
           {item.name.toLowerCase().includes('spend') || item.name.toLowerCase().includes('cpa')
             ? formatSar(item.value)
             : Number(item.value).toLocaleString()}
@@ -477,12 +510,12 @@ function TrendCharts({ daily, targetCPA }) {
                 />
                 <Tooltip content={<SimpleTooltipValue />} />
                 <Legend />
-                <Bar yAxisId="left" dataKey="spend" name="Spend" fill={COLORS.green} radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="spend" name={metricLabel('Spend')} fill={COLORS.green} radius={[4, 4, 0, 0]} />
                 <Line
                   yAxisId="right"
                   type="monotone"
                   dataKey="conversions"
-                  name="Conversions"
+                  name={metricLabel('Conversions')}
                   stroke={COLORS.amber}
                   strokeWidth={3}
                   dot={{ r: 3 }}
@@ -499,7 +532,7 @@ function TrendCharts({ daily, targetCPA }) {
           title="Cost per conversion trend"
           subtitle="Trending down is good."
         />
-        {!hasDaily ? (
+        {!hasDaily || !daily.some((row) => row.cpa != null) ? (
           <EmptyState text="Cost trend data is not available for this platform yet." />
         ) : (
           <div style={{ width: '100%', height: 300 }}>
@@ -519,7 +552,7 @@ function TrendCharts({ daily, targetCPA }) {
                 <Area
                   type="monotone"
                   dataKey="cpa"
-                  name="CPA"
+                  name={metricLabel('CPA')}
                   stroke={COLORS.green}
                   fill="url(#cpaFill)"
                   strokeWidth={3}
@@ -528,7 +561,7 @@ function TrendCharts({ daily, targetCPA }) {
                   <Line
                     type="monotone"
                     dataKey={() => actualTargetCPA}
-                    name="Target CPA"
+                    name="Target CPA (هدف تكلفة التحويل)"
                     stroke={COLORS.amber}
                     strokeDasharray="8 6"
                     dot={false}
@@ -554,19 +587,19 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions 
 
   const chartData = [
     {
-      metric: 'Spend share',
+      metric: metricLabel('Spend share'),
       ...Object.fromEntries(
         platforms.map((p) => [p.platform, totalSpend > 0 ? (p.spend / totalSpend) * 100 : 0])
       )
     },
     {
-      metric: 'Click share',
+      metric: metricLabel('Click share'),
       ...Object.fromEntries(
         platforms.map((p) => [p.platform, totalClicks > 0 ? (p.clicks / totalClicks) * 100 : 0])
       )
     },
     {
-      metric: 'Conversion share',
+      metric: metricLabel('Conversion share'),
       ...Object.fromEntries(
         platforms.map((p) => [p.platform, totalConversions > 0 ? (p.conversions / totalConversions) * 100 : 0])
       )
@@ -664,12 +697,12 @@ function AdvancedTable({ rows, googleDiagnostics }) {
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
               <th style={{ padding: '12px 8px' }}>Platform</th>
-              <th style={{ padding: '12px 8px' }}>Spend</th>
-              <th style={{ padding: '12px 8px' }}>Clicks</th>
-              <th style={{ padding: '12px 8px' }}>CTR</th>
-              <th style={{ padding: '12px 8px' }}>CPC</th>
-              <th style={{ padding: '12px 8px' }}>Conversions</th>
-              <th style={{ padding: '12px 8px' }}>CPA</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('Spend')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('Clicks')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('CTR')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('CPC')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('Conversions')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('CPA')}</th>
             </tr>
           </thead>
           <tbody>
@@ -708,14 +741,14 @@ function buildClientSummary({ totalSpend, totalImpressions, totalClicks, totalCo
 
   if (totalConversions === 0) {
     if (googleDiagnostics?.interpretation?.mainLimiter === 'Rank-limited') {
-      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded. Google visibility is being limited mainly by ranking, which suggests missed demand and weaker competitiveness in search.`
+      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to improve ranking signals so more eligible demand can be captured.`
     }
 
     if (googleDiagnostics?.interpretation?.mainLimiter === 'Budget-limited') {
-      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded. Campaign visibility appears constrained by budget, which means additional eligible demand may not be fully captured.`
+      return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to review budget coverage so more eligible demand can be captured.`
     }
 
-    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no tracked conversions were recorded yet. The immediate priority is to verify conversion tracking and review post-click performance before scaling spend.`
+    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to confirm conversion tracking and make the post-click path easier before scaling spend.`
   }
 
   return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} conversions. Performance is producing measurable results, and the next step is to compare efficiency against target benchmarks before scaling.`
@@ -728,7 +761,7 @@ function buildDailyChartData(data, totalSpend, totalConversions) {
   return raw.map((row) => {
     const spend = Number(row.spend || 0)
     const conversions = Number(row.conversions || 0)
-    const cpa = conversions > 0 ? spend / conversions : 0
+    const cpa = conversions > 0 ? spend / conversions : null
 
     return {
       date: row.date,
@@ -740,10 +773,15 @@ function buildDailyChartData(data, totalSpend, totalConversions) {
   })
 }
 
-function ReportView({ data, platform, range, setView }) {
-  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+function ReportView({ data, platform, range, setView, insightsText }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
-  const accentColors = [COLORS.amber, COLORS.green, COLORS.greenMid, '#3559B7', '#8B5CF6', '#111827']
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
+  const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
+  const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
+  const totalConversions = parseNumberString(summaryCards.find((c) => c.label === 'Conversions')?.value)
+  const dailyChartData = buildDailyChartData(data)
+  const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, padding: '28px', color: COLORS.text }}>
@@ -813,70 +851,34 @@ function ReportView({ data, platform, range, setView }) {
           <div style={{ height: '5px', background: COLORS.amber }} />
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
-            gap: '14px',
-            marginBottom: '18px'
-          }}
-        >
-          {summaryCards.map((card, i) => (
-            <div
-              key={card.label}
-              style={{
-                background: '#ffffff',
-                borderRadius: '12px',
-                border: `0.5px solid ${COLORS.line}`,
-                padding: '18px',
-                minHeight: '110px',
-                borderTop: `4px solid ${accentColors[i % accentColors.length]}`
-              }}
-            >
-              <div style={{ fontSize: '12px', color: '#8A8F98', fontWeight: 700 }}>{card.label}</div>
-              <div style={{ marginTop: '12px', fontSize: '30px', fontWeight: 900, lineHeight: 1.08, color: COLORS.green }}>
-                {card.value}
-              </div>
-            </div>
-          ))}
+        <div className="report-card" style={panelStyle()}>
+          <SectionTitle title="Suggested insight" subtitle="Client-ready interpretation for this reporting period." />
+          <div
+            style={{
+              background: '#FCFBF8',
+              border: `0.5px solid ${COLORS.line}`,
+              borderRadius: '12px',
+              padding: '18px',
+              color: COLORS.text,
+              fontSize: '15px',
+              lineHeight: 1.8,
+              marginBottom: '18px'
+            }}
+          >
+            {insightsText}
+          </div>
         </div>
 
-        <div className="report-card" style={panelStyle()}>
-          <SectionTitle title="Platform performance" subtitle="Client-facing performance summary by platform." />
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-                  <th style={{ padding: '12px 8px' }}>Platform</th>
-                  <th style={{ padding: '12px 8px' }}>Campaign</th>
-                  <th style={{ padding: '12px 8px' }}>Spend</th>
-                  <th style={{ padding: '12px 8px' }}>Clicks</th>
-                  <th style={{ padding: '12px 8px' }}>Conversions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaignRows.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ padding: '18px 8px' }}>
-                      <EmptyState text="No data available for this report." />
-                    </td>
-                  </tr>
-                ) : (
-                  campaignRows.map((row, index) => (
-                    <tr key={`${row.platform}-${row.campaign}-${index}`} style={{ borderBottom: '1px solid #F1ECE3' }}>
-                      <td style={{ padding: '14px 8px' }}>
-                        <PlatformBadge label={row.platform} />
-                      </td>
-                      <td style={{ padding: '14px 8px', fontWeight: 700 }}>{row.campaign}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                      <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div style={{ display: 'grid', gap: '18px' }}>
+          <FunnelHero impressions={totalImpressions} clicks={totalClicks} conversions={totalConversions} />
+          <TrendCharts daily={dailyChartData} targetCPA={targetCPA} />
+          <PlatformContribution
+            rows={campaignRows}
+            totalSpend={totalSpend}
+            totalClicks={totalClicks}
+            totalConversions={totalConversions}
+          />
+          <StatusBanner text="Performance needs review" />
         </div>
       </div>
     </div>
@@ -893,10 +895,9 @@ export default function App() {
   const [range, setRange] = useState('30d')
   const [view, setView] = useState('dashboard')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [insightsText, setInsightsText] = useState('')
 
   useEffect(() => {
-    if (view !== 'dashboard' && view !== 'report') return
-
     async function loadDashboard() {
       try {
         setLoading(true)
@@ -932,7 +933,11 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range, view])
+  }, [client, platform, range])
+
+  useEffect(() => {
+    setInsightsText(data?.insights?.suggested || '')
+  }, [data?.insights?.suggested])
 
   const availableClients = useMemo(() => {
     return Array.isArray(data?.availableClients) ? data.availableClients : []
@@ -968,7 +973,7 @@ export default function App() {
   }
 
   if (view === 'report') {
-    return <ReportView data={data} platform={platform} range={range} setView={setView} />
+    return <ReportView data={data} platform={platform} range={range} setView={setView} insightsText={insightsText} />
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -980,7 +985,7 @@ export default function App() {
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(summaryCards.find((c) => c.label === 'Conversions')?.value)
 
-  const summaryText = buildClientSummary({
+  const summaryText = insightsText || buildClientSummary({
     totalSpend,
     totalImpressions,
     totalClicks,
@@ -1147,7 +1152,12 @@ export default function App() {
           </div>
 
           <div style={{ display: 'grid', gap: '18px' }}>
-            <SummaryBlock text={summaryText} />
+            <SummaryBlock
+              text={summaryText}
+              onChange={setInsightsText}
+              onReset={() => setInsightsText(data?.insights?.suggested || '')}
+              onExport={() => setView('report')}
+            />
 
             <FunnelHero
               impressions={totalImpressions}
