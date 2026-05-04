@@ -308,31 +308,19 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
   const convOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
   const convOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
 
-  let dropOffInsight = 'Top of funnel is healthy.'
-  if (clicks === 0 && impressions > 0) {
-    dropOffInsight = 'The clearest opportunity is from impressions to clicks — a stronger creative hook can help more people engage.'
-  } else if (conversions === 0 && clicks > 0) {
-    dropOffInsight = 'The clearest opportunity is from clicks to conversions — traffic is arriving, and the next win is making the post-click path easier.'
-  } else if (clickRate < convOfClicks) {
-    dropOffInsight = 'The clearest opportunity is from impressions to clicks — improving first-touch engagement can lift the whole journey.'
-  } else {
-    dropOffInsight = 'The clearest opportunity is from clicks to conversions — post-click improvements can turn more existing interest into action.'
-  }
-
   const rows = [
     {
       label: metricLabel('Impressions'),
       value: impressions.toLocaleString(),
       width: 100,
-      inside: '100%',
       color: COLORS.green,
-      topRight: '100%'
+      topRight: '100%',
+      showInsidePercent: true
     },
     {
       label: metricLabel('Clicks'),
       value: clicks.toLocaleString(),
       width: Math.max(clickRate, clicks > 0 ? 6 : 0),
-      inside: `${percent(clickRate)}`,
       color: COLORS.greenMid,
       topRight: `CTR ${percent(clickRate)}`
     },
@@ -340,9 +328,8 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
       label: metricLabel('Conversions'),
       value: conversions.toLocaleString(),
       width: Math.max(convOfClicks, conversions > 0 ? 4 : 0),
-      inside: `${percent(convOfImpressions)} of impressions`,
       color: COLORS.greenLight,
-      topRight: `Click-to-conversion ${percent(convOfClicks)}`
+      topRight: `${percent(convOfImpressions)} of impressions · Click-to-conversion ${percent(convOfClicks)}`
     }
   ]
 
@@ -385,40 +372,35 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
               <div
                 style={{
                   width: `${row.width}%`,
-                  minWidth: row.width > 0 ? '64px' : 0,
+                  minWidth: row.width > 0 ? '10px' : 0,
                   height: '100%',
                   background: row.color,
                   borderRadius: '4px',
+                  transition: 'width 0.4s ease'
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: row.showInsidePercent || row.width >= 22 ? '12px' : `calc(${row.width}% + 8px)`,
+                  right: row.showInsidePercent ? '12px' : 'auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '0 12px',
-                  color: '#fff',
                   fontWeight: 800,
-                  fontSize: '12px',
-                  transition: 'width 0.4s ease'
+                  fontSize: compact ? '11px' : '12px',
+                  color: row.showInsidePercent || row.width >= 22 ? '#fff' : COLORS.green,
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <span>{row.value}</span>
-                <span>{row.inside}</span>
+                {row.showInsidePercent ? <span>100%</span> : null}
               </div>
             </div>
           </div>
         ))}
-      </div>
-
-      <div
-        style={{
-          marginTop: '16px',
-          padding: '12px 14px',
-          borderRadius: '10px',
-          background: COLORS.softAmber,
-          color: COLORS.text,
-          fontSize: '14px',
-          lineHeight: 1.6
-        }}
-      >
-        {dropOffInsight}
       </div>
     </div>
   )
