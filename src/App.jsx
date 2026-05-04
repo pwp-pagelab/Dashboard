@@ -782,6 +782,7 @@ function ReportView({ data, platform, range, setView, insightsText }) {
   const totalConversions = parseNumberString(summaryCards.find((c) => c.label === 'Conversions')?.value)
   const dailyChartData = buildDailyChartData(data)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
+  const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, padding: '28px', color: COLORS.text }}>
@@ -878,7 +879,7 @@ function ReportView({ data, platform, range, setView, insightsText }) {
             totalClicks={totalClicks}
             totalConversions={totalConversions}
           />
-          <StatusBanner text="Performance needs review" />
+          <StatusBanner text={nextActionText} />
         </div>
       </div>
     </div>
@@ -995,6 +996,7 @@ export default function App() {
 
   const dailyChartData = buildDailyChartData(data, totalSpend, totalConversions)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
+  const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
@@ -1178,7 +1180,7 @@ export default function App() {
               <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
             ) : null}
 
-            <StatusBanner text="Performance needs review" />
+            <StatusBanner text={nextActionText} />
           </div>
         </main>
       </div>

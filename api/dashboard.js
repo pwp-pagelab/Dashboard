@@ -118,6 +118,26 @@ function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, to
   return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${conversionText} conversions. The funnel is producing measurable action, with a ${clickToConversion.toFixed(2)}% click-to-conversion rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
 }
 
+function buildNextAction({ totalImpressions, totalClicks, totalConversions, totalSpend }) {
+  if (totalImpressions === 0 && totalSpend === 0) {
+    return 'Ready to build momentum. Next step: connect active campaign data.'
+  }
+
+  if (totalClicks === 0 && totalImpressions > 0) {
+    return 'Building visibility. Next step: improve click-through with stronger creative hooks.'
+  }
+
+  if (totalConversions === 0 && totalClicks > 0) {
+    return 'Positive engagement detected. Next step: improve the conversion path.'
+  }
+
+  if (totalConversions > 0) {
+    return 'Conversions are coming in. Next step: scale the strongest platform.'
+  }
+
+  return 'Healthy momentum. Next step: keep optimizing efficiency.'
+}
+
 export default async function handler(req, res) {
   const clientId = req.query.client || 'rimiya'
   const platformFilter = req.query.platform || 'all'
@@ -271,6 +291,12 @@ export default async function handler(req, res) {
           totalConversions,
           rows,
           daily
+        }),
+        nextAction: buildNextAction({
+          totalImpressions,
+          totalClicks,
+          totalConversions,
+          totalSpend
         })
       }
     })
