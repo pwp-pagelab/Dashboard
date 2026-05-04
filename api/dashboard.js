@@ -20,6 +20,10 @@ function rangeLabel(range) {
   return 'the last 30 days'
 }
 
+function periodPhrase(range) {
+  return range === 'max' ? rangeLabel(range) : `in ${rangeLabel(range)}`
+}
+
 function getRangeConfig(range, client = null) {
   if (range === '7d') {
     return {
@@ -104,14 +108,14 @@ function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, to
       : 'Spend is giving us a clear baseline for the next optimization step'
 
   if (totalClicks === 0) {
-    return `${clientName} generated ${impressionText} impressions in ${rangeLabel(range)}, creating a useful visibility base on ${activePlatforms}. The next positive step is to test stronger creative hooks and calls to action so more of this reach turns into visits.`
+    return `${clientName} generated ${impressionText} impressions ${periodPhrase(range)}, creating a useful visibility base on ${activePlatforms}. The next positive step is to test stronger creative hooks and calls to action so more of this reach turns into visits.`
   }
 
   if (totalConversions === 0) {
-    return `${clientName} spent ${spendText} in ${rangeLabel(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and conversion tracking so the existing traffic has a clearer path to convert. ${spendDirection}.`
+    return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and conversion tracking so the existing traffic has a clearer path to convert. ${spendDirection}.`
   }
 
-  return `${clientName} spent ${spendText} in ${rangeLabel(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${conversionText} conversions. The funnel is producing measurable action, with a ${clickToConversion.toFixed(2)}% click-to-conversion rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
+  return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${conversionText} conversions. The funnel is producing measurable action, with a ${clickToConversion.toFixed(2)}% click-to-conversion rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
 }
 
 export default async function handler(req, res) {
