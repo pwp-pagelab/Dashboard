@@ -15,17 +15,18 @@ import {
 import OnboardingHelper from './OnboardingHelper.jsx'
 
 const COLORS = {
-  green: '#0F6E56',
-  greenMid: '#3E8E78',
-  greenLight: '#9FCDBF',
-  amber: '#BA7517',
-  cream: '#F7F3EC',
+  green: '#0A4C3E',
+  greenMid: '#2F7465',
+  greenLight: '#9BBEAE',
+  amber: '#E8BE51',
+  amberDeep: '#9A6A12',
+  cream: '#F8F4EA',
   white: '#FFFFFF',
-  text: '#1F2937',
-  muted: '#6B7280',
-  line: '#E7DFD2',
-  softGreen: '#E8F3EF',
-  softAmber: '#F7E6CF',
+  text: '#1D2925',
+  muted: '#69746E',
+  line: '#E8DEC8',
+  softGreen: '#E7F0EC',
+  softAmber: '#FBF1D7',
   softRed: '#FBE9E7',
   red: '#B42318'
 }
@@ -37,7 +38,7 @@ function navItemStyle(active) {
     gap: '10px',
     padding: '12px 14px',
     borderRadius: '12px',
-    background: active ? 'rgba(186,117,23,0.18)' : 'transparent',
+    background: active ? 'rgba(232,190,81,0.2)' : 'transparent',
     color: active ? '#ffffff' : 'rgba(255,255,255,0.82)',
     fontWeight: active ? 800 : 600,
     borderLeft: active ? `4px solid ${COLORS.amber}` : '4px solid transparent'
@@ -49,7 +50,7 @@ function cardStyle() {
     background: COLORS.white,
     borderRadius: '12px',
     border: `0.5px solid ${COLORS.line}`,
-    boxShadow: '0 8px 24px rgba(15,110,86,0.05)'
+    boxShadow: '0 10px 28px rgba(10,76,62,0.06)'
   }
 }
 
@@ -66,7 +67,7 @@ function buttonStyle(primary = false) {
     borderRadius: '12px',
     border: primary ? 'none' : `1px solid ${COLORS.line}`,
     background: primary ? COLORS.green : COLORS.white,
-    color: primary ? '#ffffff' : COLORS.green,
+    color: primary ? COLORS.amber : COLORS.green,
     fontWeight: 700,
     fontSize: '14px',
     cursor: 'pointer'
@@ -167,10 +168,10 @@ function PlatformBadge({ label }) {
     color = COLORS.amber
   } else if (lower.includes('meta')) {
     bg = '#EDF3FF'
-    color = '#3559B7'
+    color = '#244F7A'
   } else if (lower.includes('tiktok')) {
     bg = '#F3F4F6'
-    color = '#111827'
+    color = '#1D2925'
   } else if (lower.includes('linkedin')) {
     bg = '#E8F1FF'
     color = '#0A66C2'
@@ -355,13 +356,13 @@ function FunnelHero({ impressions, clicks, conversions }) {
               <div style={{ fontWeight: 800, color: COLORS.text }}>
                 {row.label}: <span style={{ color: COLORS.green }}>{row.value}</span>
               </div>
-              <div style={{ color: COLORS.amber, fontWeight: 700, fontSize: '13px' }}>{row.topRight}</div>
+              <div style={{ color: COLORS.amberDeep, fontWeight: 700, fontSize: '13px' }}>{row.topRight}</div>
             </div>
 
             <div
               style={{
                 width: '100%',
-                background: '#F2EEE6',
+                background: '#EFE7D5',
                 borderRadius: '8px',
                 height: '44px',
                 position: 'relative',
@@ -456,7 +457,7 @@ function SimpleTooltipValue({ active, payload, label }) {
         border: `1px solid ${COLORS.line}`,
         borderRadius: '10px',
         padding: '10px 12px',
-        boxShadow: '0 10px 24px rgba(15,110,86,0.08)'
+        boxShadow: '0 10px 24px rgba(10,76,62,0.08)'
       }}
     >
       <div style={{ fontWeight: 800, marginBottom: '6px', color: COLORS.text }}>{label}</div>
@@ -495,7 +496,7 @@ function TrendCharts({ daily, targetCPA }) {
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
               <ComposedChart data={daily}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EEE7DA" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
                 <XAxis dataKey="date" tick={{ fontSize: 12, fill: COLORS.muted }} />
                 <YAxis
                   yAxisId="left"
@@ -538,7 +539,7 @@ function TrendCharts({ daily, targetCPA }) {
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
               <AreaChart data={daily}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EEE7DA" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
                 <XAxis dataKey="date" tick={{ fontSize: 12, fill: COLORS.muted }} />
                 <YAxis tick={{ fontSize: 12, fill: COLORS.muted }} />
                 <Tooltip content={<SimpleTooltipValue />} />
@@ -606,7 +607,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions 
     }
   ]
 
-  const palette = [COLORS.green, COLORS.amber, COLORS.greenMid, '#3559B7', '#111827', '#8B5CF6']
+  const palette = [COLORS.green, COLORS.amber, COLORS.greenMid, '#5F766E', '#2B2F2D', '#B08D2B']
 
   return (
     <div style={panelStyle()}>
@@ -625,7 +626,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions 
               data={chartData}
               margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#EEE7DA" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
               <XAxis
                 type="number"
                 domain={[0, 100]}
@@ -714,7 +715,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
               </tr>
             ) : (
               platformPerformanceRows.map((row, index) => (
-                <tr key={`${row.platform}-${index}`} style={{ borderBottom: '1px solid #F1ECE3' }}>
+                <tr key={`${row.platform}-${index}`} style={{ borderBottom: '1px solid #F1E9D8' }}>
                   <td style={{ padding: '14px 8px' }}>
                     <PlatformBadge label={row.platform} />
                   </td>
