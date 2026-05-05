@@ -140,6 +140,8 @@ export const clients = [
     reportingStartDate: '2026-01-01',
     tiktokAdvertiserId: '7582169403874197512',
     googleCustomerId: '167-436-8080',
+    metaAccountId: '1157883176455842',
+    metaAccountName: 'SBSF Ads',
     metaBusinessKeys: ['SBSF', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'sbsf' },
     platforms: {
