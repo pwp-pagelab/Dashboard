@@ -76,7 +76,7 @@ function getSnapDateRange(range) {
     start.setDate(1)
     start.setHours(0, 0, 0, 0)
   } else if (range === 'max') {
-    start.setTime(new Date('2023-09-01').getTime())
+    start.setTime(new Date('2020-01-01').getTime())
     start.setMinutes(0, 0, 0)
   } else {
     start.setDate(start.getDate() - 30)

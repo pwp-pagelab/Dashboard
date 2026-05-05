@@ -5,7 +5,7 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 
-const REPORTING_START_DATE = '2023-09-01'
+const REPORTING_START_DATE = '2020-01-01'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -18,7 +18,7 @@ function formatSar(value) {
 function rangeLabel(range) {
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
-  if (range === 'max') return 'since September 2023'
+  if (range === 'max') return 'since January 2020'
   return 'the last 30 days'
 }
 
@@ -382,7 +382,9 @@ export async function buildDashboardPayload({
                 },
                 dateRange: tiktokData.tiktokDateRange || null,
                 spend: tiktokData.spend,
-                rawMetrics: tiktokData.tiktokRawMetrics || null
+                rawMetrics: tiktokData.tiktokRawMetrics || null,
+                chunkCount: Array.isArray(tiktokData.tiktokChunks) ? tiktokData.tiktokChunks.length : 0,
+                chunks: tiktokData.tiktokChunks || []
               }
             : null,
           google: googleData
