@@ -372,6 +372,19 @@ export const clients = [
       snapchat: { enabled: false },
       linkedin: { enabled: false }
     }
+  },
+  {
+    id: 'google-167-436-8080',
+    name: 'Google Ads 167-436-8080',
+    reportingStartDate: '2026-01-01',
+    googleCustomerId: '167-436-8080',
+    platforms: {
+      meta: { enabled: false },
+      google: { enabled: true },
+      tiktok: { enabled: false },
+      snapchat: { enabled: false },
+      linkedin: { enabled: false }
+    }
   }
 ]
 

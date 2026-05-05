@@ -303,6 +303,27 @@ function StatusBanner({ text }) {
   )
 }
 
+function DashboardFooter() {
+  return (
+    <footer
+      style={{
+        marginTop: '18px',
+        padding: '18px 20px',
+        borderTop: `1px solid ${COLORS.line}`,
+        color: COLORS.muted,
+        fontSize: '13px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}
+    >
+      <div style={{ fontWeight: 800, color: COLORS.green }}>Post With Passion</div>
+      <div>Prepared as a live client performance report.</div>
+    </footer>
+  )
+}
+
 function FunnelHero({ impressions, clicks, conversions, compact = false }) {
   const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0
   const convOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
@@ -830,7 +851,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             </button>
           ) : null}
           <button onClick={() => window.print()} style={buttonStyle(true)}>
-            Export PDF
+            Download PDF
           </button>
         </div>
 
@@ -911,6 +932,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
           />
           <StatusBanner text={nextActionText} />
         </div>
+        <DashboardFooter />
       </div>
     </div>
   )
@@ -1141,6 +1163,28 @@ export default function App() {
 
         <main style={{ padding: '20px 22px 30px' }}>
           <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
+            {isSharedView ? (
+              <div
+                style={{
+                  ...cardStyle(),
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <div style={{ maxWidth: '320px' }}>
+                  <BrandMark />
+                </div>
+                <button onClick={() => setView('report')} style={buttonStyle(true)}>
+                  Download PDF
+                </button>
+              </div>
+            ) : null}
+
             <div
               style={{
                 display: 'flex',
@@ -1304,6 +1348,7 @@ export default function App() {
                 <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
               ) : null}
             </div>
+            {isSharedView ? <DashboardFooter /> : null}
           </div>
         </main>
       </div>

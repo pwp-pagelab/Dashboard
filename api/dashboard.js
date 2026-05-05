@@ -202,7 +202,11 @@ export async function buildDashboardPayload({
         : null
     })
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google') && client.platforms.google?.enabled) {
-    await addPlatformRow('google', () => getGoogleAdsData(rangeConfig.google))
+    await addPlatformRow('google', () => getGoogleAdsData({
+      ...rangeConfig.google,
+      customerId: client.googleCustomerId,
+      loginCustomerId: client.googleLoginCustomerId
+    }))
   }
 
   if (lockedAccount?.platform === 'snapchat') {
