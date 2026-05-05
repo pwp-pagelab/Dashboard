@@ -1003,6 +1003,12 @@ export default function App() {
     setInsightsText(data?.insights?.suggested || '')
   }, [data?.insights?.suggested])
 
+  useEffect(() => {
+    if (!isSharedView) {
+      setPlatform('all')
+    }
+  }, [client, isSharedView])
+
   const availableClients = useMemo(() => {
     return Array.isArray(data?.availableClients) ? data.availableClients : []
   }, [data])
@@ -1011,6 +1017,12 @@ export default function App() {
     const platforms = Array.isArray(data?.availablePlatforms) ? data.availablePlatforms : []
     return ['all', ...platforms]
   }, [data])
+
+  useEffect(() => {
+    if (!isSharedView && !availablePlatforms.includes(platform)) {
+      setPlatform('all')
+    }
+  }, [availablePlatforms, isSharedView, platform])
 
   if (view === 'onboarding') {
     return <OnboardingHelper setView={setView} />
@@ -1310,7 +1322,7 @@ export default function App() {
                     <option value="7d">Last 7 days</option>
                     <option value="30d">Last 30 days</option>
                     <option value="this_month">This month</option>
-                    <option value="max">Since onboarding</option>
+                    <option value="max">Since promotion start</option>
                   </select>
                 </div>
               </div>
