@@ -291,6 +291,7 @@ export async function buildDashboardPayload({
 
   const googleData = rows.find((row) => row.platform === 'Google Ads') || null
   const metaData = rows.find((row) => row.platform === 'Meta') || null
+  const tiktokData = rows.find((row) => row.platform === 'TikTok') || null
   const displayClient = {
     id: client.id,
     name: lockedAccount?.clientName || client.name
@@ -368,8 +369,20 @@ export async function buildDashboardPayload({
                 }
               }
             : null,
+          tiktok: tiktokData
+            ? {
+                account: {
+                  advertiserId: tiktokData.tiktokAdvertiserId || null
+                },
+                dateRange: tiktokData.tiktokDateRange || null
+              }
+            : null,
           google: googleData
             ? {
+                account: {
+                  customerId: client.googleCustomerId || null,
+                  loginCustomerId: client.googleLoginCustomerId || null
+                },
                 snapshot: googleData.snapshot,
                 visibility: googleData.visibility,
                 keywordHealth: googleData.keywordHealth,

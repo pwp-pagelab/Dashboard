@@ -1,7 +1,11 @@
+import { getClientById } from '../data/clients.js'
+
 export default async function handler(req, res) {
   const accessToken = process.env.TIKTOK_ACCESS_TOKEN
   const appId = process.env.TIKTOK_APP_ID
   const secret = process.env.TIKTOK_APP_SECRET
+  const clientId = req.query.client || null
+  const client = clientId ? getClientById(clientId) : null
 
   if (!accessToken) {
     return res.status(500).json({
@@ -44,8 +48,23 @@ export default async function handler(req, res) {
       })
     }
 
+    const advertisers = Array.isArray(data?.data?.list) ? data.data.list : []
+    const configuredAdvertiserId = client?.tiktokAdvertiserId ? String(client.tiktokAdvertiserId) : null
+    const configuredAdvertiser = configuredAdvertiserId
+      ? advertisers.find((advertiser) => String(advertiser.advertiser_id || advertiser.advertiserId || advertiser.id) === configuredAdvertiserId) || null
+      : null
+
     return res.status(response.ok ? 200 : response.status).json({
       ok: response.ok,
+      client: client
+        ? {
+            id: client.id,
+            name: client.name,
+            configuredAdvertiserId,
+            configuredAdvertiserFound: Boolean(configuredAdvertiser)
+          }
+        : null,
+      configuredAdvertiser,
       data
     })
   } catch (error) {
