@@ -366,7 +366,11 @@ export async function buildDashboardPayload({
                   id: metaData.metaAccountId || null,
                   name: metaData.metaAccountName || null,
                   businessKey: metaData.metaBusinessKeyUsed || null
-                }
+                },
+                currency: metaData.metaCurrency || null,
+                dateRange: metaData.metaDateRange || null,
+                spend: metaData.spend,
+                rawMetrics: metaData.metaRawMetrics || null
               }
             : null,
           tiktok: tiktokData
@@ -374,7 +378,9 @@ export async function buildDashboardPayload({
                 account: {
                   advertiserId: tiktokData.tiktokAdvertiserId || null
                 },
-                dateRange: tiktokData.tiktokDateRange || null
+                dateRange: tiktokData.tiktokDateRange || null,
+                spend: tiktokData.spend,
+                rawMetrics: tiktokData.tiktokRawMetrics || null
               }
             : null,
           google: googleData
