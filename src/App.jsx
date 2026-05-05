@@ -825,6 +825,7 @@ function getInitialShareToken() {
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const googleDiagnostics = data?.diagnostics?.google || null
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
@@ -851,7 +852,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             </button>
           ) : null}
           <button onClick={() => window.print()} style={buttonStyle(true)}>
-            Download PDF
+            Export PDF
           </button>
         </div>
 
@@ -931,6 +932,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             totalConversions={totalConversions}
           />
           <StatusBanner text={nextActionText} />
+          <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
         </div>
         <DashboardFooter />
       </div>
@@ -1180,7 +1182,7 @@ export default function App() {
                   <BrandMark />
                 </div>
                 <button onClick={() => setView('report')} style={buttonStyle(true)}>
-                  Download PDF
+                  Export PDF
                 </button>
               </div>
             ) : null}
