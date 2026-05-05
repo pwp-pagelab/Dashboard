@@ -5,7 +5,7 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 
-const REPORTING_START_DATE = '2020-01-01'
+const REPORTING_START_DATE = '2026-01-01'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -18,7 +18,7 @@ function formatSar(value) {
 function rangeLabel(range) {
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
-  if (range === 'max') return 'since January 2020'
+  if (range === 'max') return 'since promotion start'
   return 'the last 30 days'
 }
 
@@ -26,7 +26,15 @@ function periodPhrase(range) {
   return range === 'max' ? rangeLabel(range) : `in ${rangeLabel(range)}`
 }
 
-function getRangeConfig(range, client = null) {
+function getPromotionStartDate(client = null, platform = null) {
+  return (
+    (platform ? client?.platformStartDates?.[platform] : null) ||
+    client?.reportingStartDate ||
+    REPORTING_START_DATE
+  )
+}
+
+function getRangeConfig(range, client = null, platform = null) {
   if (range === '7d') {
     return {
       meta: { datePreset: 'last_7d', timeRange: null },
@@ -42,7 +50,7 @@ function getRangeConfig(range, client = null) {
   }
 
   if (range === 'max') {
-    const startDate = client?.reportingStartDate || REPORTING_START_DATE
+    const startDate = getPromotionStartDate(client, platform)
 
     return {
       meta: {
@@ -158,7 +166,6 @@ export async function buildDashboardPayload({
 
   const effectivePlatformFilter = lockedAccount?.platform || platformFilter
   const rows = []
-  const rangeConfig = getRangeConfig(range, client)
   let linkedinDiagnostics = null
   const platformErrors = []
 
@@ -175,6 +182,7 @@ export async function buildDashboardPayload({
   }
 
   if (lockedAccount?.platform === 'meta') {
+    const rangeConfig = getRangeConfig(range, client, 'meta')
     await addPlatformRow('meta', () => getMetaData({
         clientId,
         ...rangeConfig.meta,
@@ -183,6 +191,7 @@ export async function buildDashboardPayload({
         accountName: lockedAccount.accountName || lockedAccount.clientName
       }))
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta') && client.platforms.meta?.enabled) {
+    const rangeConfig = getRangeConfig(range, client, 'meta')
     await addPlatformRow('meta', () => getMetaData({
         clientId,
         ...rangeConfig.meta,
@@ -193,6 +202,7 @@ export async function buildDashboardPayload({
   }
 
   if (lockedAccount?.platform === 'google') {
+    const rangeConfig = getRangeConfig(range, client, 'google')
     await addPlatformRow('google', async () => {
       const googleRow = await getGoogleAdsData({
         ...rangeConfig.google,
@@ -207,6 +217,7 @@ export async function buildDashboardPayload({
         : null
     })
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google') && client.platforms.google?.enabled) {
+    const rangeConfig = getRangeConfig(range, client, 'google')
     await addPlatformRow('google', () => getGoogleAdsData({
       ...rangeConfig.google,
       customerId: client.googleCustomerId,
