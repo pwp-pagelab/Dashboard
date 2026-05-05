@@ -139,11 +139,12 @@ export const clients = [
     name: 'SBSF',
     reportingStartDate: '2026-01-01',
     tiktokAdvertiserId: '7582169403874197512',
+    googleCustomerId: '167-436-8080',
     metaBusinessKeys: ['SBSF', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'sbsf' },
     platforms: {
       meta: { enabled: true },
-      google: { enabled: false },
+      google: { enabled: true },
       tiktok: { enabled: true },
       snapchat: { enabled: false },
       linkedin: { enabled: false }
@@ -369,19 +370,6 @@ export const clients = [
       meta: { enabled: false },
       google: { enabled: false },
       tiktok: { enabled: true },
-      snapchat: { enabled: false },
-      linkedin: { enabled: false }
-    }
-  },
-  {
-    id: 'google-167-436-8080',
-    name: 'Google Ads 167-436-8080',
-    reportingStartDate: '2026-01-01',
-    googleCustomerId: '167-436-8080',
-    platforms: {
-      meta: { enabled: false },
-      google: { enabled: true },
-      tiktok: { enabled: false },
       snapchat: { enabled: false },
       linkedin: { enabled: false }
     }
