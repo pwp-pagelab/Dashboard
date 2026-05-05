@@ -1,4 +1,9 @@
 import { clients } from '../data/clients.js'
+import {
+  getMetaAccountIdOverride,
+  getMetaAccountNameOverride,
+  getMetaBusinessKeyOverride
+} from '../lib/metaAccounts.js'
 
 const PLATFORM_LABELS = {
   meta: 'Meta',
@@ -18,7 +23,10 @@ function checkPlatform(client, platform) {
   const startDate = client.platformStartDates?.[platform] || client.reportingStartDate || '2026-01-01'
 
   if (platform === 'meta') {
-    const hasExactAccount = Boolean(client.metaAccountId)
+    const accountIdOverride = getMetaAccountIdOverride(client.id)
+    const accountNameOverride = getMetaAccountNameOverride(client.id)
+    const businessKeyOverride = getMetaBusinessKeyOverride(client.id)
+    const hasExactAccount = Boolean(client.metaAccountId || accountIdOverride)
     const hasNameMatch = Boolean(client.metaMatch?.value)
     const businessKeys = Array.isArray(client.metaBusinessKeys)
       ? client.metaBusinessKeys
@@ -31,9 +39,10 @@ function checkPlatform(client, platform) {
       key: platform,
       startDate,
       confidence: hasExactAccount ? 'high' : hasNameMatch ? 'medium' : 'needs setup',
-      accountId: client.metaAccountId || null,
-      accountName: client.metaAccountName || null,
+      accountId: client.metaAccountId || accountIdOverride || null,
+      accountName: client.metaAccountName || accountNameOverride || null,
       businessKeys,
+      businessKeyOverride: businessKeyOverride || null,
       matching: hasExactAccount ? 'exact account id' : hasNameMatch ? `name includes "${client.metaMatch.value}"` : null,
       note: hasExactAccount
         ? 'Locked to an exact Meta ad account.'
