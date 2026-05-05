@@ -54,8 +54,19 @@ export default async function handler(req, res) {
           id: client.id,
           name: client.name,
           metaBusinessKeys: businessKeys,
-          metaMatch: client.metaMatch || null
+          metaMatch: client.metaMatch || null,
+          metaAccountId: client.metaAccountId || null,
+          metaAccountName: client.metaAccountName || null
         },
+        tokenSetup: Object.fromEntries(
+          businessKeys.map((key) => [
+            key,
+            {
+              hasDedicatedToken: Boolean(process.env[`META_ACCESS_TOKEN_${key}`]),
+              hasBusinessIdOverride: Boolean(process.env[`META_BUSINESS_ID_${key}`])
+            }
+          ])
+        ),
         matchedAccount: matched || null,
         accounts
       })

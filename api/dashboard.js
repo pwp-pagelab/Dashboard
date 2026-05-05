@@ -183,7 +183,10 @@ export async function buildDashboardPayload({
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta') && client.platforms.meta?.enabled) {
     await addPlatformRow('meta', () => getMetaData({
         clientId,
-        ...rangeConfig.meta
+        ...rangeConfig.meta,
+        accountId: client.metaAccountId,
+        businessKey: client.metaBusinessKey,
+        accountName: client.metaAccountName
       }))
   }
 
@@ -287,6 +290,7 @@ export async function buildDashboardPayload({
   const daily = combineDailyTrends(rows)
 
   const googleData = rows.find((row) => row.platform === 'Google Ads') || null
+  const metaData = rows.find((row) => row.platform === 'Meta') || null
   const displayClient = {
     id: client.id,
     name: lockedAccount?.clientName || client.name
@@ -355,6 +359,15 @@ export async function buildDashboardPayload({
             : null
         }
       : {
+          meta: metaData
+            ? {
+                account: {
+                  id: metaData.metaAccountId || null,
+                  name: metaData.metaAccountName || null,
+                  businessKey: metaData.metaBusinessKeyUsed || null
+                }
+              }
+            : null,
           google: googleData
             ? {
                 snapshot: googleData.snapshot,
