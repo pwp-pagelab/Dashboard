@@ -1,8 +1,19 @@
 # Client Share Links
 
-Public client reports are controlled by the `PUBLIC_REPORT_LINKS` environment variable.
+The easiest way to create a client-safe link is from the dashboard:
 
-Each item creates one private link locked to one ad account or advertiser account. The public page does not expose the full client list and does not allow switching clients or platforms.
+1. Add one Vercel environment variable called `PUBLIC_SHARE_SECRET`.
+2. Put any long private text inside it.
+3. Redeploy.
+4. Open the dashboard and choose one client.
+5. Click `Create client link`.
+6. Paste the copied link and send it to the client.
+
+For a normal client report, leave Platform as `All platforms`. The shared link will include all active platforms for that client and the client can change only the date range.
+
+The public page does not expose the full client list and does not allow switching clients or platforms.
+
+Optional advanced setup: public reports can also be controlled by the `PUBLIC_REPORT_LINKS` environment variable.
 
 Example:
 

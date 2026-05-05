@@ -1,11 +1,11 @@
 import { buildDashboardPayload } from './dashboard.js'
-import { getPublicReportByToken } from '../data/publicReports.js'
+import { getPublicReportByToken, verifySignedReportToken } from '../data/publicReports.js'
 
 const ALLOWED_RANGES = new Set(['7d', '30d', 'this_month', 'max'])
 
 export default async function handler(req, res) {
   const token = req.query.token || req.query.shareToken
-  const reportLink = getPublicReportByToken(token)
+  const reportLink = verifySignedReportToken(token) || getPublicReportByToken(token)
 
   if (!reportLink) {
     return res.status(404).json({
@@ -22,15 +22,27 @@ export default async function handler(req, res) {
       platformFilter: reportLink.platform,
       range,
       publicMode: true,
-      lockedAccount: {
-        clientName: reportLink.clientName,
-        platform: reportLink.platform,
-        accountId: reportLink.accountId,
-        accountName: reportLink.accountName,
-        businessKey: reportLink.businessKey,
-        loginCustomerId: reportLink.loginCustomerId
-      }
+      lockedAccount: reportLink.platform === 'all'
+        ? null
+        : {
+            clientName: reportLink.clientName,
+            platform: reportLink.platform,
+            accountId: reportLink.accountId,
+            accountName: reportLink.accountName,
+            businessKey: reportLink.businessKey,
+            loginCustomerId: reportLink.loginCustomerId
+          }
     })
+
+    if (reportLink.platform === 'all') {
+      payload.client.name = reportLink.clientName || payload.client.name
+      payload.share = {
+        locked: true,
+        platform: 'all',
+        platforms: reportLink.platforms || payload.availablePlatforms,
+        accountId: null
+      }
+    }
 
     return res.status(200).json(payload)
   } catch (error) {

@@ -929,6 +929,7 @@ export default function App() {
   const [view, setView] = useState('dashboard')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [insightsText, setInsightsText] = useState('')
+  const [shareStatus, setShareStatus] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -1045,6 +1046,32 @@ export default function App() {
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
 
+  async function createShareLink() {
+    try {
+      setShareStatus('Creating client link...')
+      const params = new URLSearchParams({
+        client,
+        platform,
+        range
+      })
+      const response = await fetch(`/api/share-link?${params.toString()}`)
+      const json = await response.json()
+
+      if (!response.ok || !json.url) {
+        throw new Error(json.error || 'Unable to create client link.')
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(json.url)
+        setShareStatus('Client link copied. You can paste it and send it.')
+      } else {
+        setShareStatus(json.url)
+      }
+    } catch (err) {
+      setShareStatus(err.message || 'Unable to create client link.')
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
       <div style={{ display: 'grid', gridTemplateColumns: isSharedView ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
@@ -1142,6 +1169,11 @@ export default function App() {
                     {showAdvanced ? 'Hide advanced view' : 'Show advanced view'}
                   </button>
                 ) : null}
+                {!isSharedView ? (
+                  <button onClick={createShareLink} style={buttonStyle(true)}>
+                    Create client link
+                  </button>
+                ) : null}
 
                 <div style={{ ...cardStyle(), padding: '11px 14px', minWidth: '220px' }}>
                   <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700 }}>Last updated</div>
@@ -1151,6 +1183,22 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {shareStatus ? (
+              <div
+                style={{
+                  ...cardStyle(),
+                  padding: '11px 14px',
+                  marginBottom: '12px',
+                  color: shareStatus.startsWith('http') ? COLORS.green : COLORS.text,
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  wordBreak: 'break-word'
+                }}
+              >
+                {shareStatus}
+              </div>
+            ) : null}
 
             <div
               style={{
@@ -1196,10 +1244,12 @@ export default function App() {
                 <div style={cardStyle()}>
                   <div style={{ padding: '11px 12px 13px' }}>
                     <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
-                      Ad account
+                      Report access
                     </div>
                     <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '14px' }}>
-                      {data?.filters?.platform || 'platform'} · {data?.share?.accountId || 'locked report'}
+                      {data?.share?.platform === 'all'
+                        ? 'All active platforms'
+                        : `${data?.filters?.platform || 'platform'} · ${data?.share?.accountId || 'locked report'}`}
                     </div>
                   </div>
                 </div>

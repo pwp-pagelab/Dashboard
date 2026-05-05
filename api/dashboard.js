@@ -158,71 +158,79 @@ export async function buildDashboardPayload({
   const rows = []
   const rangeConfig = getRangeConfig(range, client)
   let linkedinDiagnostics = null
+  const platformErrors = []
+
+  async function addPlatformRow(platformName, loadRow) {
+    try {
+      const row = await loadRow()
+      if (row) rows.push(row)
+    } catch (error) {
+      platformErrors.push({
+        platform: platformName,
+        error: error.message || 'Unable to load platform data'
+      })
+    }
+  }
 
   if (lockedAccount?.platform === 'meta') {
-    const metaRow = await getMetaData({
-      clientId,
-      ...rangeConfig.meta,
-      accountId: lockedAccount.accountId,
-      businessKey: lockedAccount.businessKey,
-      accountName: lockedAccount.accountName || lockedAccount.clientName
-    })
-    if (metaRow) rows.push(metaRow)
+    await addPlatformRow('meta', () => getMetaData({
+        clientId,
+        ...rangeConfig.meta,
+        accountId: lockedAccount.accountId,
+        businessKey: lockedAccount.businessKey,
+        accountName: lockedAccount.accountName || lockedAccount.clientName
+      }))
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta') && client.platforms.meta?.enabled) {
-    const metaRow = await getMetaData({
-      clientId,
-      ...rangeConfig.meta
-    })
-    if (metaRow) rows.push(metaRow)
+    await addPlatformRow('meta', () => getMetaData({
+        clientId,
+        ...rangeConfig.meta
+      }))
   }
 
   if (lockedAccount?.platform === 'google') {
-    const googleRow = await getGoogleAdsData({
-      ...rangeConfig.google,
-      customerId: lockedAccount.accountId,
-      loginCustomerId: lockedAccount.loginCustomerId
-    })
-    if (googleRow) {
-      rows.push({
-        ...googleRow,
-        campaign: lockedAccount.accountName || lockedAccount.clientName || googleRow.campaign
+    await addPlatformRow('google', async () => {
+      const googleRow = await getGoogleAdsData({
+        ...rangeConfig.google,
+        customerId: lockedAccount.accountId,
+        loginCustomerId: lockedAccount.loginCustomerId
       })
-    }
+      return googleRow
+        ? {
+            ...googleRow,
+            campaign: lockedAccount.accountName || lockedAccount.clientName || googleRow.campaign
+          }
+        : null
+    })
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google') && client.platforms.google?.enabled) {
-    const googleRow = await getGoogleAdsData(rangeConfig.google)
-    if (googleRow) rows.push(googleRow)
+    await addPlatformRow('google', () => getGoogleAdsData(rangeConfig.google))
   }
 
   if (lockedAccount?.platform === 'snapchat') {
-    const snapRow = await getSnapchatData({
-      clientId,
-      range,
-      adAccountId: lockedAccount.accountId,
-      accountName: lockedAccount.accountName || lockedAccount.clientName
-    })
-    if (snapRow) rows.push(snapRow)
+    await addPlatformRow('snapchat', () => getSnapchatData({
+        clientId,
+        range,
+        adAccountId: lockedAccount.accountId,
+        accountName: lockedAccount.accountName || lockedAccount.clientName
+      }))
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
-    const snapRow = await getSnapchatData({
-      clientId,
-      range
-    })
-    if (snapRow) rows.push(snapRow)
+    await addPlatformRow('snapchat', () => getSnapchatData({
+        clientId,
+        range
+      }))
   }
 
   if (lockedAccount?.platform === 'tiktok') {
-    const tiktokRow = await getTikTokData({
-      clientId,
-      range,
-      advertiserId: lockedAccount.accountId,
-      clientName: lockedAccount.accountName || lockedAccount.clientName
-    })
-    if (tiktokRow) rows.push(tiktokRow)
+    await addPlatformRow('tiktok', () => getTikTokData({
+        clientId,
+        range,
+        advertiserId: lockedAccount.accountId,
+        clientName: lockedAccount.accountName || lockedAccount.clientName
+      }))
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok') && client.platforms.tiktok?.enabled) {
-    const tiktokRow = await getTikTokData({
-      clientId,
-      range
-    })
-    if (tiktokRow) rows.push(tiktokRow)
+    await addPlatformRow('tiktok', () => getTikTokData({
+        clientId,
+        range
+      }))
   }
 
   const linkedinEnabled =
@@ -296,7 +304,7 @@ export async function buildDashboardPayload({
         }
       : null,
     availableClients: publicMode ? [] : clients.map((c) => ({ id: c.id, name: c.name })),
-    availablePlatforms: publicMode
+    availablePlatforms: publicMode && lockedAccount
       ? [effectivePlatformFilter]
       : Object.entries(client.platforms)
           .filter(([, config]) => config?.enabled)
@@ -330,6 +338,7 @@ export async function buildDashboardPayload({
     diagnostics: publicMode
       ? {
           google: null,
+          platformErrors,
           linkedin: linkedinDiagnostics
             ? {
                 ok: linkedinDiagnostics.ok,
@@ -349,9 +358,10 @@ export async function buildDashboardPayload({
                 keywordHealth: googleData.keywordHealth,
                 interpretation: googleData.interpretation,
                 tables: googleData.tables
-              }
-            : null,
-          linkedin: linkedinDiagnostics
+            }
+          : null,
+          linkedin: linkedinDiagnostics,
+          platformErrors
         },
     trends: {
       daily
