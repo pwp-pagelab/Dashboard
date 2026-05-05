@@ -786,7 +786,22 @@ function buildDailyChartData(data, totalSpend, totalConversions) {
   })
 }
 
-function ReportView({ data, platform, range, setView, insightsText }) {
+function getInitialQueryParam(name, fallback = '') {
+  if (typeof window === 'undefined') return fallback
+  return new URLSearchParams(window.location.search).get(name) || fallback
+}
+
+function getInitialShareToken() {
+  if (typeof window === 'undefined') return ''
+
+  const queryToken = getInitialQueryParam('shareToken') || getInitialQueryParam('token')
+  if (queryToken) return queryToken
+
+  const match = window.location.pathname.match(/^\/share\/([^/]+)/)
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
+function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
@@ -809,9 +824,11 @@ function ReportView({ data, platform, range, setView, insightsText }) {
 
       <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
         <div className="no-print" style={{ display: 'flex', gap: '12px', marginBottom: '22px', flexWrap: 'wrap' }}>
-          <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
-            Back to dashboard
-          </button>
+          {!isSharedView ? (
+            <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
+              Back to dashboard
+            </button>
+          ) : null}
           <button onClick={() => window.print()} style={buttonStyle(true)}>
             Export PDF
           </button>
@@ -900,13 +917,15 @@ function ReportView({ data, platform, range, setView, insightsText }) {
 }
 
 export default function App() {
+  const [shareToken] = useState(() => getInitialShareToken())
+  const isSharedView = Boolean(shareToken)
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   const [client, setClient] = useState('rimiya')
   const [platform, setPlatform] = useState('all')
-  const [range, setRange] = useState('30d')
+  const [range, setRange] = useState(() => getInitialQueryParam('range', '30d'))
   const [view, setView] = useState('dashboard')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [insightsText, setInsightsText] = useState('')
@@ -917,13 +936,19 @@ export default function App() {
         setLoading(true)
         setError('')
 
-        const params = new URLSearchParams({
-          client,
-          platform,
-          range
-        })
+        const params = isSharedView
+          ? new URLSearchParams({
+              token: shareToken,
+              range
+            })
+          : new URLSearchParams({
+              client,
+              platform,
+              range
+            })
 
-        const res = await fetch(`/api/dashboard?${params.toString()}`)
+        const endpoint = isSharedView ? '/api/public-dashboard' : '/api/dashboard'
+        const res = await fetch(`${endpoint}?${params.toString()}`)
         const text = await res.text()
 
         let json
@@ -947,7 +972,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range])
+  }, [client, platform, range, isSharedView, shareToken])
 
   useEffect(() => {
     setInsightsText(data?.insights?.suggested || '')
@@ -987,7 +1012,16 @@ export default function App() {
   }
 
   if (view === 'report') {
-    return <ReportView data={data} platform={platform} range={range} setView={setView} insightsText={insightsText} />
+    return (
+      <ReportView
+        data={data}
+        platform={data?.filters?.platform || platform}
+        range={range}
+        setView={setView}
+        insightsText={insightsText}
+        isSharedView={isSharedView}
+      />
+    )
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -1013,15 +1047,16 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '100vh' }}>
-        <aside
-          style={{
-            background: COLORS.green,
-            borderRight: '1px solid rgba(255,255,255,0.08)',
-            padding: '26px 18px',
-            boxShadow: '8px 0 30px rgba(15,23,42,0.03)'
-          }}
-        >
+      <div style={{ display: 'grid', gridTemplateColumns: isSharedView ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
+        {!isSharedView ? (
+          <aside
+            style={{
+              background: COLORS.green,
+              borderRight: '1px solid rgba(255,255,255,0.08)',
+              padding: '26px 18px',
+              boxShadow: '8px 0 30px rgba(15,23,42,0.03)'
+            }}
+          >
           <div style={{ marginBottom: '28px' }}>
             <BrandMark dark={true} />
           </div>
@@ -1074,7 +1109,8 @@ export default function App() {
               </button>
             </div>
           </div>
-        </aside>
+          </aside>
+        ) : null}
 
         <main style={{ padding: '20px 22px 30px' }}>
           <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
@@ -1090,7 +1126,7 @@ export default function App() {
             >
               <div>
                 <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
-                  CLIENT VIEW
+                  {isSharedView ? 'CLIENT REPORT' : 'CLIENT VIEW'}
                 </div>
                 <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
                   {data?.client?.name || 'Dashboard'}
@@ -1101,9 +1137,11 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button onClick={() => setShowAdvanced((v) => !v)} style={buttonStyle(false)}>
-                  {showAdvanced ? 'Hide advanced view' : 'Show advanced view'}
-                </button>
+                {!isSharedView ? (
+                  <button onClick={() => setShowAdvanced((v) => !v)} style={buttonStyle(false)}>
+                    {showAdvanced ? 'Hide advanced view' : 'Show advanced view'}
+                  </button>
+                ) : null}
 
                 <div style={{ ...cardStyle(), padding: '11px 14px', minWidth: '220px' }}>
                   <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700 }}>Last updated</div>
@@ -1122,7 +1160,8 @@ export default function App() {
                 marginBottom: '12px'
               }}
             >
-              <div style={cardStyle()}>
+              {!isSharedView ? (
+                <div style={cardStyle()}>
                 <div style={{ padding: '11px 12px 13px' }}>
                   <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                     Client
@@ -1135,9 +1174,11 @@ export default function App() {
                     ))}
                   </select>
                 </div>
-              </div>
+                </div>
+              ) : null}
 
-              <div style={cardStyle()}>
+              {!isSharedView ? (
+                <div style={cardStyle()}>
                 <div style={{ padding: '11px 12px 13px' }}>
                   <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                     Platform
@@ -1150,7 +1191,19 @@ export default function App() {
                     ))}
                   </select>
                 </div>
-              </div>
+                </div>
+              ) : (
+                <div style={cardStyle()}>
+                  <div style={{ padding: '11px 12px 13px' }}>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                      Ad account
+                    </div>
+                    <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '14px' }}>
+                      {data?.filters?.platform || 'platform'} · {data?.share?.accountId || 'locked report'}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div style={cardStyle()}>
                 <div style={{ padding: '11px 12px 13px' }}>

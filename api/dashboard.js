@@ -138,172 +138,259 @@ function buildNextAction({ totalImpressions, totalClicks, totalConversions, tota
   return 'Healthy momentum. Next step: keep optimizing efficiency.'
 }
 
-export default async function handler(req, res) {
-  const clientId = req.query.client || 'rimiya'
-  const platformFilter = req.query.platform || 'all'
-  const range = req.query.range || '30d'
-
+export async function buildDashboardPayload({
+  clientId = 'rimiya',
+  platformFilter = 'all',
+  range = '30d',
+  publicMode = false,
+  lockedAccount = null
+} = {}) {
   const client = getClientById(clientId)
 
   if (!client) {
-    return res.status(404).json({
-      ok: false,
-      error: 'Client not found',
-      availableClients: clients.map((c) => ({ id: c.id, name: c.name }))
-    })
+    const error = new Error('Client not found')
+    error.statusCode = 404
+    error.availableClients = clients.map((c) => ({ id: c.id, name: c.name }))
+    throw error
   }
 
-  try {
-    const rows = []
-    const rangeConfig = getRangeConfig(range, client)
-    let linkedinDiagnostics = null
+  const effectivePlatformFilter = lockedAccount?.platform || platformFilter
+  const rows = []
+  const rangeConfig = getRangeConfig(range, client)
+  let linkedinDiagnostics = null
 
-    if ((platformFilter === 'all' || platformFilter === 'meta') && client.platforms.meta?.enabled) {
-      const metaRow = await getMetaData({
-        clientId,
-        ...rangeConfig.meta
-      })
-      if (metaRow) rows.push(metaRow)
-    }
-
-    if ((platformFilter === 'all' || platformFilter === 'google') && client.platforms.google?.enabled) {
-      const googleRow = await getGoogleAdsData(rangeConfig.google)
-      if (googleRow) rows.push(googleRow)
-    }
-
-    if ((platformFilter === 'all' || platformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
-      const snapRow = await getSnapchatData({
-        clientId,
-        range
-      })
-      if (snapRow) rows.push(snapRow)
-    }
-
-    if ((platformFilter === 'all' || platformFilter === 'tiktok') && client.platforms.tiktok?.enabled) {
-      const tiktokRow = await getTikTokData({
-        clientId,
-        range
-      })
-      if (tiktokRow) rows.push(tiktokRow)
-    }
-
-    if ((platformFilter === 'all' || platformFilter === 'linkedin') && client.platforms.linkedin?.enabled) {
-      const linkedinReport = await getLinkedInReport({
-        clientId,
-        range
-      })
-      if (linkedinReport.row) {
-        rows.push({
-          ...linkedinReport.row,
-          daily: linkedinReport.daily || []
-        })
-      }
-      linkedinDiagnostics = {
-        ok: Boolean(linkedinReport.row),
-        error: linkedinReport.error || null,
-        strategy: linkedinReport.debug?.strategy || null,
-        start: linkedinReport.debug?.start || null,
-        end: linkedinReport.debug?.end || null,
-        campaignCount: linkedinReport.debug?.campaignCount || null,
-        attempts: (linkedinReport.debug?.attempts || []).map((attempt) => ({
-          label: attempt.label,
-          url: attempt.url,
-          headers: attempt.headers,
-          status: attempt.status,
-          ok: attempt.ok,
-          response: attempt.data
-        }))
-      }
-    }
-
-    const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
-    const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
-    const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
-    const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
-    const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
-    const daily = combineDailyTrends(rows)
-
-    const googleData = rows.find((row) => row.platform === 'Google Ads') || null
-
-    return res.status(200).json({
-      updatedAt: new Date().toISOString(),
-      client: {
-        id: client.id,
-        name: client.name
-      },
-      filters: {
-        client: clientId,
-        platform: platformFilter,
-        range
-      },
-      availableClients: clients.map((c) => ({ id: c.id, name: c.name })),
-      availablePlatforms: Object.entries(client.platforms)
-        .filter(([, config]) => config?.enabled)
-        .map(([key]) => key),
-      summaryCards: [
-        {
-          label: 'Total Spend',
-          value: formatSar(totalSpend)
-        },
-        { label: 'Impressions', value: totalImpressions.toLocaleString() },
-        { label: 'Clicks', value: totalClicks.toLocaleString() },
-        { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
-        { label: 'Conversions', value: totalConversions.toLocaleString() },
-        { label: 'Platforms Active', value: rows.length.toString() }
-      ],
-      campaignRows: rows.map((row) => ({
-        platform: row.platform,
-        campaign: row.campaign,
-        spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-        clicks: row.clicks.toLocaleString(),
-        conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
-      })),
-      platformSplit: rows.reduce((acc, row) => {
-        const key = row.platform.toLowerCase().replace(/\s+/g, '_')
-        acc[key] = {
-          spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-          conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
-        }
-        return acc
-      }, {}),
-      diagnostics: {
-        google: googleData
-          ? {
-              snapshot: googleData.snapshot,
-              visibility: googleData.visibility,
-              keywordHealth: googleData.keywordHealth,
-              interpretation: googleData.interpretation,
-              tables: googleData.tables
-            }
-          : null,
-        linkedin: linkedinDiagnostics
-      },
-      trends: {
-        daily
-      },
-      insights: {
-        suggested: buildSuggestedInsight({
-          client,
-          range,
-          totalSpend,
-          totalImpressions,
-          totalClicks,
-          totalConversions,
-          rows,
-          daily
-        }),
-        nextAction: buildNextAction({
-          totalImpressions,
-          totalClicks,
-          totalConversions,
-          totalSpend
-        })
-      }
+  if (lockedAccount?.platform === 'meta') {
+    const metaRow = await getMetaData({
+      clientId,
+      ...rangeConfig.meta,
+      accountId: lockedAccount.accountId,
+      businessKey: lockedAccount.businessKey,
+      accountName: lockedAccount.accountName || lockedAccount.clientName
     })
+    if (metaRow) rows.push(metaRow)
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta') && client.platforms.meta?.enabled) {
+    const metaRow = await getMetaData({
+      clientId,
+      ...rangeConfig.meta
+    })
+    if (metaRow) rows.push(metaRow)
+  }
+
+  if (lockedAccount?.platform === 'google') {
+    const googleRow = await getGoogleAdsData({
+      ...rangeConfig.google,
+      customerId: lockedAccount.accountId,
+      loginCustomerId: lockedAccount.loginCustomerId
+    })
+    if (googleRow) {
+      rows.push({
+        ...googleRow,
+        campaign: lockedAccount.accountName || lockedAccount.clientName || googleRow.campaign
+      })
+    }
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google') && client.platforms.google?.enabled) {
+    const googleRow = await getGoogleAdsData(rangeConfig.google)
+    if (googleRow) rows.push(googleRow)
+  }
+
+  if (lockedAccount?.platform === 'snapchat') {
+    const snapRow = await getSnapchatData({
+      clientId,
+      range,
+      adAccountId: lockedAccount.accountId,
+      accountName: lockedAccount.accountName || lockedAccount.clientName
+    })
+    if (snapRow) rows.push(snapRow)
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
+    const snapRow = await getSnapchatData({
+      clientId,
+      range
+    })
+    if (snapRow) rows.push(snapRow)
+  }
+
+  if (lockedAccount?.platform === 'tiktok') {
+    const tiktokRow = await getTikTokData({
+      clientId,
+      range,
+      advertiserId: lockedAccount.accountId,
+      clientName: lockedAccount.accountName || lockedAccount.clientName
+    })
+    if (tiktokRow) rows.push(tiktokRow)
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok') && client.platforms.tiktok?.enabled) {
+    const tiktokRow = await getTikTokData({
+      clientId,
+      range
+    })
+    if (tiktokRow) rows.push(tiktokRow)
+  }
+
+  const linkedinEnabled =
+    (lockedAccount?.platform === 'linkedin') ||
+    ((effectivePlatformFilter === 'all' || effectivePlatformFilter === 'linkedin') && client.platforms.linkedin?.enabled)
+
+  if (linkedinEnabled) {
+    const linkedinReport = await getLinkedInReport({
+      clientId,
+      range,
+      accountId: lockedAccount?.platform === 'linkedin' ? lockedAccount.accountId : null,
+      clientOverride: lockedAccount?.platform === 'linkedin'
+        ? {
+            name: lockedAccount.accountName || lockedAccount.clientName || client.name,
+            linkedinAccountId: lockedAccount.accountId
+          }
+        : null
+    })
+    if (linkedinReport.row) {
+      rows.push({
+        ...linkedinReport.row,
+        daily: linkedinReport.daily || []
+      })
+    }
+    linkedinDiagnostics = {
+      ok: Boolean(linkedinReport.row),
+      error: linkedinReport.error || null,
+      strategy: linkedinReport.debug?.strategy || null,
+      start: linkedinReport.debug?.start || null,
+      end: linkedinReport.debug?.end || null,
+      campaignCount: linkedinReport.debug?.campaignCount || null,
+      attempts: publicMode
+        ? []
+        : (linkedinReport.debug?.attempts || []).map((attempt) => ({
+            label: attempt.label,
+            url: attempt.url,
+            headers: attempt.headers,
+            status: attempt.status,
+            ok: attempt.ok,
+            response: attempt.data
+          }))
+    }
+  }
+
+  const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
+  const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
+  const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
+  const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
+  const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+  const daily = combineDailyTrends(rows)
+
+  const googleData = rows.find((row) => row.platform === 'Google Ads') || null
+  const displayClient = {
+    id: client.id,
+    name: lockedAccount?.clientName || client.name
+  }
+
+  return {
+    updatedAt: new Date().toISOString(),
+    client: displayClient,
+    filters: {
+      client: clientId,
+      platform: effectivePlatformFilter,
+      range
+    },
+    share: lockedAccount
+      ? {
+          locked: true,
+          platform: lockedAccount.platform,
+          accountId: lockedAccount.accountId
+        }
+      : null,
+    availableClients: publicMode ? [] : clients.map((c) => ({ id: c.id, name: c.name })),
+    availablePlatforms: publicMode
+      ? [effectivePlatformFilter]
+      : Object.entries(client.platforms)
+          .filter(([, config]) => config?.enabled)
+          .map(([key]) => key),
+    summaryCards: [
+      {
+        label: 'Total Spend',
+        value: formatSar(totalSpend)
+      },
+      { label: 'Impressions', value: totalImpressions.toLocaleString() },
+      { label: 'Clicks', value: totalClicks.toLocaleString() },
+      { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
+      { label: 'Conversions', value: totalConversions.toLocaleString() },
+      { label: 'Platforms Active', value: rows.length.toString() }
+    ],
+    campaignRows: rows.map((row) => ({
+      platform: row.platform,
+      campaign: row.campaign,
+      spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      clicks: row.clicks.toLocaleString(),
+      conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
+    })),
+    platformSplit: rows.reduce((acc, row) => {
+      const key = row.platform.toLowerCase().replace(/\s+/g, '_')
+      acc[key] = {
+        spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+        conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
+      }
+      return acc
+    }, {}),
+    diagnostics: publicMode
+      ? {
+          google: null,
+          linkedin: linkedinDiagnostics
+            ? {
+                ok: linkedinDiagnostics.ok,
+                error: linkedinDiagnostics.error,
+                strategy: linkedinDiagnostics.strategy,
+                start: linkedinDiagnostics.start,
+                end: linkedinDiagnostics.end,
+                campaignCount: linkedinDiagnostics.campaignCount
+              }
+            : null
+        }
+      : {
+          google: googleData
+            ? {
+                snapshot: googleData.snapshot,
+                visibility: googleData.visibility,
+                keywordHealth: googleData.keywordHealth,
+                interpretation: googleData.interpretation,
+                tables: googleData.tables
+              }
+            : null,
+          linkedin: linkedinDiagnostics
+        },
+    trends: {
+      daily
+    },
+    insights: {
+      suggested: buildSuggestedInsight({
+        client: displayClient,
+        range,
+        totalSpend,
+        totalImpressions,
+        totalClicks,
+        totalConversions,
+        rows,
+        daily
+      }),
+      nextAction: buildNextAction({
+        totalImpressions,
+        totalClicks,
+        totalConversions,
+        totalSpend
+      })
+    }
+  }
+}
+
+export default async function handler(req, res) {
+  try {
+    const payload = await buildDashboardPayload({
+      clientId: req.query.client || 'rimiya',
+      platformFilter: req.query.platform || 'all',
+      range: req.query.range || '30d'
+    })
+
+    return res.status(200).json(payload)
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       ok: false,
-      error: error.message
+      error: error.message,
+      availableClients: error.availableClients
     })
   }
 }
