@@ -5,6 +5,8 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 
+const REPORTING_START_DATE = '2023-09-01'
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -16,7 +18,7 @@ function formatSar(value) {
 function rangeLabel(range) {
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
-  if (range === 'max') return 'since onboarding'
+  if (range === 'max') return 'since September 2023'
   return 'the last 30 days'
 }
 
@@ -40,7 +42,7 @@ function getRangeConfig(range, client = null) {
   }
 
   if (range === 'max') {
-    const startDate = client?.reportingStartDate || '2026-01-01'
+    const startDate = client?.reportingStartDate || REPORTING_START_DATE
 
     return {
       meta: {

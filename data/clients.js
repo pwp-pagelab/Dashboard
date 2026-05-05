@@ -2,7 +2,7 @@ export const clients = [
   {
     id: 'rimiya',
     name: 'Rimiya',
-    reportingStartDate: '2026-02-11',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7605605483197759504',
     metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'Rimiya' },
@@ -17,7 +17,7 @@ export const clients = [
   {
     id: 'calistrafitness',
     name: 'Calistra',
-    reportingStartDate: '2026-04-04',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7626676131768369172',
     metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'calistra' },
@@ -33,7 +33,7 @@ export const clients = [
   {
     id: 'pwp',
     name: 'PWP',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     linkedinAccountId: '512874914',
     metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: { type: 'includes', value: 'PWP' },
@@ -48,7 +48,7 @@ export const clients = [
   {
     id: 'bk-saudi',
     name: 'BK Saudi',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     linkedinAccountId: '516336109',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'bk' },
@@ -64,7 +64,7 @@ export const clients = [
   {
     id: 'postwithpassion-portfolio',
     name: 'postwithpassion',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'postwithpassion' },
     platforms: {
@@ -78,7 +78,7 @@ export const clients = [
   {
     id: 'dar-alosrah',
     name: 'Dar Alosrah',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     linkedinAccountId: '518897967',
     metaBusinessKeys: ['DAR_ALOSRAH', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'dar alosrah' },
@@ -93,7 +93,7 @@ export const clients = [
   {
     id: 'first-step',
     name: 'First Step',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     metaBusinessKeys: ['FIRST_STEP', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'first step' },
     platforms: {
@@ -107,7 +107,7 @@ export const clients = [
   {
     id: 'kabab-shakers',
     name: 'Kabab Shakers',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7446000428392955905',
     metaBusinessKeys: ['KABAB_SHAKERS', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'kabab' },
@@ -122,7 +122,7 @@ export const clients = [
   {
     id: 'pet-market',
     name: 'Pet Market',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7581033628394799121',
     metaBusinessKeys: ['PET_MARKET', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'pet' },
@@ -137,7 +137,7 @@ export const clients = [
   {
     id: 'sbsf',
     name: 'SBSF',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7582169403874197512',
     googleCustomerId: '167-436-8080',
     metaAccountId: '1157883176455842',
@@ -155,7 +155,7 @@ export const clients = [
   {
     id: 'yamama-company',
     name: 'Yamama Company',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamama' },
     platforms: {
@@ -169,7 +169,7 @@ export const clients = [
   {
     id: 'yamm',
     name: 'Yamm',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7459712999889240080',
     metaBusinessKeys: ['YAMM_SA', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamm' },
@@ -184,7 +184,7 @@ export const clients = [
   {
     id: 'no7',
     name: 'No7',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     metaBusinessKeys: ['NO7', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'no7' },
     platforms: {
@@ -199,7 +199,7 @@ export const clients = [
   {
     id: 'ygii',
     name: 'Ygii',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7132464754412634114',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'ygii' },
@@ -214,7 +214,7 @@ export const clients = [
   {
     id: 'pwp-11081115',
     name: 'شركة تواصل بشغف للتسويق11081115',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7265651862102130690',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'تواصل' },
@@ -229,7 +229,7 @@ export const clients = [
   {
     id: 'pwp-1108',
     name: 'شركة تواصل بشغف للتسويق1108',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7299080289240989697',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'تواصل' },
@@ -244,7 +244,7 @@ export const clients = [
   {
     id: 'yamama-red-bricks-tiktok',
     name: 'شركة اليمامة للطوب الأحمر0522',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7371810298619248641',
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamama' },
@@ -259,7 +259,7 @@ export const clients = [
   {
     id: 'yfc',
     name: 'YFC',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7387700111398207504',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yfc' },
@@ -274,7 +274,7 @@ export const clients = [
   {
     id: 'yfc-pwp',
     name: 'YFC -PWP',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7389216029110566928',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yfc' },
@@ -289,7 +289,7 @@ export const clients = [
   {
     id: 'no7-new-ad-account',
     name: 'No7 New Ad Account',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7392149260696961025',
     metaBusinessKeys: ['NO7', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'no7' },
@@ -304,7 +304,7 @@ export const clients = [
   {
     id: 'test-yfc',
     name: 'Test YFC',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7432982394485178385',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yfc' },
@@ -319,7 +319,7 @@ export const clients = [
   {
     id: 'lefane',
     name: 'Lefane',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7436708078663401488',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'lefane' },
@@ -334,7 +334,7 @@ export const clients = [
   {
     id: 'teddysa',
     name: 'TeddySa',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7506499554309849104',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'teddy' },
@@ -349,7 +349,7 @@ export const clients = [
   {
     id: 'il-ksa',
     name: 'il-ksa',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7526566002525487120',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'il-ksa' },
@@ -364,7 +364,7 @@ export const clients = [
   {
     id: 'nc-red-bricks',
     name: 'NcRedBricks',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
     tiktokAdvertiserId: '7574421014181085200',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'red bricks' },
