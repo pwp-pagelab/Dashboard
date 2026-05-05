@@ -172,7 +172,14 @@ export async function buildDashboardPayload({
   async function addPlatformRow(platformName, loadRow) {
     try {
       const row = await loadRow()
-      if (row) rows.push(row)
+      if (row) {
+        rows.push(row)
+      } else {
+        platformErrors.push({
+          platform: platformName,
+          error: 'No reporting data returned for this platform in the selected date range. Check the account mapping, token access, or whether the platform had spend during this period.'
+        })
+      }
     } catch (error) {
       platformErrors.push({
         platform: platformName,
