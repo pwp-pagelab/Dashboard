@@ -87,6 +87,16 @@ function getClientGroup(client) {
   ]
 }
 
+function getDashboardClients() {
+  const childClientIds = new Set()
+  clients.forEach((client) => {
+    const children = Array.isArray(client.childClientIds) ? client.childClientIds : []
+    children.forEach((childClientId) => childClientIds.add(childClientId))
+  })
+
+  return clients.filter((client) => !childClientIds.has(client.id))
+}
+
 function firstMetaBusinessKey(client) {
   if (Array.isArray(client?.metaBusinessKeys)) return client.metaBusinessKeys[0] || null
   return client?.metaBusinessKey || null
@@ -275,7 +285,7 @@ export async function buildDashboardPayload({
   if (!client) {
     const error = new Error('Client not found')
     error.statusCode = 404
-    error.availableClients = clients.map((c) => ({ id: c.id, name: c.name }))
+    error.availableClients = getDashboardClients().map((c) => ({ id: c.id, name: c.name }))
     throw error
   }
 
@@ -627,7 +637,7 @@ export async function buildDashboardPayload({
           accountId: lockedAccount.accountId
         }
       : null,
-    availableClients: publicMode ? [] : clients.map((c) => ({ id: c.id, name: c.name })),
+    availableClients: publicMode ? [] : getDashboardClients().map((c) => ({ id: c.id, name: c.name })),
     availablePlatforms: publicMode && lockedAccount
       ? [effectivePlatformFilter]
       : Array.from(availablePlatformSet),

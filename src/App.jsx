@@ -833,6 +833,114 @@ function getInitialShareToken() {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
+function xmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function excelCell(value) {
+  const numberValue = typeof value === 'number' ? value : Number(value)
+  const isNumber = value !== '' && value != null && Number.isFinite(numberValue) && String(value).trim() !== ''
+
+  return `<Cell><Data ss:Type="${isNumber ? 'Number' : 'String'}">${xmlEscape(isNumber ? numberValue : value)}</Data></Cell>`
+}
+
+function excelSheet(name, rows) {
+  return `
+    <Worksheet ss:Name="${xmlEscape(name).slice(0, 31)}">
+      <Table>
+        ${rows.map((row) => `<Row>${row.map(excelCell).join('')}</Row>`).join('')}
+      </Table>
+    </Worksheet>
+  `
+}
+
+function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOptions, selectedAccountIds, insightsText, caseStudyName }) {
+  if (typeof window === 'undefined') return
+
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const selectedSet = new Set(selectedAccountIds || [])
+  const selectedAccounts = accountOptions.filter((account) => selectedSet.has(account.id))
+  const platformSplit = data?.platformSplit || {}
+  const title = caseStudyName || `${data?.client?.name || 'Client'} case study`
+  const generatedAt = new Date().toLocaleString()
+
+  const sheets = [
+    excelSheet('Overview', [
+      ['Case study', title],
+      ['Client', data?.client?.name || ''],
+      ['Date range', data?.filters?.range || ''],
+      ['Generated at', generatedAt],
+      ['Insight', insightsText || data?.insights?.suggested || ''],
+      ['Next action', data?.insights?.nextAction || ''],
+      [],
+      ['Metric', 'Value'],
+      ...summaryCards.map((card) => [card.label, card.value])
+    ]),
+    excelSheet('Selected accounts', [
+      ['Platform', 'Account name', 'Account ID', 'Client group'],
+      ...selectedAccounts.map((account) => [
+        account.platformLabel,
+        account.accountName,
+        account.accountId,
+        account.clientName
+      ])
+    ]),
+    excelSheet('Platform rows', [
+      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Conversions'],
+      ...campaignRows.map((row) => [
+        row.platform,
+        row.campaign,
+        parseSarString(row.spend),
+        parseNumberString(row.clicks),
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+      ])
+    ]),
+    excelSheet('Platform totals', [
+      ['Platform', 'Spend', 'Conversions'],
+      ...Object.entries(platformSplit).map(([platformKey, value]) => [
+        platformKey.replace(/_/g, ' '),
+        parseSarString(value?.spend),
+        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
+      ])
+    ]),
+    excelSheet('Daily trend', [
+      ['Date', 'Spend', 'Conversions', 'CPA'],
+      ...dailyChartData.map((row) => [
+        row.date,
+        row.spend,
+        row.conversions,
+        row.cpa == null ? '' : row.cpa
+      ])
+    ])
+  ]
+
+  const workbook = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook
+  xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  ${sheets.join('')}
+</Workbook>`
+
+  const filenameBase = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/gi, '-')
+    .replace(/^-+|-+$/g, '') || 'case-study'
+  const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filenameBase}.xls`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -966,6 +1074,7 @@ export default function App() {
   const [insightsText, setInsightsText] = useState('')
   const [shareStatus, setShareStatus] = useState('')
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
+  const [caseStudyName, setCaseStudyName] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -1038,6 +1147,15 @@ export default function App() {
   const accountOptions = useMemo(() => {
     return Array.isArray(data?.accountOptions) ? data.accountOptions : []
   }, [data])
+
+  const accountGroups = useMemo(() => {
+    return accountOptions.reduce((groups, account) => {
+      const key = account.platformLabel || account.platform
+      if (!groups[key]) groups[key] = []
+      groups[key].push(account)
+      return groups
+    }, {})
+  }, [accountOptions])
 
   useEffect(() => {
     if (isSharedView || !accountOptions.length || selectedAccountIds !== null) return
@@ -1129,6 +1247,18 @@ export default function App() {
 
   function selectAllAccounts() {
     setSelectedAccountIds(accountOptions.map((account) => account.id))
+  }
+
+  function downloadCaseStudyExcel() {
+    downloadExcelWorkbook({
+      data,
+      campaignRows,
+      dailyChartData,
+      accountOptions,
+      selectedAccountIds: Array.from(selectedAccountSet),
+      insightsText,
+      caseStudyName: caseStudyName || `${data?.client?.name || 'Client'} case study`
+    })
   }
 
   async function createShareLink() {
@@ -1397,7 +1527,7 @@ export default function App() {
                       Report accounts
                     </div>
                     <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px' }}>
-                      Select the exact ad accounts to include in this dashboard and client link.
+                      {selectedAccountSet.size} of {accountOptions.length} accounts selected for this dashboard and client link.
                     </div>
                   </div>
                   <button onClick={selectAllAccounts} style={buttonStyle(false)}>
@@ -1405,37 +1535,90 @@ export default function App() {
                   </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '8px' }}>
-                  {accountOptions.map((account) => (
-                    <label
-                      key={account.id}
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {Object.entries(accountGroups).map(([platformName, accounts]) => (
+                    <details
+                      key={platformName}
+                      open
                       style={{
-                        display: 'flex',
-                        gap: '9px',
-                        alignItems: 'flex-start',
-                        padding: '10px',
+                        border: `1px solid ${COLORS.line}`,
                         borderRadius: '10px',
-                        border: `1px solid ${selectedAccountSet.has(account.id) ? COLORS.green : COLORS.line}`,
-                        background: selectedAccountSet.has(account.id) ? '#F5FAF7' : '#FFFFFF',
-                        cursor: 'pointer'
+                        background: '#FBFAF7',
+                        overflow: 'hidden'
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedAccountSet.has(account.id)}
-                        onChange={() => toggleAccountSelection(account.id)}
-                        style={{ marginTop: '3px', accentColor: COLORS.green }}
-                      />
-                      <span>
-                        <span style={{ display: 'block', fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
-                          {account.platformLabel} · {account.accountName}
-                        </span>
-                        <span style={{ display: 'block', fontSize: '12px', color: COLORS.muted, marginTop: '2px' }}>
-                          {account.clientName} · {account.accountId}
-                        </span>
-                      </span>
-                    </label>
+                      <summary
+                        style={{
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          color: COLORS.green,
+                          fontWeight: 900,
+                          fontSize: '13px',
+                          listStyle: 'none'
+                        }}
+                      >
+                        {platformName} · {accounts.filter((account) => selectedAccountSet.has(account.id)).length}/{accounts.length}
+                      </summary>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '8px', padding: '0 10px 10px' }}>
+                        {accounts.map((account) => (
+                          <label
+                            key={account.id}
+                            style={{
+                              display: 'flex',
+                              gap: '9px',
+                              alignItems: 'flex-start',
+                              padding: '9px',
+                              borderRadius: '9px',
+                              border: `1px solid ${selectedAccountSet.has(account.id) ? COLORS.green : '#EFE7D6'}`,
+                              background: selectedAccountSet.has(account.id) ? '#F5FAF7' : '#FFFFFF',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedAccountSet.has(account.id)}
+                              onChange={() => toggleAccountSelection(account.id)}
+                              style={{ marginTop: '3px', accentColor: COLORS.green }}
+                            />
+                            <span>
+                              <span style={{ display: 'block', fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                                {account.accountName}
+                              </span>
+                              <span style={{ display: 'block', fontSize: '12px', color: COLORS.muted, marginTop: '2px' }}>
+                                {account.clientName} · {account.accountId}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                   ))}
+                </div>
+              </div>
+            ) : null}
+
+            {!isSharedView ? (
+              <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                  Case study Excel
+                </div>
+                <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px', marginBottom: '10px' }}>
+                  Generate a complete workbook with overview, selected accounts, platform rows, platform totals, and daily trend.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    value={caseStudyName}
+                    onChange={(event) => setCaseStudyName(event.target.value)}
+                    placeholder={`${data?.client?.name || 'Client'} case study`}
+                    style={{
+                      ...selectStyle(),
+                      minWidth: 0
+                    }}
+                  />
+                  <button onClick={downloadCaseStudyExcel} style={buttonStyle(true)}>
+                    Download Excel
+                  </button>
                 </div>
               </div>
             ) : null}
