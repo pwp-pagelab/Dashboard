@@ -394,6 +394,19 @@ export async function buildDashboardPayload({
   const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
   const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const daily = combineDailyTrends(rows)
+  const activePlatformCount = new Set(rows.map((row) => row.platform)).size
+  const platformSplit = rows.reduce((acc, row) => {
+    const key = row.platform.toLowerCase().replace(/\s+/g, '_')
+    const existing = acc[key] || {
+      spend: 0,
+      conversions: 0
+    }
+
+    existing.spend += Number(row.spend || 0)
+    existing.conversions += Number(row.conversions || 0)
+    acc[key] = existing
+    return acc
+  }, {})
 
   const googleData = rows.find((row) => row.platform === 'Google Ads') || null
   const metaData = rows.find((row) => row.platform === 'Meta') || null
@@ -437,7 +450,7 @@ export async function buildDashboardPayload({
       { label: 'Clicks', value: totalClicks.toLocaleString() },
       { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
       { label: 'Conversions', value: totalConversions.toLocaleString() },
-      { label: 'Platforms Active', value: rows.length.toString() }
+      { label: 'Platforms Active', value: activePlatformCount.toString() }
     ],
     campaignRows: rows.map((row) => ({
       platform: row.platform,
@@ -446,14 +459,15 @@ export async function buildDashboardPayload({
       clicks: row.clicks.toLocaleString(),
       conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
     })),
-    platformSplit: rows.reduce((acc, row) => {
-      const key = row.platform.toLowerCase().replace(/\s+/g, '_')
-      acc[key] = {
-        spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-        conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
-      }
-      return acc
-    }, {}),
+    platformSplit: Object.fromEntries(
+      Object.entries(platformSplit).map(([key, value]) => [
+        key,
+        {
+          spend: `SAR ${value.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          conversions: value.conversions.toLocaleString()
+        }
+      ])
+    ),
     diagnostics: publicMode
       ? {
           google: null,

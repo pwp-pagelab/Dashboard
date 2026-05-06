@@ -606,12 +606,23 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
 }
 
 function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions, compact = false }) {
-  const platforms = rows.map((row) => ({
-    platform: row.platform,
-    spend: parseSarString(row.spend),
-    clicks: parseNumberString(row.clicks),
-    conversions: row.conversions === 'N/A' ? 0 : parseNumberString(row.conversions)
-  }))
+  const platformMap = new Map()
+
+  rows.forEach((row) => {
+    const existing = platformMap.get(row.platform) || {
+      platform: row.platform,
+      spend: 0,
+      clicks: 0,
+      conversions: 0
+    }
+
+    existing.spend += parseSarString(row.spend)
+    existing.clicks += parseNumberString(row.clicks)
+    existing.conversions += row.conversions === 'N/A' ? 0 : parseNumberString(row.conversions)
+    platformMap.set(row.platform, existing)
+  })
+
+  const platforms = Array.from(platformMap.values())
 
   const chartData = [
     {
