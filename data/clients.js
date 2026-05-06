@@ -4,6 +4,8 @@ export const clients = [
     name: 'Rimiya',
     reportingStartDate: '2026-02-11',
     tiktokAdvertiserId: '7605605483197759504',
+    metaAccountId: '770445006102868',
+    metaAccountName: 'Rimiya',
     metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'Rimiya' },
     platforms: {
@@ -19,6 +21,10 @@ export const clients = [
     name: 'Calistra',
     reportingStartDate: '2026-04-04',
     tiktokAdvertiserId: '7626676131768369172',
+    snapchatAdAccountId: '5a93c800-5e3c-42ef-98d6-f2dd47e90e72',
+    snapchatAdAccountName: 'Calistra Ads',
+    metaAccountId: '2908421886189204',
+    metaAccountName: 'calistrafitness',
     metaBusinessKeys: ['PWP_SECOND_ACCOUNT', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'calistra' },
     snapMatch: { type: 'includes', value: 'Calistra' },
@@ -52,13 +58,16 @@ export const clients = [
     name: 'BK Saudi',
     reportingStartDate: '2026-01-01',
     linkedinAccountId: '516336109',
+    tiktokAdvertiserId: '7524695081987915777',
+    snapchatAdAccountId: '2b3f15f7-6cec-432e-9018-9b96aa83c635',
+    snapchatAdAccountName: 'BK Saudi Self Service',
     metaBusinessKeys: ['POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'bk' },
     platforms: {
       meta: { enabled: false },
       google: { enabled: false },
       tiktok: { enabled: true },
-      snapchat: { enabled: false },
+      snapchat: { enabled: true },
       linkedin: { enabled: true }
     }
   },
@@ -82,6 +91,8 @@ export const clients = [
     name: 'Dar Alosrah',
     reportingStartDate: '2026-01-01',
     linkedinAccountId: '518897967',
+    metaAccountId: '1818955255489938',
+    metaAccountName: 'Dar Alosrah',
     metaBusinessKeys: ['DAR_ALOSRAH', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'dar alosrah' },
     platforms: {
@@ -96,12 +107,15 @@ export const clients = [
     id: 'first-step',
     name: 'First Step',
     reportingStartDate: '2026-01-01',
+    tiktokAdvertiserId: '7550613253618237458',
+    snapchatAdAccountId: 'd80abcc3-a69d-47ed-9896-17ea892bd6e9',
+    snapchatAdAccountName: 'First Step Self Service',
     metaBusinessKeys: ['FIRST_STEP', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'first step' },
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
-      tiktok: { enabled: false },
+      tiktok: { enabled: true },
       snapchat: { enabled: true },
       linkedin: { enabled: false }
     }
@@ -192,6 +206,7 @@ export const clients = [
     id: 'no7',
     name: 'No7',
     reportingStartDate: '2026-01-01',
+    tiktokAdvertiserId: '7392149260696961025',
     metaBusinessKeys: ['NO7', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'no7' },
     platforms: {
