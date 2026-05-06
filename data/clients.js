@@ -35,6 +35,8 @@ export const clients = [
     name: 'PWP',
     reportingStartDate: '2026-01-01',
     linkedinAccountId: '512874914',
+    metaAccountId: '362111563490796',
+    metaAccountName: 'PWP',
     metaBusinessKeys: ['POSTWITHPASSION', 'PWP_SECOND_ACCOUNT'],
     metaMatch: { type: 'includes', value: 'PWP' },
     platforms: {
