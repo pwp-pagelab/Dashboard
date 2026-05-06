@@ -22,6 +22,7 @@ export default async function handler(req, res) {
       platformFilter: reportLink.platform,
       range,
       publicMode: true,
+      selectedAccountIds: reportLink.selectedAccountIds || [],
       lockedAccount: reportLink.platform === 'all'
         ? null
         : {
@@ -40,7 +41,8 @@ export default async function handler(req, res) {
         locked: true,
         platform: 'all',
         platforms: reportLink.platforms || payload.availablePlatforms,
-        accountId: null
+        accountId: null,
+        selectedAccountIds: reportLink.selectedAccountIds || []
       }
     }
 

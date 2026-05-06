@@ -36,6 +36,11 @@ function normalizeLink(link) {
     clientName: link.clientName || null,
     platform: String(link.platform).toLowerCase(),
     platforms: Array.isArray(link.platforms) ? link.platforms.map((platform) => String(platform).toLowerCase()) : null,
+    selectedAccountIds: Array.isArray(link.selectedAccountIds)
+      ? link.selectedAccountIds.map((id) => String(id)).filter(Boolean)
+      : Array.isArray(link.accounts)
+        ? link.accounts.map((id) => String(id)).filter(Boolean)
+        : [],
     accountId: link.accountId ? String(link.accountId) : null,
     accountName: link.accountName || null,
     businessKey: link.businessKey || null,
@@ -75,6 +80,7 @@ export function createSignedReportToken(link) {
     clientName: normalized.clientName,
     platform: normalized.platform,
     platforms: normalized.platforms,
+    selectedAccountIds: normalized.selectedAccountIds,
     accountId: normalized.accountId,
     accountName: normalized.accountName,
     businessKey: normalized.businessKey,

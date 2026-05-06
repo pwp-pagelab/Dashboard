@@ -965,6 +965,7 @@ export default function App() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [insightsText, setInsightsText] = useState('')
   const [shareStatus, setShareStatus] = useState('')
+  const [selectedAccountIds, setSelectedAccountIds] = useState(null)
 
   useEffect(() => {
     async function loadDashboard() {
@@ -982,6 +983,10 @@ export default function App() {
               platform,
               range
             })
+
+        if (!isSharedView && Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
+          params.set('accounts', selectedAccountIds.join(','))
+        }
 
         const endpoint = isSharedView ? '/api/public-dashboard' : '/api/dashboard'
         const res = await fetch(`${endpoint}?${params.toString()}`)
@@ -1008,7 +1013,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range, isSharedView, shareToken])
+  }, [client, platform, range, isSharedView, shareToken, selectedAccountIds])
 
   useEffect(() => {
     setInsightsText(data?.insights?.suggested || '')
@@ -1017,6 +1022,7 @@ export default function App() {
   useEffect(() => {
     if (!isSharedView) {
       setPlatform('all')
+      setSelectedAccountIds(null)
     }
   }, [client, isSharedView])
 
@@ -1028,6 +1034,15 @@ export default function App() {
     const platforms = Array.isArray(data?.availablePlatforms) ? data.availablePlatforms : []
     return ['all', ...platforms]
   }, [data])
+
+  const accountOptions = useMemo(() => {
+    return Array.isArray(data?.accountOptions) ? data.accountOptions : []
+  }, [data])
+
+  useEffect(() => {
+    if (isSharedView || !accountOptions.length || selectedAccountIds !== null) return
+    setSelectedAccountIds(accountOptions.map((account) => account.id))
+  }, [accountOptions, isSharedView, selectedAccountIds])
 
   useEffect(() => {
     if (!isSharedView && !availablePlatforms.includes(platform)) {
@@ -1092,6 +1107,29 @@ export default function App() {
   const dailyChartData = buildDailyChartData(data, totalSpend, totalConversions)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
+  const selectedAccountSet = new Set(
+    Array.isArray(selectedAccountIds)
+      ? selectedAccountIds
+      : accountOptions.map((account) => account.id)
+  )
+
+  function toggleAccountSelection(accountId) {
+    setSelectedAccountIds((current) => {
+      const base = Array.isArray(current) ? current : accountOptions.map((account) => account.id)
+      const next = new Set(base)
+      if (next.has(accountId)) {
+        next.delete(accountId)
+      } else {
+        next.add(accountId)
+      }
+
+      return Array.from(next)
+    })
+  }
+
+  function selectAllAccounts() {
+    setSelectedAccountIds(accountOptions.map((account) => account.id))
+  }
 
   async function createShareLink() {
     try {
@@ -1101,6 +1139,9 @@ export default function App() {
         platform,
         range
       })
+      if (Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
+        params.set('accounts', selectedAccountIds.join(','))
+      }
       const response = await fetch(`/api/share-link?${params.toString()}`)
       const json = await response.json()
 
@@ -1338,6 +1379,66 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {!isSharedView && accountOptions.length > 0 ? (
+              <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    marginBottom: '10px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                      Report accounts
+                    </div>
+                    <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px' }}>
+                      Select the exact ad accounts to include in this dashboard and client link.
+                    </div>
+                  </div>
+                  <button onClick={selectAllAccounts} style={buttonStyle(false)}>
+                    Select all
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '8px' }}>
+                  {accountOptions.map((account) => (
+                    <label
+                      key={account.id}
+                      style={{
+                        display: 'flex',
+                        gap: '9px',
+                        alignItems: 'flex-start',
+                        padding: '10px',
+                        borderRadius: '10px',
+                        border: `1px solid ${selectedAccountSet.has(account.id) ? COLORS.green : COLORS.line}`,
+                        background: selectedAccountSet.has(account.id) ? '#F5FAF7' : '#FFFFFF',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAccountSet.has(account.id)}
+                        onChange={() => toggleAccountSelection(account.id)}
+                        style={{ marginTop: '3px', accentColor: COLORS.green }}
+                      />
+                      <span>
+                        <span style={{ display: 'block', fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                          {account.platformLabel} · {account.accountName}
+                        </span>
+                        <span style={{ display: 'block', fontSize: '12px', color: COLORS.muted, marginTop: '2px' }}>
+                          {account.clientName} · {account.accountId}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
               <SummaryBlock

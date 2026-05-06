@@ -60,10 +60,26 @@ function getAccountDetails(client, platform) {
   return null
 }
 
+function parseSelectedAccountIds(value) {
+  if (!value) return []
+  const raw = Array.isArray(value) ? value.join(',') : String(value)
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)).filter(Boolean) : []
+  } catch {
+    return raw
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+  }
+}
+
 export default async function handler(req, res) {
   const clientId = req.query.client
   const platform = String(req.query.platform || '').toLowerCase()
   const range = req.query.range || 'max'
+  const selectedAccountIds = parseSelectedAccountIds(req.query.accounts)
   const client = getClientById(clientId)
 
   if (!client) {
@@ -98,6 +114,7 @@ export default async function handler(req, res) {
       clientName: client.name,
       platform,
       platforms: platform === 'all' ? activePlatforms : [platform],
+      selectedAccountIds,
       ...accountDetails
     })
     const baseUrl = getBaseUrl(req)

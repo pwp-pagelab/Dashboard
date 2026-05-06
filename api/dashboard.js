@@ -87,6 +87,81 @@ function getClientGroup(client) {
   ]
 }
 
+function firstMetaBusinessKey(client) {
+  if (Array.isArray(client?.metaBusinessKeys)) return client.metaBusinessKeys[0] || null
+  return client?.metaBusinessKey || null
+}
+
+function getAccountOptions(clientGroup) {
+  return clientGroup.flatMap((groupClient) => {
+    const options = []
+
+    if (groupClient.platforms?.meta?.enabled && groupClient.metaAccountId) {
+      options.push({
+        id: `meta:${groupClient.id}:${groupClient.metaAccountId}`,
+        platform: 'meta',
+        platformLabel: 'Meta',
+        clientId: groupClient.id,
+        clientName: groupClient.name,
+        accountId: String(groupClient.metaAccountId),
+        accountName: groupClient.metaAccountName || groupClient.name,
+        businessKey: firstMetaBusinessKey(groupClient)
+      })
+    }
+
+    if (groupClient.platforms?.tiktok?.enabled && groupClient.tiktokAdvertiserId) {
+      options.push({
+        id: `tiktok:${groupClient.id}:${groupClient.tiktokAdvertiserId}`,
+        platform: 'tiktok',
+        platformLabel: 'TikTok',
+        clientId: groupClient.id,
+        clientName: groupClient.name,
+        accountId: String(groupClient.tiktokAdvertiserId),
+        accountName: groupClient.name
+      })
+    }
+
+    if (groupClient.platforms?.linkedin?.enabled && groupClient.linkedinAccountId) {
+      options.push({
+        id: `linkedin:${groupClient.id}:${groupClient.linkedinAccountId}`,
+        platform: 'linkedin',
+        platformLabel: 'LinkedIn',
+        clientId: groupClient.id,
+        clientName: groupClient.name,
+        accountId: String(groupClient.linkedinAccountId),
+        accountName: groupClient.name
+      })
+    }
+
+    if (groupClient.platforms?.google?.enabled && groupClient.googleCustomerId) {
+      options.push({
+        id: `google:${groupClient.id}:${groupClient.googleCustomerId}`,
+        platform: 'google',
+        platformLabel: 'Google Ads',
+        clientId: groupClient.id,
+        clientName: groupClient.name,
+        accountId: String(groupClient.googleCustomerId),
+        accountName: groupClient.name,
+        loginCustomerId: groupClient.googleLoginCustomerId || null
+      })
+    }
+
+    if (groupClient.platforms?.snapchat?.enabled && groupClient.snapchatAdAccountId) {
+      options.push({
+        id: `snapchat:${groupClient.id}:${groupClient.snapchatAdAccountId}`,
+        platform: 'snapchat',
+        platformLabel: 'Snapchat',
+        clientId: groupClient.id,
+        clientName: groupClient.name,
+        accountId: String(groupClient.snapchatAdAccountId),
+        accountName: groupClient.snapchatAdAccountName || groupClient.name
+      })
+    }
+
+    return options
+  })
+}
+
 function annotateChildRow(row, ownerClient, displayClient) {
   if (!row || ownerClient.id === displayClient.id) return row
 
@@ -192,7 +267,8 @@ export async function buildDashboardPayload({
   platformFilter = 'all',
   range = '30d',
   publicMode = false,
-  lockedAccount = null
+  lockedAccount = null,
+  selectedAccountIds = []
 } = {}) {
   const client = getClientById(clientId)
 
@@ -206,6 +282,14 @@ export async function buildDashboardPayload({
   const effectivePlatformFilter = lockedAccount?.platform || platformFilter
   const clientGroup = lockedAccount ? [client] : getClientGroup(client)
   const isGroupedClient = clientGroup.length > 1
+  const accountOptions = getAccountOptions(clientGroup)
+  const selectedAccountIdSet = new Set(
+    (Array.isArray(selectedAccountIds) ? selectedAccountIds : [])
+      .map((id) => String(id))
+      .filter(Boolean)
+  )
+  const selectedAccountOptions = accountOptions.filter((option) => selectedAccountIdSet.has(option.id))
+  const hasSelectedAccounts = selectedAccountIdSet.size > 0
   const rows = []
   let linkedinDiagnostics = null
   const platformErrors = []
@@ -230,7 +314,111 @@ export async function buildDashboardPayload({
     }
   }
 
-  if (lockedAccount?.platform === 'meta') {
+  async function addSelectedAccount(option) {
+    const groupClient = getClientById(option.clientId) || client
+    const rangeConfig = getRangeConfig(range, groupClient, option.platform)
+
+    if (option.platform === 'meta') {
+      await addPlatformRow('meta', async () => {
+        const row = await getMetaData({
+          clientId: groupClient.id,
+          ...rangeConfig.meta,
+          accountId: option.accountId,
+          businessKey: option.businessKey,
+          accountName: option.accountName
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      }, { optional: true, omitEmpty: true })
+      return
+    }
+
+    if (option.platform === 'google') {
+      await addPlatformRow('google', async () => {
+        const row = await getGoogleAdsData({
+          ...rangeConfig.google,
+          customerId: option.accountId,
+          loginCustomerId: option.loginCustomerId
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      }, { optional: true, omitEmpty: true })
+      return
+    }
+
+    if (option.platform === 'snapchat') {
+      await addPlatformRow('snapchat', async () => {
+        const row = await getSnapchatData({
+          clientId: groupClient.id,
+          range,
+          adAccountId: option.accountId,
+          accountName: option.accountName
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      }, { optional: true, omitEmpty: true })
+      return
+    }
+
+    if (option.platform === 'tiktok') {
+      await addPlatformRow('tiktok', async () => {
+        const row = await getTikTokData({
+          clientId: groupClient.id,
+          range,
+          advertiserId: option.accountId,
+          clientName: option.accountName
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      }, { optional: true, omitEmpty: true })
+      return
+    }
+
+    if (option.platform === 'linkedin') {
+      const linkedinReport = await getLinkedInReport({
+        clientId: groupClient.id,
+        range,
+        accountId: option.accountId,
+        clientOverride: {
+          name: option.accountName || option.clientName || groupClient.name,
+          linkedinAccountId: option.accountId
+        }
+      })
+
+      if (linkedinReport.row && hasReportingActivity(linkedinReport.row)) {
+        rows.push({
+          ...annotateChildRow(linkedinReport.row, groupClient, client),
+          daily: linkedinReport.daily || []
+        })
+      }
+
+      linkedinDiagnostics = {
+        ok: Boolean(linkedinReport.row),
+        error: linkedinReport.error || null,
+        strategy: linkedinReport.debug?.strategy || null,
+        start: linkedinReport.debug?.start || null,
+        end: linkedinReport.debug?.end || null,
+        campaignCount: linkedinReport.debug?.campaignCount || null,
+        attempts: publicMode
+          ? []
+          : (linkedinReport.debug?.attempts || []).map((attempt) => ({
+              label: attempt.label,
+              url: attempt.url,
+              headers: attempt.headers,
+              status: attempt.status,
+              ok: attempt.ok,
+              response: attempt.data
+            }))
+      }
+    }
+  }
+
+  if (hasSelectedAccounts) {
+    for (const option of selectedAccountOptions) {
+      if (effectivePlatformFilter !== 'all' && option.platform !== effectivePlatformFilter) continue
+      await addSelectedAccount(option)
+    }
+  } else if (lockedAccount?.platform === 'meta') {
     const rangeConfig = getRangeConfig(range, client, 'meta')
     await addPlatformRow('meta', () => getMetaData({
         clientId,
@@ -261,7 +449,7 @@ export async function buildDashboardPayload({
     }
   }
 
-  if (lockedAccount?.platform === 'google') {
+  if (!hasSelectedAccounts && lockedAccount?.platform === 'google') {
     const rangeConfig = getRangeConfig(range, client, 'google')
     await addPlatformRow('google', async () => {
       const googleRow = await getGoogleAdsData({
@@ -276,7 +464,7 @@ export async function buildDashboardPayload({
           }
         : null
     })
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
+  } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.google?.enabled) continue
       if (isGroupedClient && !groupClient.googleCustomerId) continue
@@ -296,14 +484,14 @@ export async function buildDashboardPayload({
     }
   }
 
-  if (lockedAccount?.platform === 'snapchat') {
+  if (!hasSelectedAccounts && lockedAccount?.platform === 'snapchat') {
     await addPlatformRow('snapchat', () => getSnapchatData({
         clientId,
         range,
         adAccountId: lockedAccount.accountId,
         accountName: lockedAccount.accountName || lockedAccount.clientName
       }))
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat')) {
+  } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.snapchat?.enabled) continue
       if (isGroupedClient && !groupClient.snapchatAdAccountId) continue
@@ -321,14 +509,14 @@ export async function buildDashboardPayload({
     }
   }
 
-  if (lockedAccount?.platform === 'tiktok') {
+  if (!hasSelectedAccounts && lockedAccount?.platform === 'tiktok') {
     await addPlatformRow('tiktok', () => getTikTokData({
         clientId,
         range,
         advertiserId: lockedAccount.accountId,
         clientName: lockedAccount.accountName || lockedAccount.clientName
       }))
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok')) {
+  } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.tiktok?.enabled) continue
       if (isGroupedClient && !groupClient.tiktokAdvertiserId) continue
@@ -347,8 +535,10 @@ export async function buildDashboardPayload({
   }
 
   const linkedinEnabled =
-    (lockedAccount?.platform === 'linkedin') ||
-    ((effectivePlatformFilter === 'all' || effectivePlatformFilter === 'linkedin') && client.platforms.linkedin?.enabled)
+    !hasSelectedAccounts && (
+      (lockedAccount?.platform === 'linkedin') ||
+      ((effectivePlatformFilter === 'all' || effectivePlatformFilter === 'linkedin') && client.platforms.linkedin?.enabled)
+    )
 
   if (linkedinEnabled) {
     const linkedinReport = await getLinkedInReport({
@@ -441,6 +631,18 @@ export async function buildDashboardPayload({
     availablePlatforms: publicMode && lockedAccount
       ? [effectivePlatformFilter]
       : Array.from(availablePlatformSet),
+    accountOptions: publicMode
+      ? []
+      : accountOptions.map((option) => ({
+          id: option.id,
+          platform: option.platform,
+          platformLabel: option.platformLabel,
+          clientId: option.clientId,
+          clientName: option.clientName,
+          accountId: option.accountId,
+          accountName: option.accountName
+        })),
+    selectedAccountIds: Array.from(selectedAccountIdSet),
     summaryCards: [
       {
         label: 'Total Spend',
@@ -549,12 +751,28 @@ export async function buildDashboardPayload({
   }
 }
 
+function parseSelectedAccountIds(value) {
+  if (!value) return []
+  const raw = Array.isArray(value) ? value.join(',') : String(value)
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map((id) => String(id)) : []
+  } catch {
+    return raw
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+  }
+}
+
 export default async function handler(req, res) {
   try {
     const payload = await buildDashboardPayload({
       clientId: req.query.client || 'rimiya',
       platformFilter: req.query.platform || 'all',
-      range: req.query.range || '30d'
+      range: req.query.range || '30d',
+      selectedAccountIds: parseSelectedAccountIds(req.query.accounts)
     })
 
     return res.status(200).json(payload)
