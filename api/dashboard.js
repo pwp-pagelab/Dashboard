@@ -74,6 +74,30 @@ function getRangeConfig(range, client = null, platform = null) {
   }
 }
 
+function getClientGroup(client) {
+  if (!Array.isArray(client?.childClientIds) || !client.childClientIds.length) {
+    return [client]
+  }
+
+  return [
+    client,
+    ...client.childClientIds
+      .map((childClientId) => getClientById(childClientId))
+      .filter(Boolean)
+  ]
+}
+
+function annotateChildRow(row, ownerClient, displayClient) {
+  if (!row || ownerClient.id === displayClient.id) return row
+
+  return {
+    ...row,
+    campaign: `${row.campaign || ownerClient.name} · ${ownerClient.name}`,
+    ownerClientId: ownerClient.id,
+    ownerClientName: ownerClient.name
+  }
+}
+
 function combineDailyTrends(rows) {
   const dailyByDate = new Map()
 
@@ -165,6 +189,7 @@ export async function buildDashboardPayload({
   }
 
   const effectivePlatformFilter = lockedAccount?.platform || platformFilter
+  const clientGroup = lockedAccount ? [client] : getClientGroup(client)
   const rows = []
   let linkedinDiagnostics = null
   const platformErrors = []
@@ -197,15 +222,22 @@ export async function buildDashboardPayload({
         businessKey: lockedAccount.businessKey,
         accountName: lockedAccount.accountName || lockedAccount.clientName
       }))
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta') && client.platforms.meta?.enabled) {
-    const rangeConfig = getRangeConfig(range, client, 'meta')
-    await addPlatformRow('meta', () => getMetaData({
-        clientId,
-        ...rangeConfig.meta,
-        accountId: client.metaAccountId,
-        businessKey: client.metaBusinessKey,
-        accountName: client.metaAccountName
-      }))
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta')) {
+    for (const groupClient of clientGroup) {
+      if (!groupClient.platforms.meta?.enabled) continue
+      const rangeConfig = getRangeConfig(range, groupClient, 'meta')
+      await addPlatformRow('meta', async () => {
+        const row = await getMetaData({
+          clientId: groupClient.id,
+          ...rangeConfig.meta,
+          accountId: groupClient.metaAccountId,
+          businessKey: groupClient.metaBusinessKey,
+          accountName: groupClient.metaAccountName
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      })
+    }
   }
 
   if (lockedAccount?.platform === 'google') {
@@ -223,13 +255,20 @@ export async function buildDashboardPayload({
           }
         : null
     })
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google') && client.platforms.google?.enabled) {
-    const rangeConfig = getRangeConfig(range, client, 'google')
-    await addPlatformRow('google', () => getGoogleAdsData({
-      ...rangeConfig.google,
-      customerId: client.googleCustomerId,
-      loginCustomerId: client.googleLoginCustomerId
-    }))
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
+    for (const groupClient of clientGroup) {
+      if (!groupClient.platforms.google?.enabled) continue
+      const rangeConfig = getRangeConfig(range, groupClient, 'google')
+      await addPlatformRow('google', async () => {
+        const row = await getGoogleAdsData({
+          ...rangeConfig.google,
+          customerId: groupClient.googleCustomerId,
+          loginCustomerId: groupClient.googleLoginCustomerId
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      })
+    }
   }
 
   if (lockedAccount?.platform === 'snapchat') {
@@ -239,11 +278,18 @@ export async function buildDashboardPayload({
         adAccountId: lockedAccount.accountId,
         accountName: lockedAccount.accountName || lockedAccount.clientName
       }))
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat') && client.platforms.snapchat?.enabled) {
-    await addPlatformRow('snapchat', () => getSnapchatData({
-        clientId,
-        range
-      }))
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat')) {
+    for (const groupClient of clientGroup) {
+      if (!groupClient.platforms.snapchat?.enabled) continue
+      await addPlatformRow('snapchat', async () => {
+        const row = await getSnapchatData({
+          clientId: groupClient.id,
+          range
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      })
+    }
   }
 
   if (lockedAccount?.platform === 'tiktok') {
@@ -253,11 +299,18 @@ export async function buildDashboardPayload({
         advertiserId: lockedAccount.accountId,
         clientName: lockedAccount.accountName || lockedAccount.clientName
       }))
-  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok') && client.platforms.tiktok?.enabled) {
-    await addPlatformRow('tiktok', () => getTikTokData({
-        clientId,
-        range
-      }))
+  } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok')) {
+    for (const groupClient of clientGroup) {
+      if (!groupClient.platforms.tiktok?.enabled) continue
+      await addPlatformRow('tiktok', async () => {
+        const row = await getTikTokData({
+          clientId: groupClient.id,
+          range
+        })
+
+        return annotateChildRow(row, groupClient, client)
+      })
+    }
   }
 
   const linkedinEnabled =
@@ -316,6 +369,12 @@ export async function buildDashboardPayload({
     id: client.id,
     name: lockedAccount?.clientName || client.name
   }
+  const availablePlatformSet = new Set()
+  clientGroup.forEach((groupClient) => {
+    Object.entries(groupClient.platforms || {}).forEach(([key, config]) => {
+      if (config?.enabled) availablePlatformSet.add(key)
+    })
+  })
 
   return {
     updatedAt: new Date().toISOString(),
@@ -335,9 +394,7 @@ export async function buildDashboardPayload({
     availableClients: publicMode ? [] : clients.map((c) => ({ id: c.id, name: c.name })),
     availablePlatforms: publicMode && lockedAccount
       ? [effectivePlatformFilter]
-      : Object.entries(client.platforms)
-          .filter(([, config]) => config?.enabled)
-          .map(([key]) => key),
+      : Array.from(availablePlatformSet),
     summaryCards: [
       {
         label: 'Total Spend',

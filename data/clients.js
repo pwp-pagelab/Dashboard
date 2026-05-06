@@ -40,6 +40,12 @@ export const clients = [
     id: 'pwp',
     name: 'PWP',
     reportingStartDate: '2026-01-01',
+    childClientIds: [
+      'postwithpassion-portfolio',
+      'pwp-1108',
+      'pwp-11081115',
+      'pwp-0416'
+    ],
     linkedinAccountId: '512874914',
     metaAccountId: '362111563490796',
     metaAccountName: 'PWP',
