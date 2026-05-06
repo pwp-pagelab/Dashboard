@@ -102,6 +102,17 @@ function annotateChildRow(row, ownerClient, displayClient) {
   }
 }
 
+function hasReportingActivity(row) {
+  if (!row) return false
+
+  return (
+    Number(row.spend || 0) > 0 ||
+    Number(row.impressions || 0) > 0 ||
+    Number(row.clicks || 0) > 0 ||
+    Number(row.conversions || 0) > 0
+  )
+}
+
 function combineDailyTrends(rows) {
   const dailyByDate = new Map()
 
@@ -203,6 +214,7 @@ export async function buildDashboardPayload({
     try {
       const row = await loadRow()
       if (row) {
+        if (options.omitEmpty && !hasReportingActivity(row)) return
         rows.push(row)
       } else if (!options.optional) {
         platformErrors.push({
@@ -242,7 +254,10 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: isGroupedClient && groupClient.id !== client.id })
+      }, {
+        optional: isGroupedClient && groupClient.id !== client.id,
+        omitEmpty: isGroupedClient && groupClient.id !== client.id
+      })
     }
   }
 
@@ -274,7 +289,10 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: isGroupedClient && groupClient.id !== client.id })
+      }, {
+        optional: isGroupedClient && groupClient.id !== client.id,
+        omitEmpty: isGroupedClient && groupClient.id !== client.id
+      })
     }
   }
 
@@ -296,7 +314,10 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: isGroupedClient && groupClient.id !== client.id })
+      }, {
+        optional: isGroupedClient && groupClient.id !== client.id,
+        omitEmpty: isGroupedClient && groupClient.id !== client.id
+      })
     }
   }
 
@@ -318,7 +339,10 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: isGroupedClient && groupClient.id !== client.id })
+      }, {
+        optional: isGroupedClient && groupClient.id !== client.id,
+        omitEmpty: isGroupedClient && groupClient.id !== client.id
+      })
     }
   }
 
