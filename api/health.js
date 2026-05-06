@@ -1,5 +1,5 @@
 import { clients } from '../data/clients.js'
-import { getMetaBusinessAdAccountsMulti } from '../lib/metaAccounts.js'
+import { getAllMetaAdAccounts } from '../lib/metaAccounts.js'
 
 const PLATFORM_FIELDS = {
   meta: {
@@ -175,19 +175,24 @@ function suggestMatches(accounts, platform) {
 }
 
 async function discoverMetaAccounts() {
-  const businessKeys = clientBusinessKeys()
-  const accounts = await getMetaBusinessAdAccountsMulti(businessKeys)
+  const discovery = await getAllMetaAdAccounts()
 
   return {
     ok: true,
-    businessKeys,
-    accounts: accounts.map((account) => ({
+    configuredBusinessKeys: clientBusinessKeys(),
+    discoveredBusinessPortfolios: discovery.portfolios,
+    discoveryErrors: discovery.errors,
+    accounts: discovery.accounts.map((account) => ({
       id: account.id,
       accountId: account.account_id,
-      name: account.name
+      name: account.name,
+      source: account.source || null,
+      businessId: account.businessId || null,
+      businessName: account.businessName || null,
+      tokenKey: account.tokenKey || null
     })),
     suggestedMatches: suggestMatches(
-      accounts.map((account) => ({
+      discovery.accounts.map((account) => ({
         id: account.id,
         accountId: account.account_id,
         name: account.name

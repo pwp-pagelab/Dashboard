@@ -1,6 +1,7 @@
 import {
   getMetaAccessTokenForBusiness,
   getMetaBusinessAdAccountsMulti,
+  getAllMetaAdAccounts,
   findMatchingMetaAccount
 } from '../lib/metaAccounts.js'
 import { clients, getClientById } from '../data/clients.js'
@@ -115,9 +116,23 @@ export default async function handler(req, res) {
 
   try {
     if (!clientId && !businessKey) {
+      const discovery = await getAllMetaAdAccounts()
+
       return res.status(200).json({
         ok: true,
-        message: 'Pass ?client=<clientId> or ?businessKey=<key>',
+        mode: 'all-connected-meta-accounts',
+        message: 'Pass ?client=<clientId>, ?client=<clientId>&spend=1, or ?businessKey=<key>',
+        discoveredBusinessPortfolios: discovery.portfolios,
+        discoveryErrors: discovery.errors,
+        accounts: discovery.accounts.map((account) => ({
+          id: account.id,
+          accountId: account.account_id,
+          name: account.name,
+          source: account.source || null,
+          businessId: account.businessId || null,
+          businessName: account.businessName || null,
+          tokenKey: account.tokenKey || null
+        })),
         availableClients: clients.map((c) => ({
           id: c.id,
           name: c.name,
@@ -145,7 +160,10 @@ export default async function handler(req, res) {
         })
       }
 
-      const accounts = await getMetaBusinessAdAccountsMulti(businessKeys)
+      const discovery = await getAllMetaAdAccounts()
+      const accounts = discovery.accounts.length
+        ? discovery.accounts
+        : await getMetaBusinessAdAccountsMulti(businessKeys)
       const matched = findMatchingMetaAccount(accounts, client)
 
       if (spendAudit) {
@@ -173,6 +191,8 @@ export default async function handler(req, res) {
             metaAccountId: client.metaAccountId || null,
             metaAccountName: client.metaAccountName || null
           },
+          discoveredBusinessPortfolios: discovery.portfolios,
+          discoveryErrors: discovery.errors,
           dateRange: timeRange,
           topSpenders: successful.slice(0, 15),
           allResults: results,
