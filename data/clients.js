@@ -276,6 +276,21 @@ export const clients = [
     }
   },
   {
+    id: 'pwp-0416',
+    name: 'شركة تواصل بشغف للتسويق0416',
+    reportingStartDate: '2026-01-01',
+    tiktokAdvertiserId: '7493853887540150289',
+    metaBusinessKeys: ['POSTWITHPASSION'],
+    metaMatch: { type: 'includes', value: 'تواصل' },
+    platforms: {
+      meta: { enabled: false },
+      google: { enabled: false },
+      tiktok: { enabled: true },
+      snapchat: { enabled: false },
+      linkedin: { enabled: false }
+    }
+  },
+  {
     id: 'yamama-red-bricks-tiktok',
     name: 'شركة اليمامة للطوب الأحمر0522',
     reportingStartDate: '2026-01-01',
