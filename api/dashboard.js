@@ -90,9 +90,13 @@ function getClientGroup(client) {
 function annotateChildRow(row, ownerClient, displayClient) {
   if (!row || ownerClient.id === displayClient.id) return row
 
+  const campaignName = row.campaign && row.campaign !== ownerClient.name
+    ? `${row.campaign} · ${ownerClient.name}`
+    : ownerClient.name
+
   return {
     ...row,
-    campaign: `${row.campaign || ownerClient.name} · ${ownerClient.name}`,
+    campaign: campaignName,
     ownerClientId: ownerClient.id,
     ownerClientName: ownerClient.name
   }
@@ -190,16 +194,17 @@ export async function buildDashboardPayload({
 
   const effectivePlatformFilter = lockedAccount?.platform || platformFilter
   const clientGroup = lockedAccount ? [client] : getClientGroup(client)
+  const isGroupedClient = clientGroup.length > 1
   const rows = []
   let linkedinDiagnostics = null
   const platformErrors = []
 
-  async function addPlatformRow(platformName, loadRow) {
+  async function addPlatformRow(platformName, loadRow, options = {}) {
     try {
       const row = await loadRow()
       if (row) {
         rows.push(row)
-      } else {
+      } else if (!options.optional) {
         platformErrors.push({
           platform: platformName,
           error: 'No reporting data returned for this platform in the selected date range. Check the account mapping, token access, or whether the platform had spend during this period.'
@@ -225,6 +230,7 @@ export async function buildDashboardPayload({
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.meta?.enabled) continue
+      if (isGroupedClient && !groupClient.metaAccountId) continue
       const rangeConfig = getRangeConfig(range, groupClient, 'meta')
       await addPlatformRow('meta', async () => {
         const row = await getMetaData({
@@ -236,7 +242,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      })
+      }, { optional: isGroupedClient && groupClient.id !== client.id })
     }
   }
 
@@ -258,6 +264,7 @@ export async function buildDashboardPayload({
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.google?.enabled) continue
+      if (isGroupedClient && !groupClient.googleCustomerId) continue
       const rangeConfig = getRangeConfig(range, groupClient, 'google')
       await addPlatformRow('google', async () => {
         const row = await getGoogleAdsData({
@@ -267,7 +274,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      })
+      }, { optional: isGroupedClient && groupClient.id !== client.id })
     }
   }
 
@@ -281,6 +288,7 @@ export async function buildDashboardPayload({
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.snapchat?.enabled) continue
+      if (isGroupedClient && !groupClient.snapchatAdAccountId) continue
       await addPlatformRow('snapchat', async () => {
         const row = await getSnapchatData({
           clientId: groupClient.id,
@@ -288,7 +296,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      })
+      }, { optional: isGroupedClient && groupClient.id !== client.id })
     }
   }
 
@@ -302,6 +310,7 @@ export async function buildDashboardPayload({
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.tiktok?.enabled) continue
+      if (isGroupedClient && !groupClient.tiktokAdvertiserId) continue
       await addPlatformRow('tiktok', async () => {
         const row = await getTikTokData({
           clientId: groupClient.id,
@@ -309,7 +318,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      })
+      }, { optional: isGroupedClient && groupClient.id !== client.id })
     }
   }
 

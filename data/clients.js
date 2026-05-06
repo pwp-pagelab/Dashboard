@@ -195,7 +195,8 @@ export const clients = [
       'yamama-red-bricks-tiktok',
       'yfc',
       'yfc-pwp',
-      'test-yfc'
+      'test-yfc',
+      'nc-red-bricks'
     ],
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamama' },
