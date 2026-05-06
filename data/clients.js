@@ -191,6 +191,12 @@ export const clients = [
     id: 'yamama-company',
     name: 'Yamama Company',
     reportingStartDate: '2026-01-01',
+    childClientIds: [
+      'yamama-red-bricks-tiktok',
+      'yfc',
+      'yfc-pwp',
+      'test-yfc'
+    ],
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamama' },
     platforms: {
