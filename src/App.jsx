@@ -858,6 +858,30 @@ function excelSheet(name, rows) {
   `
 }
 
+function saveExcelWorkbook(title, sheets) {
+  const workbook = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook
+  xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  ${sheets.join('')}
+</Workbook>`
+
+  const filenameBase = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/gi, '-')
+    .replace(/^-+|-+$/g, '') || 'case-study'
+  const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filenameBase}.xls`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOptions, selectedAccountIds, insightsText, caseStudyName }) {
   if (typeof window === 'undefined') return
 
@@ -918,27 +942,97 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
     ])
   ]
 
-  const workbook = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook
-  xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:o="urn:schemas-microsoft-com:office:office"
-  xmlns:x="urn:schemas-microsoft-com:office:excel"
-  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  ${sheets.join('')}
-</Workbook>`
+  saveExcelWorkbook(title, sheets)
+}
 
-  const filenameBase = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0600-\u06FF]+/gi, '-')
-    .replace(/^-+|-+$/g, '') || 'case-study'
-  const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${filenameBase}.xls`
-  link.click()
-  URL.revokeObjectURL(url)
+function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
+  const generatedAt = new Date().toLocaleString()
+  const overviewRows = [
+    ['Agency workbook', title],
+    ['Date range', range],
+    ['Generated at', generatedAt],
+    ['Clients included', clientReports.length],
+    [],
+    ['Client', 'Spend', 'Impressions', 'Clicks', 'Conversions', 'Platforms active']
+  ]
+
+  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Clicks', 'Conversions']]
+  const platformTotals = [['Client', 'Platform', 'Spend', 'Conversions']]
+  const dailyRows = [['Client', 'Date', 'Spend', 'Conversions', 'CPA']]
+  const insightRows = [['Client', 'Insight', 'Next action']]
+
+  clientReports.forEach(({ client, payload }) => {
+    const summaryCards = Array.isArray(payload.summaryCards) ? payload.summaryCards : []
+    const campaigns = Array.isArray(payload.campaignRows) ? payload.campaignRows : []
+    const daily = buildDailyChartData(payload)
+    const platformSplit = payload.platformSplit || {}
+    const accounts = Array.isArray(payload.accountOptions) ? payload.accountOptions : []
+
+    overviewRows.push([
+      payload.client?.name || client.name,
+      parseSarString(summaryCards.find((card) => card.label === 'Total Spend')?.value),
+      parseNumberString(summaryCards.find((card) => card.label === 'Impressions')?.value),
+      parseNumberString(summaryCards.find((card) => card.label === 'Clicks')?.value),
+      parseNumberString(summaryCards.find((card) => card.label === 'Conversions')?.value),
+      parseNumberString(summaryCards.find((card) => card.label === 'Platforms Active')?.value)
+    ])
+
+    accounts.forEach((account) => {
+      accountRows.push([
+        payload.client?.name || client.name,
+        account.platformLabel,
+        account.accountName,
+        account.accountId,
+        account.clientName
+      ])
+    })
+
+    campaigns.forEach((row) => {
+      platformRows.push([
+        payload.client?.name || client.name,
+        row.platform,
+        row.campaign,
+        parseSarString(row.spend),
+        parseNumberString(row.clicks),
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+      ])
+    })
+
+    Object.entries(platformSplit).forEach(([platformKey, value]) => {
+      platformTotals.push([
+        payload.client?.name || client.name,
+        platformKey.replace(/_/g, ' '),
+        parseSarString(value?.spend),
+        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
+      ])
+    })
+
+    daily.forEach((row) => {
+      dailyRows.push([
+        payload.client?.name || client.name,
+        row.date,
+        row.spend,
+        row.conversions,
+        row.cpa == null ? '' : row.cpa
+      ])
+    })
+
+    insightRows.push([
+      payload.client?.name || client.name,
+      payload.insights?.suggested || '',
+      payload.insights?.nextAction || ''
+    ])
+  })
+
+  saveExcelWorkbook(title, [
+    excelSheet('Agency overview', overviewRows),
+    excelSheet('All accounts', accountRows),
+    excelSheet('Platform rows', platformRows),
+    excelSheet('Platform totals', platformTotals),
+    excelSheet('Daily trends', dailyRows),
+    excelSheet('Insights', insightRows)
+  ])
 }
 
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
@@ -1075,6 +1169,7 @@ export default function App() {
   const [shareStatus, setShareStatus] = useState('')
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
   const [caseStudyName, setCaseStudyName] = useState('')
+  const [agencyExporting, setAgencyExporting] = useState(false)
 
   useEffect(() => {
     async function loadDashboard() {
@@ -1259,6 +1354,41 @@ export default function App() {
       insightsText,
       caseStudyName: caseStudyName || `${data?.client?.name || 'Client'} case study`
     })
+  }
+
+  async function downloadAgencyExcel() {
+    if (!availableClients.length) return
+
+    try {
+      setAgencyExporting(true)
+      const clientReports = []
+
+      for (const agencyClient of availableClients) {
+        const params = new URLSearchParams({
+          client: agencyClient.id,
+          platform: 'all',
+          range
+        })
+        const response = await fetch(`/api/dashboard?${params.toString()}`)
+        const payload = await response.json()
+        if (response.ok) {
+          clientReports.push({
+            client: agencyClient,
+            payload
+          })
+        }
+      }
+
+      downloadAgencyExcelWorkbook({
+        title: caseStudyName || `Agency performance ${range}`,
+        clientReports,
+        range
+      })
+    } catch (err) {
+      setShareStatus(err.message || 'Unable to generate agency Excel.')
+    } finally {
+      setAgencyExporting(false)
+    }
   }
 
   async function createShareLink() {
@@ -1604,20 +1734,24 @@ export default function App() {
                   Case study Excel
                 </div>
                 <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px', marginBottom: '10px' }}>
-                  Generate a complete workbook with overview, selected accounts, platform rows, platform totals, and daily trend.
+                  Generate a client workbook, or download all dashboard clients in one agency workbook.
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <input
                     value={caseStudyName}
                     onChange={(event) => setCaseStudyName(event.target.value)}
                     placeholder={`${data?.client?.name || 'Client'} case study`}
                     style={{
                       ...selectStyle(),
+                      flex: '1 1 260px',
                       minWidth: 0
                     }}
                   />
                   <button onClick={downloadCaseStudyExcel} style={buttonStyle(true)}>
-                    Download Excel
+                    Client Excel
+                  </button>
+                  <button onClick={downloadAgencyExcel} disabled={agencyExporting} style={buttonStyle(false)}>
+                    {agencyExporting ? 'Preparing...' : 'All accounts Excel'}
                   </button>
                 </div>
               </div>
