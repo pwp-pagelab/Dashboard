@@ -1157,6 +1157,7 @@ function AgencyExportView({ availableClients, setView }) {
   const [exportRange, setExportRange] = useState('max')
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
+  const [resolvedClients, setResolvedClients] = useState(availableClients || [])
   const [exportName, setExportName] = useState('Agency performance')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -1164,14 +1165,29 @@ function AgencyExportView({ availableClients, setView }) {
 
   useEffect(() => {
     async function loadAccounts() {
-      if (!availableClients.length) return
-
       try {
         setLoading(true)
         setError('')
+        let clientsToLoad = Array.isArray(availableClients) ? availableClients : []
+
+        if (!clientsToLoad.length) {
+          const fallbackResponse = await fetch('/api/dashboard?client=rimiya&platform=all&range=30d')
+          const fallbackPayload = await fallbackResponse.json()
+          clientsToLoad = Array.isArray(fallbackPayload?.availableClients) ? fallbackPayload.availableClients : []
+        }
+
+        setResolvedClients(clientsToLoad)
+
+        if (!clientsToLoad.length) {
+          setClientPayloads([])
+          setSelectedAccountIds([])
+          setError('No client list is available yet. Go back to the dashboard, wait for it to load, then open Agency Excel again.')
+          return
+        }
+
         const payloads = []
 
-        for (const agencyClient of availableClients) {
+        for (const agencyClient of clientsToLoad) {
           const params = new URLSearchParams({
             client: agencyClient.id,
             platform: 'all',
@@ -1349,7 +1365,7 @@ function AgencyExportView({ availableClients, setView }) {
           </div>
 
           <div style={{ marginTop: '10px', fontSize: '13px', color: COLORS.muted }}>
-            {selectedAccountIds.length} of {accountOptions.length} accounts selected.
+            {selectedAccountIds.length} of {accountOptions.length} accounts selected across {resolvedClients.length} clients.
           </div>
         </div>
 
