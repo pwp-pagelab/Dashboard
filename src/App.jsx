@@ -1153,6 +1153,261 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   )
 }
 
+function AgencyExportView({ availableClients, setView }) {
+  const [exportRange, setExportRange] = useState('max')
+  const [clientPayloads, setClientPayloads] = useState([])
+  const [selectedAccountIds, setSelectedAccountIds] = useState([])
+  const [exportName, setExportName] = useState('Agency performance')
+  const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadAccounts() {
+      if (!availableClients.length) return
+
+      try {
+        setLoading(true)
+        setError('')
+        const payloads = []
+
+        for (const agencyClient of availableClients) {
+          const params = new URLSearchParams({
+            client: agencyClient.id,
+            platform: 'all',
+            range: exportRange
+          })
+          const response = await fetch(`/api/dashboard?${params.toString()}`)
+          const payload = await response.json()
+          if (response.ok) {
+            payloads.push({
+              client: agencyClient,
+              payload
+            })
+          }
+        }
+
+        setClientPayloads(payloads)
+        setSelectedAccountIds((current) => {
+          const nextIds = payloads.flatMap(({ payload }) =>
+            (payload.accountOptions || []).map((account) => account.id)
+          )
+          const currentSet = new Set(current)
+          const filtered = nextIds.filter((id) => currentSet.has(id))
+          return current.length ? filtered : nextIds
+        })
+      } catch (err) {
+        setError(err.message || 'Unable to load agency accounts.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAccounts()
+  }, [availableClients, exportRange])
+
+  const accountOptions = clientPayloads.flatMap(({ payload }) => payload.accountOptions || [])
+  const selectedSet = new Set(selectedAccountIds)
+
+  function toggleAccount(accountId) {
+    setSelectedAccountIds((current) => {
+      const next = new Set(current)
+      if (next.has(accountId)) {
+        next.delete(accountId)
+      } else {
+        next.add(accountId)
+      }
+      return Array.from(next)
+    })
+  }
+
+  function selectAllAccounts() {
+    setSelectedAccountIds(accountOptions.map((account) => account.id))
+  }
+
+  function clearAccounts() {
+    setSelectedAccountIds([])
+  }
+
+  async function exportSelectedAccounts() {
+    try {
+      setExporting(true)
+      setError('')
+      const selectedByClient = new Map()
+
+      clientPayloads.forEach(({ client, payload }) => {
+        const selectedForClient = (payload.accountOptions || [])
+          .filter((account) => selectedSet.has(account.id))
+          .map((account) => account.id)
+
+        if (selectedForClient.length) {
+          selectedByClient.set(client.id, {
+            client,
+            accountIds: selectedForClient
+          })
+        }
+      })
+
+      const clientReports = []
+      for (const selectedClient of selectedByClient.values()) {
+        const params = new URLSearchParams({
+          client: selectedClient.client.id,
+          platform: 'all',
+          range: exportRange,
+          accounts: selectedClient.accountIds.join(',')
+        })
+        const response = await fetch(`/api/dashboard?${params.toString()}`)
+        const payload = await response.json()
+        if (response.ok) {
+          clientReports.push({
+            client: selectedClient.client,
+            payload
+          })
+        }
+      }
+
+      downloadAgencyExcelWorkbook({
+        title: exportName || `Agency performance ${exportRange}`,
+        clientReports,
+        range: exportRange
+      })
+    } catch (err) {
+      setError(err.message || 'Unable to generate agency Excel.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const groupedByClient = clientPayloads.map(({ client, payload }) => ({
+    client,
+    platformGroups: (payload.accountOptions || []).reduce((groups, account) => {
+      const key = account.platformLabel || account.platform
+      if (!groups[key]) groups[key] = []
+      groups[key].push(account)
+      return groups
+    }, {})
+  }))
+
+  return (
+    <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text, padding: '24px' }}>
+      <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
+              AGENCY EXPORT
+            </div>
+            <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
+              All accounts workbook
+            </h1>
+            <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
+              Select the exact accounts and date range before downloading agency-wide performance data.
+            </p>
+          </div>
+          <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
+            Back to dashboard
+          </button>
+        </div>
+
+        <div style={{ ...cardStyle(), padding: '14px', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px', alignItems: 'end' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                Workbook name
+              </div>
+              <input
+                value={exportName}
+                onChange={(event) => setExportName(event.target.value)}
+                style={selectStyle()}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                Date range
+              </div>
+              <select value={exportRange} onChange={(event) => setExportRange(event.target.value)} style={selectStyle()}>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="this_month">This month</option>
+                <option value="max">Since promotion start</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button onClick={selectAllAccounts} style={buttonStyle(false)}>
+                Select all
+              </button>
+              <button onClick={clearAccounts} style={buttonStyle(false)}>
+                Clear
+              </button>
+              <button
+                onClick={exportSelectedAccounts}
+                disabled={exporting || loading || selectedAccountIds.length === 0}
+                style={buttonStyle(true)}
+              >
+                {exporting ? 'Preparing...' : 'Download selected'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '10px', fontSize: '13px', color: COLORS.muted }}>
+            {selectedAccountIds.length} of {accountOptions.length} accounts selected.
+          </div>
+        </div>
+
+        {error ? (
+          <div style={{ ...cardStyle(), padding: '12px 14px', marginBottom: '14px', color: COLORS.red, fontWeight: 700 }}>
+            {error}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div style={{ ...cardStyle(), padding: '18px', color: COLORS.muted }}>
+            Loading accounts...
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {groupedByClient.map(({ client, platformGroups }) => (
+              <div key={client.id} style={{ ...cardStyle(), padding: '14px' }}>
+                <div style={{ color: COLORS.green, fontWeight: 900, marginBottom: '10px' }}>
+                  {client.name}
+                </div>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {Object.entries(platformGroups).map(([platformName, accounts]) => (
+                    <details key={`${client.id}-${platformName}`} open style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', overflow: 'hidden' }}>
+                      <summary style={{ padding: '10px 12px', color: COLORS.green, fontWeight: 900, cursor: 'pointer', background: '#FBFAF7' }}>
+                        {platformName} · {accounts.filter((account) => selectedSet.has(account.id)).length}/{accounts.length}
+                      </summary>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '8px', padding: '10px' }}>
+                        {accounts.map((account) => (
+                          <label key={account.id} style={{ display: 'flex', gap: '9px', padding: '9px', borderRadius: '9px', border: `1px solid ${selectedSet.has(account.id) ? COLORS.green : COLORS.line}`, background: selectedSet.has(account.id) ? '#F5FAF7' : '#FFFFFF', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedSet.has(account.id)}
+                              onChange={() => toggleAccount(account.id)}
+                              style={{ marginTop: '3px', accentColor: COLORS.green }}
+                            />
+                            <span>
+                              <span style={{ display: 'block', color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>
+                                {account.accountName}
+                              </span>
+                              <span style={{ display: 'block', color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
+                                {account.accountId}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [shareToken] = useState(() => getInitialShareToken())
   const isSharedView = Boolean(shareToken)
@@ -1169,7 +1424,6 @@ export default function App() {
   const [shareStatus, setShareStatus] = useState('')
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
   const [caseStudyName, setCaseStudyName] = useState('')
-  const [agencyExporting, setAgencyExporting] = useState(false)
 
   useEffect(() => {
     async function loadDashboard() {
@@ -1300,6 +1554,10 @@ export default function App() {
     )
   }
 
+  if (view === 'agency-export') {
+    return <AgencyExportView availableClients={availableClients} setView={setView} />
+  }
+
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const googleDiagnostics = data?.diagnostics?.google || null
@@ -1354,41 +1612,6 @@ export default function App() {
       insightsText,
       caseStudyName: caseStudyName || `${data?.client?.name || 'Client'} case study`
     })
-  }
-
-  async function downloadAgencyExcel() {
-    if (!availableClients.length) return
-
-    try {
-      setAgencyExporting(true)
-      const clientReports = []
-
-      for (const agencyClient of availableClients) {
-        const params = new URLSearchParams({
-          client: agencyClient.id,
-          platform: 'all',
-          range
-        })
-        const response = await fetch(`/api/dashboard?${params.toString()}`)
-        const payload = await response.json()
-        if (response.ok) {
-          clientReports.push({
-            client: agencyClient,
-            payload
-          })
-        }
-      }
-
-      downloadAgencyExcelWorkbook({
-        title: caseStudyName || `Agency performance ${range}`,
-        clientReports,
-        range
-      })
-    } catch (err) {
-      setShareStatus(err.message || 'Unable to generate agency Excel.')
-    } finally {
-      setAgencyExporting(false)
-    }
   }
 
   async function createShareLink() {
@@ -1481,6 +1704,17 @@ export default function App() {
                 }}
               >
                 Export report
+              </button>
+              <button
+                onClick={() => setView('agency-export')}
+                style={{
+                  ...buttonStyle(false),
+                  background: 'transparent',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.18)'
+                }}
+              >
+                Agency Excel
               </button>
             </div>
           </div>
@@ -1750,8 +1984,8 @@ export default function App() {
                   <button onClick={downloadCaseStudyExcel} style={buttonStyle(true)}>
                     Client Excel
                   </button>
-                  <button onClick={downloadAgencyExcel} disabled={agencyExporting} style={buttonStyle(false)}>
-                    {agencyExporting ? 'Preparing...' : 'All accounts Excel'}
+                  <button onClick={() => setView('agency-export')} style={buttonStyle(false)}>
+                    Agency export
                   </button>
                 </div>
               </div>
