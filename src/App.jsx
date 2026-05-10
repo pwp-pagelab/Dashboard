@@ -1038,7 +1038,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
 function downloadBillingWorkbook({ title, clientReports, range }) {
   const generatedAt = new Date().toLocaleString()
   const billingRows = [
-    ['Billing workbook', title],
+    ['Spend backup workbook', title],
     ['Date range', range],
     ['Generated at', generatedAt],
     [],
@@ -1083,12 +1083,12 @@ function downloadBillingWorkbook({ title, clientReports, range }) {
   })
 
   saveExcelWorkbook(title, [
-    excelSheet('Billing rows', billingRows),
+    excelSheet('Spend rows', billingRows),
     excelSheet('Platform totals', platformTotals),
     excelSheet('Daily spend', dailySpend),
     excelSheet('Notes', [
       ['Note'],
-      ['This workbook uses platform reporting spend for the selected accounts and date range. It is designed for billing review and reconciliation. It does not download official invoice PDFs from each ad platform.']
+      ['This workbook uses platform reporting spend for the selected accounts and date range. Use it as a spend backup for reconciliation. It is not an official invoice PDF from the ad platform.']
     ])
   ])
 }
@@ -1225,7 +1225,10 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
       return {}
     }
   })
-  const [exportName, setExportName] = useState(mode === 'billing' ? 'Billing export' : 'Agency performance')
+  const [officialInvoices, setOfficialInvoices] = useState(null)
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
+  const [invoiceError, setInvoiceError] = useState('')
+  const [exportName, setExportName] = useState(mode === 'billing' ? 'Spend backup' : 'Agency performance')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
@@ -1235,6 +1238,8 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
       try {
         setLoading(true)
         setError('')
+        setOfficialInvoices(null)
+        setInvoiceError('')
         let clientsToLoad = Array.isArray(availableClients) ? availableClients : []
 
         if (!clientsToLoad.length) {
@@ -1382,6 +1387,50 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
     }
   }
 
+  async function loadOfficialInvoices() {
+    try {
+      setInvoiceLoading(true)
+      setInvoiceError('')
+      setOfficialInvoices(null)
+      const params = new URLSearchParams({
+        action: 'official-invoices',
+        client: selectedBillingClientId || resolvedClients[0]?.id || 'rimiya',
+        range: exportRange,
+        accounts: selectedAccountIds.join(',')
+      })
+      const response = await fetch(`/api/dashboard?${params.toString()}`)
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Unable to load official invoices.')
+      }
+
+      setOfficialInvoices(payload)
+    } catch (err) {
+      setInvoiceError(err.message || 'Unable to load official invoices.')
+    } finally {
+      setInvoiceLoading(false)
+    }
+  }
+
+  function markOfficialInvoiceDownloaded(account, invoice) {
+    const accountKey = `${account.platform}:${account.clientId}:${account.accountId}`
+    const downloadedAt = new Date().toISOString()
+    const nextHistory = {
+      ...billingHistory,
+      [accountKey]: {
+        downloadedAt,
+        range: exportRange,
+        workbook: `Official invoice ${invoice.id || ''}`.trim()
+      }
+    }
+
+    setBillingHistory(nextHistory)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('pwpBillingExportHistory', JSON.stringify(nextHistory))
+    }
+  }
+
   const groupedByClient = clientPayloads.map(({ client, payload }) => ({
     client,
     platformGroups: (payload.accountOptions || []).reduce((groups, account) => {
@@ -1398,14 +1447,14 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
           <div>
             <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
-              {mode === 'billing' ? 'BILLING EXPORT' : 'AGENCY EXPORT'}
+              {mode === 'billing' ? 'BILLING' : 'AGENCY EXPORT'}
             </div>
             <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
-              {mode === 'billing' ? 'Bills and spend workbook' : 'All accounts workbook'}
+              {mode === 'billing' ? 'Official invoices and spend backup' : 'All accounts workbook'}
             </h1>
             <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
               {mode === 'billing'
-                ? 'Select clients, ad accounts, and date range before downloading billing spend data.'
+                ? 'Select one client, choose the accounts and date range, then pull real platform invoices where the platform allows it.'
                 : 'Select the exact accounts and date range before downloading agency-wide performance data.'}
             </p>
           </div>
@@ -1470,7 +1519,7 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
                 disabled={exporting || loading || selectedAccountIds.length === 0}
                 style={buttonStyle(true)}
               >
-                {exporting ? 'Preparing...' : mode === 'billing' ? 'Download bills' : 'Download selected'}
+                {exporting ? 'Preparing...' : mode === 'billing' ? 'Download spend backup' : 'Download selected'}
               </button>
             </div>
           </div>
@@ -1480,6 +1529,113 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
             {mode === 'billing' ? '.' : ` across ${resolvedClients.length} clients.`}
           </div>
         </div>
+
+        {mode === 'billing' ? (
+          <div style={{ ...cardStyle(), padding: '16px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div>
+                <h2 style={{ margin: 0, color: COLORS.green, fontSize: '20px' }}>Official platform invoices</h2>
+                <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px', lineHeight: 1.5 }}>
+                  Google Ads can return real invoice PDFs when monthly invoicing and billing access are enabled. Other platforms are shown as manual because their connected reporting APIs do not provide official invoice PDFs.
+                </p>
+              </div>
+              <button
+                onClick={loadOfficialInvoices}
+                disabled={invoiceLoading || loading || selectedAccountIds.length === 0}
+                style={buttonStyle(true)}
+              >
+                {invoiceLoading ? 'Loading invoices...' : 'Load official invoices'}
+              </button>
+            </div>
+
+            {invoiceError ? (
+              <div style={{ marginTop: '12px', color: COLORS.red, fontWeight: 800, fontSize: '13px' }}>
+                {invoiceError}
+              </div>
+            ) : null}
+
+            {officialInvoices ? (
+              <div style={{ display: 'grid', gap: '12px', marginTop: '14px' }}>
+                {(officialInvoices.accounts || []).map((account) => (
+                  <div key={`${account.platform}-${account.accountId}`} style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ color: COLORS.green, fontWeight: 900 }}>{account.platformLabel} · {account.accountName}</div>
+                        <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '3px' }}>
+                          {account.accountId} · {account.startDate || ''} to {account.endDate || ''}
+                        </div>
+                      </div>
+                      <div style={{ color: (account.invoices || []).length ? COLORS.green : COLORS.amberDeep, fontWeight: 900, fontSize: '13px' }}>
+                        {(account.invoices || []).length} invoice{(account.invoices || []).length === 1 ? '' : 's'}
+                      </div>
+                    </div>
+
+                    {account.error ? (
+                      <div style={{ marginTop: '10px', color: COLORS.amberDeep, fontSize: '13px', lineHeight: 1.5 }}>
+                        {account.error}
+                      </div>
+                    ) : null}
+
+                    {(account.errors || []).length ? (
+                      <details style={{ marginTop: '10px', color: COLORS.muted, fontSize: '12px' }}>
+                        <summary style={{ cursor: 'pointer', color: COLORS.amberDeep, fontWeight: 800 }}>Months without invoice access</summary>
+                        <div style={{ marginTop: '8px', lineHeight: 1.6 }}>
+                          {account.errors.slice(0, 8).map((item) => (
+                            <div key={item}>{item}</div>
+                          ))}
+                          {account.errors.length > 8 ? <div>More months were checked but did not return invoices.</div> : null}
+                        </div>
+                      </details>
+                    ) : null}
+
+                    {(account.invoices || []).length ? (
+                      <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
+                        {account.invoices.map((invoice) => (
+                          <div key={`${invoice.id}-${invoice.issueYear}-${invoice.issueMonth}`} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr auto', gap: '10px', alignItems: 'center', padding: '10px', background: COLORS.white, borderRadius: '10px', border: `1px solid ${COLORS.line}` }}>
+                            <div>
+                              <div style={{ color: COLORS.text, fontWeight: 900 }}>Invoice {invoice.id || invoice.issueMonth}</div>
+                              <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
+                                {invoice.issueMonth} {invoice.issueYear} · {invoice.serviceStartDate || 'service date'} to {invoice.serviceEndDate || ''}
+                              </div>
+                            </div>
+                            <div style={{ color: COLORS.green, fontWeight: 900 }}>
+                              {invoice.currencyCode || ''} {Number(invoice.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </div>
+                            <a
+                              href={invoice.downloadUrl}
+                              onClick={() => markOfficialInvoiceDownloaded(account, invoice)}
+                              style={{ ...buttonStyle(false), textDecoration: 'none', display: 'inline-block' }}
+                            >
+                              PDF
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    ) : !account.error ? (
+                      <EmptyState
+                        title="No official invoice found"
+                        text="This can happen when the selected month has not been issued yet, the account is not on monthly invoicing, or the connected Google user does not have billing access."
+                      />
+                    ) : null}
+                  </div>
+                ))}
+
+                {(officialInvoices.manualAccounts || []).length ? (
+                  <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: COLORS.softAmber }}>
+                    <div style={{ color: COLORS.green, fontWeight: 900, marginBottom: '8px' }}>Manual invoice download needed</div>
+                    <div style={{ display: 'grid', gap: '7px' }}>
+                      {officialInvoices.manualAccounts.map((account) => (
+                        <div key={`${account.platform}-${account.accountId}`} style={{ fontSize: '13px', color: COLORS.text }}>
+                          <strong>{account.platformLabel}</strong> · {account.accountName}: {account.note}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {error ? (
           <div style={{ ...cardStyle(), padding: '12px 14px', marginBottom: '14px', color: COLORS.red, fontWeight: 700 }}>
