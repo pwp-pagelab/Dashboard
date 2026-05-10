@@ -138,7 +138,7 @@ function BrandMark({ dark = false }) {
             lineHeight: 1.1
           }}
         >
-          Post With Passion
+          PWP Client Dashboard
         </div>
         <div
           style={{
@@ -147,7 +147,7 @@ function BrandMark({ dark = false }) {
             marginTop: '4px'
           }}
         >
-          Performance dashboard
+          Performance and billing
         </div>
       </div>
     </div>
@@ -318,7 +318,7 @@ function DashboardFooter() {
         flexWrap: 'wrap'
       }}
     >
-      <div style={{ fontWeight: 800, color: COLORS.green }}>Post With Passion</div>
+      <div style={{ fontWeight: 800, color: COLORS.green }}>PWP Client Dashboard</div>
       <div>Prepared as a live client performance report.</div>
     </footer>
   )
@@ -1035,6 +1035,64 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
   ])
 }
 
+function downloadBillingWorkbook({ title, clientReports, range }) {
+  const generatedAt = new Date().toLocaleString()
+  const billingRows = [
+    ['Billing workbook', title],
+    ['Date range', range],
+    ['Generated at', generatedAt],
+    [],
+    ['Client', 'Platform', 'Account or campaign', 'Spend', 'Clicks', 'Conversions']
+  ]
+  const platformTotals = [['Client', 'Platform', 'Spend', 'Conversions']]
+  const dailySpend = [['Client', 'Date', 'Spend', 'Conversions']]
+
+  clientReports.forEach(({ client, payload }) => {
+    const campaigns = Array.isArray(payload.campaignRows) ? payload.campaignRows : []
+    const daily = buildDailyChartData(payload)
+    const platformSplit = payload.platformSplit || {}
+
+    campaigns.forEach((row) => {
+      billingRows.push([
+        payload.client?.name || client.name,
+        row.platform,
+        row.campaign,
+        parseSarString(row.spend),
+        parseNumberString(row.clicks),
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+      ])
+    })
+
+    Object.entries(platformSplit).forEach(([platformKey, value]) => {
+      platformTotals.push([
+        payload.client?.name || client.name,
+        platformKey.replace(/_/g, ' '),
+        parseSarString(value?.spend),
+        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
+      ])
+    })
+
+    daily.forEach((row) => {
+      dailySpend.push([
+        payload.client?.name || client.name,
+        row.date,
+        row.spend,
+        row.conversions
+      ])
+    })
+  })
+
+  saveExcelWorkbook(title, [
+    excelSheet('Billing rows', billingRows),
+    excelSheet('Platform totals', platformTotals),
+    excelSheet('Daily spend', dailySpend),
+    excelSheet('Notes', [
+      ['Note'],
+      ['This workbook uses platform reporting spend for the selected accounts and date range. It is designed for billing review and reconciliation. It does not download official invoice PDFs from each ad platform.']
+    ])
+  ])
+}
+
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -1153,12 +1211,12 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   )
 }
 
-function AgencyExportView({ availableClients, setView }) {
+function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
   const [exportRange, setExportRange] = useState('max')
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
   const [resolvedClients, setResolvedClients] = useState(availableClients || [])
-  const [exportName, setExportName] = useState('Agency performance')
+  const [exportName, setExportName] = useState(mode === 'billing' ? 'Billing export' : 'Agency performance')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
@@ -1282,11 +1340,9 @@ function AgencyExportView({ availableClients, setView }) {
         }
       }
 
-      downloadAgencyExcelWorkbook({
-        title: exportName || `Agency performance ${exportRange}`,
-        clientReports,
-        range: exportRange
-      })
+      const title = exportName || `${mode === 'billing' ? 'Billing export' : 'Agency performance'} ${exportRange}`
+      const downloadWorkbook = mode === 'billing' ? downloadBillingWorkbook : downloadAgencyExcelWorkbook
+      downloadWorkbook({ title, clientReports, range: exportRange })
     } catch (err) {
       setError(err.message || 'Unable to generate agency Excel.')
     } finally {
@@ -1310,13 +1366,15 @@ function AgencyExportView({ availableClients, setView }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
           <div>
             <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
-              AGENCY EXPORT
+              {mode === 'billing' ? 'BILLING EXPORT' : 'AGENCY EXPORT'}
             </div>
             <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
-              All accounts workbook
+              {mode === 'billing' ? 'Bills and spend workbook' : 'All accounts workbook'}
             </h1>
             <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
-              Select the exact accounts and date range before downloading agency-wide performance data.
+              {mode === 'billing'
+                ? 'Select clients, ad accounts, and date range before downloading billing spend data.'
+                : 'Select the exact accounts and date range before downloading agency-wide performance data.'}
             </p>
           </div>
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
@@ -1359,7 +1417,7 @@ function AgencyExportView({ availableClients, setView }) {
                 disabled={exporting || loading || selectedAccountIds.length === 0}
                 style={buttonStyle(true)}
               >
-                {exporting ? 'Preparing...' : 'Download selected'}
+                {exporting ? 'Preparing...' : mode === 'billing' ? 'Download bills' : 'Download selected'}
               </button>
             </div>
           </div>
@@ -1571,7 +1629,11 @@ export default function App() {
   }
 
   if (view === 'agency-export') {
-    return <AgencyExportView availableClients={availableClients} setView={setView} />
+    return <AgencyExportView key="agency-export" availableClients={availableClients} setView={setView} />
+  }
+
+  if (view === 'billing-export') {
+    return <AgencyExportView key="billing-export" availableClients={availableClients} setView={setView} mode="billing" />
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -1731,6 +1793,17 @@ export default function App() {
                 }}
               >
                 Agency Excel
+              </button>
+              <button
+                onClick={() => setView('billing-export')}
+                style={{
+                  ...buttonStyle(false),
+                  background: 'transparent',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.18)'
+                }}
+              >
+                Billing export
               </button>
             </div>
           </div>
@@ -2002,6 +2075,9 @@ export default function App() {
                   </button>
                   <button onClick={() => setView('agency-export')} style={buttonStyle(false)}>
                     Agency export
+                  </button>
+                  <button onClick={() => setView('billing-export')} style={buttonStyle(false)}>
+                    Billing export
                   </button>
                 </div>
               </div>

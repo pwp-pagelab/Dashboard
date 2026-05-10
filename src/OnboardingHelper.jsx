@@ -169,10 +169,10 @@ export default function OnboardingHelper({ setView }) {
           }}
         >
           <div style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px', color: '#111827' }}>
-            PWP
+            PWP Client Dashboard
           </div>
           <div style={{ color: '#6b7280', fontSize: '13px', marginBottom: '28px' }}>
-            Performance Dashboard
+            Performance and billing
           </div>
 
           <div style={{ color: '#111827', fontWeight: 800, fontSize: '14px', marginBottom: '14px' }}>
@@ -193,7 +193,7 @@ export default function OnboardingHelper({ setView }) {
             </div>
             <div style={{ display: 'grid', gap: '10px' }}>
               <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
-                Back to Dashboard
+                Back to dashboard
               </button>
             </div>
           </div>
