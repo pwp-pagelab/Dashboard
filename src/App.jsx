@@ -1216,6 +1216,15 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
   const [resolvedClients, setResolvedClients] = useState(availableClients || [])
+  const [selectedBillingClientId, setSelectedBillingClientId] = useState('')
+  const [billingHistory, setBillingHistory] = useState(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      return JSON.parse(window.localStorage.getItem('pwpBillingExportHistory') || '{}')
+    } catch {
+      return {}
+    }
+  })
   const [exportName, setExportName] = useState(mode === 'billing' ? 'Billing export' : 'Agency performance')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -1235,6 +1244,10 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
         }
 
         setResolvedClients(clientsToLoad)
+        const billingClientId = selectedBillingClientId || clientsToLoad[0]?.id || ''
+        if (mode === 'billing' && !selectedBillingClientId && billingClientId) {
+          setSelectedBillingClientId(billingClientId)
+        }
 
         if (!clientsToLoad.length) {
           setClientPayloads([])
@@ -1243,9 +1256,12 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
           return
         }
 
+        const clientsForRequest = mode === 'billing'
+          ? clientsToLoad.filter((client) => client.id === billingClientId)
+          : clientsToLoad
         const payloads = []
 
-        for (const agencyClient of clientsToLoad) {
+        for (const agencyClient of clientsForRequest) {
           const params = new URLSearchParams({
             client: agencyClient.id,
             platform: 'all',
@@ -1278,7 +1294,7 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
     }
 
     loadAccounts()
-  }, [availableClients, exportRange])
+  }, [availableClients, exportRange, mode, selectedBillingClientId])
 
   const accountOptions = clientPayloads.flatMap(({ payload }) => payload.accountOptions || [])
   const selectedSet = new Set(selectedAccountIds)
@@ -1343,6 +1359,22 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
       const title = exportName || `${mode === 'billing' ? 'Billing export' : 'Agency performance'} ${exportRange}`
       const downloadWorkbook = mode === 'billing' ? downloadBillingWorkbook : downloadAgencyExcelWorkbook
       downloadWorkbook({ title, clientReports, range: exportRange })
+
+      if (mode === 'billing') {
+        const downloadedAt = new Date().toISOString()
+        const nextHistory = { ...billingHistory }
+        selectedAccountIds.forEach((accountId) => {
+          nextHistory[accountId] = {
+            downloadedAt,
+            range: exportRange,
+            workbook: title
+          }
+        })
+        setBillingHistory(nextHistory)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('pwpBillingExportHistory', JSON.stringify(nextHistory))
+        }
+      }
     } catch (err) {
       setError(err.message || 'Unable to generate agency Excel.')
     } finally {
@@ -1384,6 +1416,27 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
 
         <div style={{ ...cardStyle(), padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px', alignItems: 'end' }}>
+            {mode === 'billing' ? (
+              <div>
+                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                  Client
+                </div>
+                <select
+                  value={selectedBillingClientId}
+                  onChange={(event) => {
+                    setSelectedBillingClientId(event.target.value)
+                    setSelectedAccountIds([])
+                  }}
+                  style={selectStyle()}
+                >
+                  {resolvedClients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div>
               <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                 Workbook name
@@ -1423,7 +1476,8 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
           </div>
 
           <div style={{ marginTop: '10px', fontSize: '13px', color: COLORS.muted }}>
-            {selectedAccountIds.length} of {accountOptions.length} accounts selected across {resolvedClients.length} clients.
+            {selectedAccountIds.length} of {accountOptions.length} accounts selected
+            {mode === 'billing' ? '.' : ` across ${resolvedClients.length} clients.`}
           </div>
         </div>
 
@@ -1466,6 +1520,13 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
                               <span style={{ display: 'block', color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
                                 {account.accountId}
                               </span>
+                              {mode === 'billing' ? (
+                                <span style={{ display: 'block', color: COLORS.amberDeep, fontSize: '12px', marginTop: '4px', fontWeight: 800 }}>
+                                  {billingHistory[account.id]?.downloadedAt
+                                    ? `Last downloaded: ${new Date(billingHistory[account.id].downloadedAt).toLocaleDateString()}`
+                                    : 'Not downloaded yet'}
+                                </span>
+                              ) : null}
                             </span>
                           </label>
                         ))}
