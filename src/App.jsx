@@ -315,6 +315,23 @@ function statusPillStyle(status) {
   return { background: COLORS.softAmber, color: COLORS.amberDeep, border: `1px solid ${COLORS.line}` }
 }
 
+function formatConversionBreakdown(breakdown) {
+  if (!breakdown || typeof breakdown !== 'object') return ''
+
+  const labels = [
+    ['leads', 'Leads'],
+    ['messagingConversations', 'Messaging conversations'],
+    ['purchases', 'Purchases'],
+    ['registrations', 'Registrations']
+  ]
+
+  return labels
+    .map(([key, label]) => [label, Number(breakdown[key] || 0)])
+    .filter(([, value]) => value > 0)
+    .map(([label, value]) => `${label}: ${value.toLocaleString()}`)
+    .join(' · ')
+}
+
 function DataConfidencePanel({ data }) {
   const quality = data?.dataQuality || {}
   const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
@@ -375,6 +392,11 @@ function DataConfidencePanel({ data }) {
                 <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '8px', lineHeight: 1.45 }}>
                   {account.message}
                 </div>
+                {formatConversionBreakdown(account.conversionBreakdown) ? (
+                  <div style={{ color: COLORS.green, fontSize: '12px', marginTop: '6px', lineHeight: 1.45, fontWeight: 800 }}>
+                    {formatConversionBreakdown(account.conversionBreakdown)}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -855,6 +877,18 @@ function AdvancedTable({ rows, googleDiagnostics }) {
             )}
           </tbody>
         </table>
+        {platformPerformanceRows.some((row) => formatConversionBreakdown(row.conversionBreakdown)) ? (
+          <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
+            {platformPerformanceRows
+              .filter((row) => formatConversionBreakdown(row.conversionBreakdown))
+              .map((row, index) => (
+                <div key={`${row.platform}-breakdown-${index}`} style={{ color: COLORS.muted, fontSize: '13px', lineHeight: 1.5 }}>
+                  <strong style={{ color: COLORS.green }}>{row.platform} result breakdown:</strong>{' '}
+                  {formatConversionBreakdown(row.conversionBreakdown)}
+                </div>
+              ))}
+          </div>
+        ) : null}
       </div>
     </div>
   )

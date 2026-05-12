@@ -372,7 +372,8 @@ export async function buildDashboardPayload({
         clicks: 0,
         conversions: 0,
         currencyCode: null,
-        conversionLabel: null
+        conversionLabel: null,
+        conversionBreakdown: null
       }
     ])
   )
@@ -389,7 +390,8 @@ export async function buildDashboardPayload({
       clicks: Number(row?.clicks || 0),
       conversions: Number(row?.conversions || 0),
       currencyCode: row?.currencyCode || null,
-      conversionLabel: row?.conversionLabel || null
+      conversionLabel: row?.conversionLabel || null,
+      conversionBreakdown: row?.conversionBreakdown || null
     })
   }
 
@@ -894,7 +896,9 @@ export async function buildDashboardPayload({
       campaign: row.campaign,
       spend: `${row.currencyCode || 'SAR'} ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
       clicks: row.clicks.toLocaleString(),
-      conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
+      conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString(),
+      conversionLabel: row.conversionLabel || null,
+      conversionBreakdown: row.conversionBreakdown || null
     })),
     platformSplit: Object.fromEntries(
       Object.entries(platformSplit).map(([key, value]) => [
