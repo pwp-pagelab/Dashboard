@@ -239,6 +239,20 @@ function hasReportingActivity(row) {
   )
 }
 
+function serializeAccountOption(option) {
+  if (!option) return null
+
+  return {
+    id: option.id,
+    platform: option.platform,
+    platformLabel: option.platformLabel,
+    clientId: option.clientId,
+    clientName: option.clientName,
+    accountId: option.accountId,
+    accountName: option.accountName
+  }
+}
+
 function combineDailyTrends(rows) {
   const dailyByDate = new Map()
 
@@ -265,9 +279,9 @@ function combineDailyTrends(rows) {
     }))
 }
 
-function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, totalClicks, totalConversions, rows, daily }) {
+function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, totalClicks, totalConversions, rows, daily, spendTextOverride = null }) {
   const clientName = client?.name || 'this client'
-  const spendText = formatSar(totalSpend)
+  const spendText = spendTextOverride || formatSar(totalSpend)
   const impressionText = totalImpressions.toLocaleString()
   const clickText = totalClicks.toLocaleString()
   const conversionText = totalConversions.toLocaleString()
@@ -344,20 +358,90 @@ export async function buildDashboardPayload({
   const rows = []
   let linkedinDiagnostics = null
   const platformErrors = []
+  const statusOptions = (hasSelectedAccounts ? selectedAccountOptions : accountOptions)
+    .filter((option) => effectivePlatformFilter === 'all' || option.platform === effectivePlatformFilter)
+  const accountStatusMap = new Map(
+    statusOptions.map((option) => [
+      option.id,
+      {
+        ...serializeAccountOption(option),
+        status: 'pending',
+        message: 'Waiting to load.',
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+        currencyCode: null,
+        conversionLabel: null
+      }
+    ])
+  )
+
+  function markAccountStatus(option, status, message, row = null) {
+    if (!option?.id || !accountStatusMap.has(option.id)) return
+
+    accountStatusMap.set(option.id, {
+      ...accountStatusMap.get(option.id),
+      status,
+      message,
+      spend: Number(row?.spend || 0),
+      impressions: Number(row?.impressions || 0),
+      clicks: Number(row?.clicks || 0),
+      conversions: Number(row?.conversions || 0),
+      currencyCode: row?.currencyCode || null,
+      conversionLabel: row?.conversionLabel || null
+    })
+  }
+
+  function findAccountOption({ platform, groupClient, accountId, accountName = null }) {
+    const normalizedAccountId = accountId == null ? '' : String(accountId)
+    const found = accountOptions.find((option) =>
+      option.platform === platform &&
+      option.clientId === groupClient.id &&
+      String(option.accountId) === normalizedAccountId
+    )
+
+    return found || {
+      id: `${platform}:${groupClient.id}:${normalizedAccountId || 'default'}`,
+      platform,
+      platformLabel:
+        platform === 'google'
+          ? 'Google Ads'
+          : platform === 'meta'
+            ? 'Meta'
+            : platform === 'tiktok'
+              ? 'TikTok'
+              : platform === 'snapchat'
+                ? 'Snapchat'
+                : 'LinkedIn',
+      clientId: groupClient.id,
+      clientName: groupClient.name,
+      accountId: normalizedAccountId,
+      accountName: accountName || groupClient.name
+    }
+  }
 
   async function addPlatformRow(platformName, loadRow, options = {}) {
     try {
       const row = await loadRow()
       if (row) {
-        if (options.omitEmpty && !hasReportingActivity(row)) return
+        if (options.omitEmpty && !hasReportingActivity(row)) {
+          markAccountStatus(options.accountOption, 'no_data', 'Connected, but no spend or activity returned for this date range.', row)
+          return
+        }
+        markAccountStatus(options.accountOption, 'loaded', 'Loaded successfully.', row)
         rows.push(row)
       } else if (!options.optional) {
+        markAccountStatus(options.accountOption, 'no_data', 'No data returned for this date range.')
         platformErrors.push({
           platform: platformName,
           error: 'No reporting data returned for this platform in the selected date range. Check the account mapping, token access, or whether the platform had spend during this period.'
         })
+      } else {
+        markAccountStatus(options.accountOption, 'no_data', 'Connected, but no data returned for this date range.')
       }
     } catch (error) {
+      markAccountStatus(options.accountOption, 'error', error.message || 'Unable to load platform data')
       platformErrors.push({
         platform: platformName,
         error: error.message || 'Unable to load platform data'
@@ -380,7 +464,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: true, omitEmpty: true })
+      }, { optional: true, omitEmpty: true, accountOption: option })
       return
     }
 
@@ -393,7 +477,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: true, omitEmpty: true })
+      }, { optional: true, omitEmpty: true, accountOption: option })
       return
     }
 
@@ -407,7 +491,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: true, omitEmpty: true })
+      }, { optional: true, omitEmpty: true, accountOption: option })
       return
     }
 
@@ -421,7 +505,7 @@ export async function buildDashboardPayload({
         })
 
         return annotateChildRow(row, groupClient, client)
-      }, { optional: true, omitEmpty: true })
+      }, { optional: true, omitEmpty: true, accountOption: option })
       return
     }
 
@@ -437,10 +521,19 @@ export async function buildDashboardPayload({
       })
 
       if (linkedinReport.row && hasReportingActivity(linkedinReport.row)) {
+        markAccountStatus(option, 'loaded', 'Loaded successfully.', linkedinReport.row)
         rows.push({
           ...annotateChildRow(linkedinReport.row, groupClient, client),
           daily: linkedinReport.daily || []
         })
+      } else if (linkedinReport.error) {
+        markAccountStatus(option, 'error', linkedinReport.error)
+        platformErrors.push({
+          platform: 'linkedin',
+          error: linkedinReport.error
+        })
+      } else {
+        markAccountStatus(option, 'no_data', 'Connected, but no activity returned for this date range.', linkedinReport.row)
       }
 
       linkedinDiagnostics = {
@@ -477,12 +570,25 @@ export async function buildDashboardPayload({
         accountId: lockedAccount.accountId,
         businessKey: lockedAccount.businessKey,
         accountName: lockedAccount.accountName || lockedAccount.clientName
-      }))
+      }), {
+        accountOption: findAccountOption({
+          platform: 'meta',
+          groupClient: client,
+          accountId: lockedAccount.accountId,
+          accountName: lockedAccount.accountName || lockedAccount.clientName
+        })
+      })
   } else if (!lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'meta')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.meta?.enabled) continue
       if (isGroupedClient && !groupClient.metaAccountId) continue
       const rangeConfig = getRangeConfig(range, groupClient, 'meta')
+      const accountOption = findAccountOption({
+        platform: 'meta',
+        groupClient,
+        accountId: groupClient.metaAccountId,
+        accountName: groupClient.metaAccountName
+      })
       await addPlatformRow('meta', async () => {
         const row = await getMetaData({
           clientId: groupClient.id,
@@ -495,13 +601,20 @@ export async function buildDashboardPayload({
         return annotateChildRow(row, groupClient, client)
       }, {
         optional: isGroupedClient && groupClient.id !== client.id,
-        omitEmpty: isGroupedClient && groupClient.id !== client.id
+        omitEmpty: isGroupedClient && groupClient.id !== client.id,
+        accountOption
       })
     }
   }
 
   if (!hasSelectedAccounts && lockedAccount?.platform === 'google') {
     const rangeConfig = getRangeConfig(range, client, 'google')
+    const accountOption = findAccountOption({
+      platform: 'google',
+      groupClient: client,
+      accountId: lockedAccount.accountId,
+      accountName: lockedAccount.accountName || lockedAccount.clientName
+    })
     await addPlatformRow('google', async () => {
       const googleRow = await getGoogleAdsData({
         ...rangeConfig.google,
@@ -514,12 +627,17 @@ export async function buildDashboardPayload({
             campaign: lockedAccount.accountName || lockedAccount.clientName || googleRow.campaign
           }
         : null
-    })
+    }, { accountOption })
   } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.google?.enabled) continue
       if (isGroupedClient && !groupClient.googleCustomerId) continue
       const rangeConfig = getRangeConfig(range, groupClient, 'google')
+      const accountOption = findAccountOption({
+        platform: 'google',
+        groupClient,
+        accountId: groupClient.googleCustomerId
+      })
       await addPlatformRow('google', async () => {
         const row = await getGoogleAdsData({
           ...rangeConfig.google,
@@ -530,22 +648,35 @@ export async function buildDashboardPayload({
         return annotateChildRow(row, groupClient, client)
       }, {
         optional: isGroupedClient && groupClient.id !== client.id,
-        omitEmpty: isGroupedClient && groupClient.id !== client.id
+        omitEmpty: isGroupedClient && groupClient.id !== client.id,
+        accountOption
       })
     }
   }
 
   if (!hasSelectedAccounts && lockedAccount?.platform === 'snapchat') {
+    const accountOption = findAccountOption({
+      platform: 'snapchat',
+      groupClient: client,
+      accountId: lockedAccount.accountId,
+      accountName: lockedAccount.accountName || lockedAccount.clientName
+    })
     await addPlatformRow('snapchat', () => getSnapchatData({
         clientId,
         range,
         adAccountId: lockedAccount.accountId,
         accountName: lockedAccount.accountName || lockedAccount.clientName
-      }))
+      }), { accountOption })
   } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'snapchat')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.snapchat?.enabled) continue
       if (isGroupedClient && !groupClient.snapchatAdAccountId) continue
+      const accountOption = findAccountOption({
+        platform: 'snapchat',
+        groupClient,
+        accountId: groupClient.snapchatAdAccountId,
+        accountName: groupClient.snapchatAdAccountName
+      })
       await addPlatformRow('snapchat', async () => {
         const row = await getSnapchatData({
           clientId: groupClient.id,
@@ -555,22 +686,34 @@ export async function buildDashboardPayload({
         return annotateChildRow(row, groupClient, client)
       }, {
         optional: isGroupedClient && groupClient.id !== client.id,
-        omitEmpty: isGroupedClient && groupClient.id !== client.id
+        omitEmpty: isGroupedClient && groupClient.id !== client.id,
+        accountOption
       })
     }
   }
 
   if (!hasSelectedAccounts && lockedAccount?.platform === 'tiktok') {
+    const accountOption = findAccountOption({
+      platform: 'tiktok',
+      groupClient: client,
+      accountId: lockedAccount.accountId,
+      accountName: lockedAccount.accountName || lockedAccount.clientName
+    })
     await addPlatformRow('tiktok', () => getTikTokData({
         clientId,
         range,
         advertiserId: lockedAccount.accountId,
         clientName: lockedAccount.accountName || lockedAccount.clientName
-      }))
+      }), { accountOption })
   } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'tiktok')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.tiktok?.enabled) continue
       if (isGroupedClient && !groupClient.tiktokAdvertiserId) continue
+      const accountOption = findAccountOption({
+        platform: 'tiktok',
+        groupClient,
+        accountId: groupClient.tiktokAdvertiserId
+      })
       await addPlatformRow('tiktok', async () => {
         const row = await getTikTokData({
           clientId: groupClient.id,
@@ -580,7 +723,8 @@ export async function buildDashboardPayload({
         return annotateChildRow(row, groupClient, client)
       }, {
         optional: isGroupedClient && groupClient.id !== client.id,
-        omitEmpty: isGroupedClient && groupClient.id !== client.id
+        omitEmpty: isGroupedClient && groupClient.id !== client.id,
+        accountOption
       })
     }
   }
@@ -592,6 +736,13 @@ export async function buildDashboardPayload({
     )
 
   if (linkedinEnabled) {
+    const linkedinAccountId = lockedAccount?.platform === 'linkedin' ? lockedAccount.accountId : client.linkedinAccountId
+    const accountOption = findAccountOption({
+      platform: 'linkedin',
+      groupClient: client,
+      accountId: linkedinAccountId,
+      accountName: lockedAccount?.accountName || lockedAccount?.clientName || client.name
+    })
     const linkedinReport = await getLinkedInReport({
       clientId,
       range,
@@ -604,10 +755,20 @@ export async function buildDashboardPayload({
         : null
     })
     if (linkedinReport.row) {
-      rows.push({
-        ...linkedinReport.row,
-        daily: linkedinReport.daily || []
-      })
+      markAccountStatus(
+        accountOption,
+        hasReportingActivity(linkedinReport.row) ? 'loaded' : 'no_data',
+        hasReportingActivity(linkedinReport.row) ? 'Loaded successfully.' : 'Connected, but no activity returned for this date range.',
+        linkedinReport.row
+      )
+      if (hasReportingActivity(linkedinReport.row)) {
+        rows.push({
+          ...linkedinReport.row,
+          daily: linkedinReport.daily || []
+        })
+      }
+    } else if (linkedinReport.error) {
+      markAccountStatus(accountOption, 'error', linkedinReport.error)
     }
     linkedinDiagnostics = {
       ok: Boolean(linkedinReport.row),
@@ -636,6 +797,20 @@ export async function buildDashboardPayload({
   const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const daily = combineDailyTrends(rows)
   const activePlatformCount = new Set(rows.map((row) => row.platform)).size
+  const currencyCodes = Array.from(new Set(rows.map((row) => row.currencyCode || 'SAR').filter(Boolean)))
+  const primaryCurrency = currencyCodes.length === 1 ? currencyCodes[0] : 'Mixed'
+  const totalSpendText = primaryCurrency === 'SAR'
+    ? formatSar(totalSpend)
+    : `${primaryCurrency} ${Number(totalSpend || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+  const accountStatuses = Array.from(accountStatusMap.values()).map((status) => (
+    status.status === 'pending'
+      ? { ...status, status: 'not_requested', message: 'Not requested by the current platform filter.' }
+      : status
+  ))
+  const loadedAccountCount = accountStatuses.filter((status) => status.status === 'loaded').length
+  const noDataAccountCount = accountStatuses.filter((status) => status.status === 'no_data').length
+  const failedAccountCount = accountStatuses.filter((status) => status.status === 'error').length
+  const conversionLabels = Array.from(new Set(rows.map((row) => row.conversionLabel).filter(Boolean)))
   const platformSplit = rows.reduce((acc, row) => {
     const key = row.platform.toLowerCase().replace(/\s+/g, '_')
     const existing = acc[key] || {
@@ -685,19 +860,28 @@ export async function buildDashboardPayload({
     accountOptions: publicMode
       ? []
       : accountOptions.map((option) => ({
-          id: option.id,
-          platform: option.platform,
-          platformLabel: option.platformLabel,
-          clientId: option.clientId,
-          clientName: option.clientName,
-          accountId: option.accountId,
-          accountName: option.accountName
+          ...serializeAccountOption(option)
         })),
     selectedAccountIds: Array.from(selectedAccountIdSet),
+    accountStatuses,
+    dataQuality: {
+      selectedAccounts: accountStatuses.length,
+      loadedAccounts: loadedAccountCount,
+      noDataAccounts: noDataAccountCount,
+      failedAccounts: failedAccountCount,
+      currencyCodes,
+      currencyWarning: currencyCodes.length > 1
+        ? `Spend is coming from multiple account currencies (${currencyCodes.join(', ')}). Totals are shown as a blended reporting total until currency conversion is configured.`
+        : null,
+      conversionLabels,
+      conversionWarning: conversionLabels.length > 1
+        ? `Conversions combine different platform actions (${conversionLabels.join(', ')}). Use this as a total action volume, not one identical conversion type.`
+        : null
+    },
     summaryCards: [
       {
         label: 'Total Spend',
-        value: formatSar(totalSpend)
+        value: totalSpendText
       },
       { label: 'Impressions', value: totalImpressions.toLocaleString() },
       { label: 'Clicks', value: totalClicks.toLocaleString() },
@@ -708,7 +892,7 @@ export async function buildDashboardPayload({
     campaignRows: rows.map((row) => ({
       platform: row.platform,
       campaign: row.campaign,
-      spend: `SAR ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      spend: `${row.currencyCode || 'SAR'} ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
       clicks: row.clicks.toLocaleString(),
       conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString()
     })),
@@ -716,7 +900,7 @@ export async function buildDashboardPayload({
       Object.entries(platformSplit).map(([key, value]) => [
         key,
         {
-          spend: `SAR ${value.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          spend: `${primaryCurrency === 'Mixed' ? 'Mixed' : primaryCurrency} ${value.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
           conversions: value.conversions.toLocaleString()
         }
       ])
@@ -790,7 +974,8 @@ export async function buildDashboardPayload({
         totalClicks,
         totalConversions,
         rows,
-        daily
+        daily,
+        spendTextOverride: totalSpendText
       }),
       nextAction: buildNextAction({
         totalImpressions,

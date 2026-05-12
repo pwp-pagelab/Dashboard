@@ -303,6 +303,87 @@ function StatusBanner({ text }) {
   )
 }
 
+function statusPillStyle(status) {
+  if (status === 'loaded') {
+    return { background: COLORS.softGreen, color: COLORS.green, border: `1px solid ${COLORS.greenLight}` }
+  }
+
+  if (status === 'error') {
+    return { background: COLORS.softRed, color: COLORS.red, border: `1px solid ${COLORS.softRed}` }
+  }
+
+  return { background: COLORS.softAmber, color: COLORS.amberDeep, border: `1px solid ${COLORS.line}` }
+}
+
+function DataConfidencePanel({ data }) {
+  const quality = data?.dataQuality || {}
+  const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
+  const loaded = quality.loadedAccounts ?? statuses.filter((item) => item.status === 'loaded').length
+  const failed = quality.failedAccounts ?? statuses.filter((item) => item.status === 'error').length
+  const noData = quality.noDataAccounts ?? statuses.filter((item) => item.status === 'no_data').length
+  const total = quality.selectedAccounts ?? statuses.length
+  const statusText = failed > 0
+    ? 'Needs attention'
+    : noData > 0
+      ? 'Partially loaded'
+      : 'Loaded'
+
+  return (
+    <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>Data confidence</div>
+          <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '3px' }}>
+            {loaded} loaded · {noData} no spend/data · {failed} needs attention · {total} selected
+          </div>
+        </div>
+        <span style={{ ...statusPillStyle(failed > 0 ? 'error' : noData > 0 ? 'no_data' : 'loaded'), borderRadius: '999px', padding: '7px 10px', fontSize: '12px', fontWeight: 900 }}>
+          {statusText}
+        </span>
+      </div>
+
+      {quality.currencyWarning || quality.conversionWarning ? (
+        <div style={{ display: 'grid', gap: '6px', marginTop: '10px' }}>
+          {quality.currencyWarning ? (
+            <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45 }}>{quality.currencyWarning}</div>
+          ) : null}
+          {quality.conversionWarning ? (
+            <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45 }}>{quality.conversionWarning}</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {statuses.length ? (
+        <details style={{ marginTop: '10px' }}>
+          <summary style={{ color: COLORS.green, cursor: 'pointer', fontSize: '12px', fontWeight: 900 }}>
+            View included account status
+          </summary>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '8px', marginTop: '10px' }}>
+            {statuses.map((account) => (
+              <div key={account.id} style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '10px', background: '#FBFAF7' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>{account.accountName}</div>
+                    <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
+                      {account.platformLabel} · {account.accountId}
+                    </div>
+                  </div>
+                  <span style={{ ...statusPillStyle(account.status), borderRadius: '999px', padding: '4px 7px', fontSize: '11px', fontWeight: 900 }}>
+                    {account.status === 'loaded' ? 'Loaded' : account.status === 'error' ? 'Issue' : 'No data'}
+                  </span>
+                </div>
+                <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '8px', lineHeight: 1.45 }}>
+                  {account.message}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  )
+}
+
 function DashboardFooter() {
   return (
     <footer
@@ -2180,91 +2261,94 @@ export default function App() {
               </div>
             </div>
 
+            <DataConfidencePanel data={data} />
+
             {!isSharedView && accountOptions.length > 0 ? (
               <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    flexWrap: 'wrap',
-                    marginBottom: '10px'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
-                      Report accounts
-                    </div>
-                    <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px' }}>
-                      {selectedAccountSet.size} of {accountOptions.length} accounts selected for this dashboard and client link.
-                    </div>
-                  </div>
-                  <button onClick={selectAllAccounts} style={buttonStyle(false)}>
-                    Select all
-                  </button>
-                </div>
+                <details>
+                  <summary style={{ cursor: 'pointer', color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>
+                    Change included accounts · {selectedAccountSet.size}/{accountOptions.length} selected
+                  </summary>
 
-                <div style={{ display: 'grid', gap: '10px' }}>
-                  {Object.entries(accountGroups).map(([platformName, accounts]) => (
-                    <details
-                      key={platformName}
-                      open
-                      style={{
-                        border: `1px solid ${COLORS.line}`,
-                        borderRadius: '10px',
-                        background: '#FBFAF7',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <summary
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                      margin: '12px 0 10px'
+                    }}
+                  >
+                    <div style={{ fontSize: '12px', color: COLORS.muted }}>
+                      Use this when you want one dashboard to include exact confirmed accounts only.
+                    </div>
+                    <button onClick={selectAllAccounts} style={buttonStyle(false)}>
+                      Select all
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {Object.entries(accountGroups).map(([platformName, accounts]) => (
+                      <details
+                        key={platformName}
+                        open
                         style={{
-                          padding: '10px 12px',
-                          cursor: 'pointer',
-                          color: COLORS.green,
-                          fontWeight: 900,
-                          fontSize: '13px',
-                          listStyle: 'none'
+                          border: `1px solid ${COLORS.line}`,
+                          borderRadius: '10px',
+                          background: '#FBFAF7',
+                          overflow: 'hidden'
                         }}
                       >
-                        {platformName} · {accounts.filter((account) => selectedAccountSet.has(account.id)).length}/{accounts.length}
-                      </summary>
+                        <summary
+                          style={{
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            color: COLORS.green,
+                            fontWeight: 900,
+                            fontSize: '13px',
+                            listStyle: 'none'
+                          }}
+                        >
+                          {platformName} · {accounts.filter((account) => selectedAccountSet.has(account.id)).length}/{accounts.length}
+                        </summary>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '8px', padding: '0 10px 10px' }}>
-                        {accounts.map((account) => (
-                          <label
-                            key={account.id}
-                            style={{
-                              display: 'flex',
-                              gap: '9px',
-                              alignItems: 'flex-start',
-                              padding: '9px',
-                              borderRadius: '9px',
-                              border: `1px solid ${selectedAccountSet.has(account.id) ? COLORS.green : '#EFE7D6'}`,
-                              background: selectedAccountSet.has(account.id) ? '#F5FAF7' : '#FFFFFF',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedAccountSet.has(account.id)}
-                              onChange={() => toggleAccountSelection(account.id)}
-                              style={{ marginTop: '3px', accentColor: COLORS.green }}
-                            />
-                            <span>
-                              <span style={{ display: 'block', fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
-                                {account.accountName}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '8px', padding: '0 10px 10px' }}>
+                          {accounts.map((account) => (
+                            <label
+                              key={account.id}
+                              style={{
+                                display: 'flex',
+                                gap: '9px',
+                                alignItems: 'flex-start',
+                                padding: '9px',
+                                borderRadius: '9px',
+                                border: `1px solid ${selectedAccountSet.has(account.id) ? COLORS.green : '#EFE7D6'}`,
+                                background: selectedAccountSet.has(account.id) ? '#F5FAF7' : '#FFFFFF',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedAccountSet.has(account.id)}
+                                onChange={() => toggleAccountSelection(account.id)}
+                                style={{ marginTop: '3px', accentColor: COLORS.green }}
+                              />
+                              <span>
+                                <span style={{ display: 'block', fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                                  {account.accountName}
+                                </span>
+                                <span style={{ display: 'block', fontSize: '12px', color: COLORS.muted, marginTop: '2px' }}>
+                                  {account.clientName} · {account.accountId}
+                                </span>
                               </span>
-                              <span style={{ display: 'block', fontSize: '12px', color: COLORS.muted, marginTop: '2px' }}>
-                                {account.clientName} · {account.accountId}
-                              </span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </details>
-                  ))}
-                </div>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </details>
               </div>
             ) : null}
 
