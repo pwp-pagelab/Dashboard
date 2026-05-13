@@ -284,9 +284,9 @@ function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, to
   const spendText = spendTextOverride || formatSar(totalSpend)
   const impressionText = totalImpressions.toLocaleString()
   const clickText = totalClicks.toLocaleString()
-  const conversionText = totalConversions.toLocaleString()
+  const resultText = totalConversions.toLocaleString()
   const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
-  const clickToConversion = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
+  const clickToResult = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
   const activePlatforms = rows.map((row) => row.platform).join(', ') || 'the active platforms'
   const hasDaily = daily.length > 1
   const firstDay = hasDaily ? daily[0] : null
@@ -301,10 +301,10 @@ function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, to
   }
 
   if (totalConversions === 0) {
-    return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and conversion tracking so the existing traffic has a clearer path to convert. ${spendDirection}.`
+    return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and result tracking so the existing traffic has a clearer path to become leads, messages, purchases, or other useful actions. ${spendDirection}.`
   }
 
-  return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${conversionText} conversions. The funnel is producing measurable action, with a ${clickToConversion.toFixed(2)}% click-to-conversion rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
+  return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${resultText} results. The funnel is producing measurable action, with a ${clickToResult.toFixed(2)}% click-to-result rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
 }
 
 function buildNextAction({ totalImpressions, totalClicks, totalConversions, totalSpend }) {
@@ -317,11 +317,11 @@ function buildNextAction({ totalImpressions, totalClicks, totalConversions, tota
   }
 
   if (totalConversions === 0 && totalClicks > 0) {
-    return 'Positive engagement detected. Next step: improve the conversion path.'
+    return 'Positive engagement detected. Next step: improve the result path.'
   }
 
   if (totalConversions > 0) {
-    return 'Conversions are coming in. Next step: scale the strongest platform.'
+    return 'Results are coming in. Next step: scale the strongest platform.'
   }
 
   return 'Healthy momentum. Next step: keep optimizing efficiency.'
@@ -815,7 +815,7 @@ export async function buildDashboardPayload({
   const loadedAccountCount = accountStatuses.filter((status) => status.status === 'loaded').length
   const noDataAccountCount = accountStatuses.filter((status) => status.status === 'no_data').length
   const failedAccountCount = accountStatuses.filter((status) => status.status === 'error').length
-  const conversionLabels = Array.from(new Set(rows.map((row) => row.conversionLabel).filter(Boolean)))
+  const resultLabels = Array.from(new Set(rows.map((row) => row.conversionLabel).filter(Boolean)))
   const platformSplit = rows.reduce((acc, row) => {
     const key = row.platform.toLowerCase().replace(/\s+/g, '_')
     const existing = acc[key] || {
@@ -878,9 +878,9 @@ export async function buildDashboardPayload({
       currencyWarning: currencyCodes.length > 1
         ? `Spend is coming from multiple account currencies (${currencyCodes.join(', ')}). Totals are shown as a blended reporting total until currency conversion is configured.`
         : null,
-      conversionLabels,
-      conversionWarning: conversionLabels.length > 1
-        ? `Conversions combine different platform actions (${conversionLabels.join(', ')}). Use this as a total action volume, not one identical conversion type.`
+      conversionLabels: resultLabels,
+      conversionWarning: resultLabels.length > 1
+        ? `Results combine different platform actions (${resultLabels.join(', ')}). Use this as a total action volume, not one identical conversion type.`
         : null
     },
     summaryCards: [
@@ -892,7 +892,7 @@ export async function buildDashboardPayload({
       { label: 'Impressions', value: totalImpressions.toLocaleString() },
       { label: 'Clicks', value: totalClicks.toLocaleString() },
       { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
-      { label: 'Conversions', value: totalConversions.toLocaleString() },
+      { label: 'Results', value: totalConversions.toLocaleString() },
       { label: 'Platforms Active', value: activePlatformCount.toString() }
     ],
     campaignRows: rows.map((row) => ({

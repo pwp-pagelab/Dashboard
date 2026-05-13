@@ -272,16 +272,18 @@ const METRIC_LABELS = {
   Impressions: 'Impressions (الظهور)',
   Clicks: 'Clicks (النقرات)',
   CTR: 'CTR (معدل النقر)',
-  Conversions: 'Conversions (التحويلات)',
+  Results: 'Results (النتائج)',
+  Conversions: 'Results (النتائج)',
   'Platforms Active': 'Platforms active (المنصات النشطة)',
   Spend: 'Spend (الإنفاق)',
-  CPA: 'CPA (تكلفة التحويل)',
+  CPA: 'Cost per result (تكلفة النتيجة)',
   CPC: 'CPC (تكلفة النقرة)',
   Platform: 'Platform',
   Campaign: 'Campaign',
   'Spend share': 'Spend share (حصة الإنفاق)',
   'Click share': 'Click share (حصة النقرات)',
-  'Conversion share': 'Conversion share (حصة التحويلات)'
+  'Conversion share': 'Result share (حصة النتائج)',
+  'Result share': 'Result share (حصة النتائج)'
 }
 
 function metricLabel(label) {
@@ -341,6 +343,15 @@ function formatConversionBreakdown(breakdown) {
     .filter(([, value]) => value > 0)
     .map(([label, value]) => `${label}: ${value.toLocaleString()}`)
     .join(' · ')
+}
+
+function getSummaryCardValue(summaryCards, label) {
+  const cards = Array.isArray(summaryCards) ? summaryCards : []
+  const direct = cards.find((card) => card.label === label)?.value
+  if (direct != null) return direct
+  if (label === 'Results') return cards.find((card) => card.label === 'Conversions')?.value || ''
+  if (label === 'Conversions') return cards.find((card) => card.label === 'Results')?.value || ''
+  return ''
 }
 
 function DataConfidencePanel({ data }) {
@@ -440,8 +451,8 @@ function DashboardFooter() {
 
 function FunnelHero({ impressions, clicks, conversions, compact = false }) {
   const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0
-  const convOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
-  const convOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
+  const resultOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
+  const resultOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
 
   const rows = [
     {
@@ -460,11 +471,11 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
       topRight: `CTR ${percent(clickRate)}`
     },
     {
-      label: metricLabel('Conversions'),
+      label: metricLabel('Results'),
       value: conversions.toLocaleString(),
-      width: Math.max(convOfClicks, conversions > 0 ? 4 : 0),
+      width: Math.max(resultOfClicks, conversions > 0 ? 4 : 0),
       color: COLORS.greenLight,
-      topRight: `${percent(convOfImpressions)} of impressions · Click-to-conversion ${percent(convOfClicks)}`
+      topRight: `${percent(resultOfImpressions)} of impressions · Click-to-result ${percent(resultOfClicks)}`
     }
   ]
 
@@ -617,13 +628,13 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
     >
       <div style={panelStyle()}>
         <SectionTitle
-          title="Spend vs. conversions over time"
-          subtitle="Green bars for spend, amber line for daily conversions."
+          title="Spend vs. results over time"
+          subtitle="Green bars for spend, amber line for daily results."
         />
         {!hasDaily ? (
           <EmptyState
             title="Daily trend will appear once reporting returns dates"
-            text="The dashboard still shows the period totals above. When the platform sends day-by-day results, this chart will show how spend and conversions moved over time."
+            text="The dashboard still shows the period totals above. When the platform sends day-by-day results, this chart will show how spend and results moved over time."
           />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
@@ -649,7 +660,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
                   yAxisId="right"
                   type="monotone"
                   dataKey="conversions"
-                  name={metricLabel('Conversions')}
+                  name={metricLabel('Results')}
                   stroke={COLORS.amber}
                   strokeWidth={3}
                   dot={{ r: 3 }}
@@ -663,7 +674,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
 
       <div style={panelStyle()}>
         <SectionTitle
-          title="Cost per conversion trend"
+          title="Cost per result trend"
           subtitle="Trending down is good."
         />
         {!hasDaily ? (
@@ -673,8 +684,8 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
           />
         ) : !daily.some((row) => row.cpa != null) ? (
           <EmptyState
-            title="Cost per conversion will appear after conversions"
-            text="Current activity is creating reach and clicks. Once conversions are recorded, this chart will show the cost trend and make optimization easier to track."
+            title="Cost per result will appear after results"
+            text="Current activity is creating reach and clicks. Once results are recorded, this chart will show the cost trend and make optimization easier to track."
           />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
@@ -752,7 +763,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
       )
     },
     {
-      metric: metricLabel('Conversion share'),
+      metric: metricLabel('Result share'),
       ...Object.fromEntries(
         platforms.map((p) => [p.platform, totalConversions > 0 ? (p.conversions / totalConversions) * 100 : 0])
       )
@@ -765,13 +776,13 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
     <div style={panelStyle()}>
       <SectionTitle
         title="Platform contribution"
-        subtitle="How each platform contributes to spend, clicks, and conversions."
+        subtitle="How each platform contributes to spend, clicks, and results."
       />
 
       {platforms.length === 0 ? (
         <EmptyState
           title="Platform contribution will appear when results are available"
-          text="When platform data is returned, this section will show how spend, clicks, and conversions are split across each channel."
+          text="When platform data is returned, this section will show how spend, clicks, and results are split across each channel."
         />
       ) : (
         <div style={{ width: '100%', height: compact ? 190 : 280 }}>
@@ -857,7 +868,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
               <th style={{ padding: '12px 8px' }}>{metricLabel('Clicks')}</th>
               <th style={{ padding: '12px 8px' }}>{metricLabel('CTR')}</th>
               <th style={{ padding: '12px 8px' }}>{metricLabel('CPC')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('Conversions')}</th>
+              <th style={{ padding: '12px 8px' }}>{metricLabel('Results')}</th>
               <th style={{ padding: '12px 8px' }}>{metricLabel('CPA')}</th>
             </tr>
           </thead>
@@ -867,7 +878,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
                 <td colSpan="7" style={{ padding: '18px 8px' }}>
                   <EmptyState
                     title="Advanced table will appear when platform rows are available"
-                    text="Once campaign or platform results are returned, this optional view will list spend, clicks, CTR, CPC, conversions, and CPA in one place."
+                    text="Once campaign or platform results are returned, this optional view will list spend, clicks, CTR, CPC, results, and cost per result in one place."
                   />
                 </td>
               </tr>
@@ -919,10 +930,10 @@ function buildClientSummary({ totalSpend, totalImpressions, totalClicks, totalCo
       return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to review budget coverage so more eligible demand can be captured.`
     }
 
-    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to confirm conversion tracking and make the post-click path easier before scaling spend.`
+    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to confirm result tracking and make the post-click path easier before scaling spend.`
   }
 
-  return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} conversions. Performance is producing measurable results, and the next step is to compare efficiency against target benchmarks before scaling.`
+  return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} results. Performance is producing measurable action, and the next step is to compare efficiency against target benchmarks before scaling.`
 }
 
 function buildDailyChartData(data, totalSpend, totalConversions) {
@@ -1040,7 +1051,7 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Conversions'],
+      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
@@ -1050,7 +1061,7 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Platform totals', [
-      ['Platform', 'Spend', 'Conversions'],
+      ['Platform', 'Spend', 'Results'],
       ...Object.entries(platformSplit).map(([platformKey, value]) => [
         platformKey.replace(/_/g, ' '),
         parseSarString(value?.spend),
@@ -1058,7 +1069,7 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Daily trend', [
-      ['Date', 'Spend', 'Conversions', 'CPA'],
+      ['Date', 'Spend', 'Results', 'Cost per result'],
       ...dailyChartData.map((row) => [
         row.date,
         row.spend,
@@ -1079,13 +1090,13 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ['Generated at', generatedAt],
     ['Clients included', clientReports.length],
     [],
-    ['Client', 'Spend', 'Impressions', 'Clicks', 'Conversions', 'Platforms active']
+    ['Client', 'Spend', 'Impressions', 'Clicks', 'Results', 'Platforms active']
   ]
 
   const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group']]
-  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Clicks', 'Conversions']]
-  const platformTotals = [['Client', 'Platform', 'Spend', 'Conversions']]
-  const dailyRows = [['Client', 'Date', 'Spend', 'Conversions', 'CPA']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results']]
+  const platformTotals = [['Client', 'Platform', 'Spend', 'Results']]
+  const dailyRows = [['Client', 'Date', 'Spend', 'Results', 'Cost per result']]
   const insightRows = [['Client', 'Insight', 'Next action']]
 
   clientReports.forEach(({ client, payload }) => {
@@ -1100,7 +1111,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
       parseSarString(summaryCards.find((card) => card.label === 'Total Spend')?.value),
       parseNumberString(summaryCards.find((card) => card.label === 'Impressions')?.value),
       parseNumberString(summaryCards.find((card) => card.label === 'Clicks')?.value),
-      parseNumberString(summaryCards.find((card) => card.label === 'Conversions')?.value),
+      parseNumberString(getSummaryCardValue(summaryCards, 'Results')),
       parseNumberString(summaryCards.find((card) => card.label === 'Platforms Active')?.value)
     ])
 
@@ -1167,10 +1178,84 @@ const CUSTOM_REPORT_METRICS = [
   { id: 'impressions', label: 'Impressions', summaryLabel: 'Impressions' },
   { id: 'clicks', label: 'Clicks', summaryLabel: 'Clicks' },
   { id: 'ctr', label: 'CTR', summaryLabel: 'CTR' },
-  { id: 'conversions', label: 'Results', summaryLabel: 'Conversions' },
+  { id: 'conversions', label: 'Results', summaryLabel: 'Results' },
   { id: 'cpc', label: 'Cost per click' },
   { id: 'cpa', label: 'Cost per result' }
 ]
+
+const CUSTOM_RESULT_DEFINITIONS = [
+  { id: 'all', label: 'All results' },
+  { id: 'leads', label: 'Leads' },
+  { id: 'messages', label: 'Messages' },
+  { id: 'purchases', label: 'Purchases' },
+  { id: 'registrations', label: 'Registrations' },
+  { id: 'clicks', label: 'Clicks as results' }
+]
+
+function getRowResultValue(row, resultDefinition = 'all') {
+  const breakdown = row?.conversionBreakdown || {}
+
+  if (resultDefinition === 'leads') return Number(breakdown.leads || 0)
+  if (resultDefinition === 'messages') return Number(breakdown.messagingConversations || 0)
+  if (resultDefinition === 'purchases') return Number(breakdown.purchases || 0)
+  if (resultDefinition === 'registrations') return Number(breakdown.registrations || 0)
+  if (resultDefinition === 'clicks') return parseNumberString(row?.clicks)
+
+  return row?.conversions === 'N/A' ? 0 : parseNumberString(row?.conversions)
+}
+
+function getResultDefinitionLabel(resultDefinition) {
+  return CUSTOM_RESULT_DEFINITIONS.find((item) => item.id === resultDefinition)?.label || 'All results'
+}
+
+function applyResultDefinition(data, resultDefinition = 'all') {
+  if (!data || resultDefinition === 'all') return data
+
+  const campaignRows = Array.isArray(data.campaignRows) ? data.campaignRows : []
+  const nextRows = campaignRows.map((row) => {
+    const resultValue = getRowResultValue(row, resultDefinition)
+    return {
+      ...row,
+      conversions: resultValue.toLocaleString(),
+      conversionLabel: getResultDefinitionLabel(resultDefinition)
+    }
+  })
+  const totalResults = nextRows.reduce((sum, row) => sum + parseNumberString(row.conversions), 0)
+  const summaryCards = (data.summaryCards || []).map((card) => {
+    if (card.label === 'Results' || card.label === 'Conversions') {
+      return { ...card, label: 'Results', value: totalResults.toLocaleString() }
+    }
+    return card
+  })
+
+  if (!summaryCards.some((card) => card.label === 'Results')) {
+    summaryCards.push({ label: 'Results', value: totalResults.toLocaleString() })
+  }
+
+  const platformSplit = nextRows.reduce((acc, row) => {
+    const key = row.platform.toLowerCase().replace(/\s+/g, '_')
+    const existing = acc[key] || { spend: 0, conversions: 0 }
+    existing.spend += parseSarString(row.spend)
+    existing.conversions += parseNumberString(row.conversions)
+    acc[key] = existing
+    return acc
+  }, {})
+
+  return {
+    ...data,
+    summaryCards,
+    campaignRows: nextRows,
+    platformSplit: Object.fromEntries(
+      Object.entries(platformSplit).map(([key, value]) => [
+        key,
+        {
+          spend: formatSar(value.spend),
+          conversions: value.conversions.toLocaleString()
+        }
+      ])
+    )
+  }
+}
 
 const CUSTOM_REPORT_SECTIONS = [
   { id: 'summary', label: 'Insight summary' },
@@ -1184,10 +1269,10 @@ const CUSTOM_REPORT_SECTIONS = [
 
 function getSummaryValue(data, metricId) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
-  const byLabel = (label) => summaryCards.find((card) => card.label === label)?.value || ''
+  const byLabel = (label) => getSummaryCardValue(summaryCards, label)
   const spend = parseSarString(byLabel('Total Spend'))
   const clicks = parseNumberString(byLabel('Clicks'))
-  const conversions = parseNumberString(byLabel('Conversions'))
+  const conversions = parseNumberString(byLabel('Results'))
 
   if (metricId === 'cpc') return clicks > 0 ? formatSar(spend / clicks) : 'N/A'
   if (metricId === 'cpa') return conversions > 0 ? formatSar(spend / conversions) : 'N/A'
@@ -1198,12 +1283,12 @@ function getSummaryValue(data, metricId) {
 
 function getBenchmarkIndicators(data) {
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
-  const byLabel = (label) => summaryCards.find((card) => card.label === label)?.value || ''
+  const byLabel = (label) => getSummaryCardValue(summaryCards, label)
   const spend = parseSarString(byLabel('Total Spend'))
   const reach = parseNumberString(byLabel('Reach'))
   const impressions = parseNumberString(byLabel('Impressions'))
   const clicks = parseNumberString(byLabel('Clicks'))
-  const conversions = parseNumberString(byLabel('Conversions'))
+  const conversions = parseNumberString(byLabel('Results'))
   const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0
   const resultRate = clicks > 0 ? (conversions / clicks) * 100 : 0
   const cpc = clicks > 0 ? spend / clicks : null
@@ -1430,7 +1515,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
-  const totalConversions = parseNumberString(summaryCards.find((c) => c.label === 'Conversions')?.value)
+  const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
   const dailyChartData = buildDailyChartData(data)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
@@ -1818,6 +1903,7 @@ function CustomReportBuilder({ availableClients, setView }) {
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
   const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'reach', 'impressions', 'clicks', 'ctr', 'conversions', 'cpa'])
   const [selectedSections, setSelectedSections] = useState(['summary', 'funnel', 'trends', 'platforms', 'audience'])
+  const [resultDefinition, setResultDefinition] = useState('all')
   const [insightText, setInsightText] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1874,15 +1960,16 @@ function CustomReportBuilder({ availableClients, setView }) {
     if (selectedClientId) loadReportData()
   }, [selectedClientId, reportRange, selectedAccountIds])
 
-  const accountOptions = Array.isArray(reportData?.accountOptions) ? reportData.accountOptions : []
+  const displayReportData = applyResultDefinition(reportData, resultDefinition)
+  const accountOptions = Array.isArray(displayReportData?.accountOptions) ? displayReportData.accountOptions : []
   const selectedAccountSet = new Set(Array.isArray(selectedAccountIds) ? selectedAccountIds : accountOptions.map((account) => account.id))
-  const summaryCards = Array.isArray(reportData?.summaryCards) ? reportData.summaryCards : []
-  const campaignRows = Array.isArray(reportData?.campaignRows) ? reportData.campaignRows : []
-  const totalSpend = parseSarString(summaryCards.find((card) => card.label === 'Total Spend')?.value)
-  const totalImpressions = parseNumberString(summaryCards.find((card) => card.label === 'Impressions')?.value)
-  const totalClicks = parseNumberString(summaryCards.find((card) => card.label === 'Clicks')?.value)
-  const totalConversions = parseNumberString(summaryCards.find((card) => card.label === 'Conversions')?.value)
-  const dailyChartData = buildDailyChartData(reportData)
+  const summaryCards = Array.isArray(displayReportData?.summaryCards) ? displayReportData.summaryCards : []
+  const campaignRows = Array.isArray(displayReportData?.campaignRows) ? displayReportData.campaignRows : []
+  const totalSpend = parseSarString(getSummaryCardValue(summaryCards, 'Total Spend'))
+  const totalImpressions = parseNumberString(getSummaryCardValue(summaryCards, 'Impressions'))
+  const totalClicks = parseNumberString(getSummaryCardValue(summaryCards, 'Clicks'))
+  const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
+  const dailyChartData = buildDailyChartData(displayReportData)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const accountGroups = accountOptions.reduce((groups, account) => {
     const key = account.platformLabel || account.platform
@@ -1929,7 +2016,7 @@ function CustomReportBuilder({ availableClients, setView }) {
     if (!reportData) return
     downloadCustomReportWorkbook({
       title: reportTitle || `${reportData.client?.name || 'Client'} custom report`,
-      data: reportData,
+      data: displayReportData,
       selectedMetrics,
       selectedSections,
       accountOptions,
@@ -2000,6 +2087,14 @@ function CustomReportBuilder({ availableClients, setView }) {
               <div>
                 <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Report name</div>
                 <input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} style={selectStyle()} />
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Result definition</div>
+                <select value={resultDefinition} onChange={(event) => setResultDefinition(event.target.value)} style={selectStyle()}>
+                  {CUSTOM_RESULT_DEFINITIONS.map((definition) => (
+                    <option key={definition.id} value={definition.id}>{definition.label}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button onClick={() => window.print()} style={buttonStyle(true)}>Export PDF</button>
@@ -2113,7 +2208,7 @@ function CustomReportBuilder({ availableClients, setView }) {
                     {reportTitle || `${reportData.client?.name} report`}
                   </h1>
                   <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px' }}>
-                    {reportData.client?.name} · {reportRange} · {selectedAccountSet.size} selected accounts
+                    {displayReportData.client?.name} · {reportRange} · {selectedAccountSet.size} selected accounts · {getResultDefinitionLabel(resultDefinition)}
                   </p>
                 </div>
                 <div style={{ color: COLORS.muted, fontSize: '12px', alignSelf: 'flex-start' }}>
@@ -2122,7 +2217,7 @@ function CustomReportBuilder({ availableClients, setView }) {
               </div>
             </div>
 
-            <DataConfidencePanel data={reportData} />
+            <DataConfidencePanel data={displayReportData} />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '10px' }}>
               {selectedMetrics.map((metricId) => {
@@ -2131,7 +2226,7 @@ function CustomReportBuilder({ availableClients, setView }) {
                   <MetricCard
                     key={metricId}
                     label={metric?.label || metricId}
-                    value={getSummaryValue(reportData, metricId)}
+                    value={getSummaryValue(displayReportData, metricId)}
                   />
                 )
               })}
@@ -2141,7 +2236,7 @@ function CustomReportBuilder({ availableClients, setView }) {
               <SummaryBlock
                 text={insightText}
                 onChange={setInsightText}
-                onReset={() => setInsightText(reportData?.insights?.suggested || '')}
+                onReset={() => setInsightText(displayReportData?.insights?.suggested || '')}
                 onExport={() => window.print()}
               />
             ) : null}
@@ -2156,10 +2251,10 @@ function CustomReportBuilder({ availableClients, setView }) {
                 totalConversions={totalConversions}
               />
             ) : null}
-            {selectedSections.includes('benchmarks') ? <BenchmarkIndicators data={reportData} /> : null}
-            {selectedSections.includes('audience') ? <AudienceActionInsights data={reportData} /> : null}
-            {selectedSections.includes('advanced') ? <AdvancedTable rows={campaignRows} googleDiagnostics={reportData?.diagnostics?.google || null} /> : null}
-            <StatusBanner text={reportData?.insights?.nextAction || 'Review the strongest result source and scale carefully.'} />
+            {selectedSections.includes('benchmarks') ? <BenchmarkIndicators data={displayReportData} /> : null}
+            {selectedSections.includes('audience') ? <AudienceActionInsights data={displayReportData} /> : null}
+            {selectedSections.includes('advanced') ? <AdvancedTable rows={campaignRows} googleDiagnostics={displayReportData?.diagnostics?.google || null} /> : null}
+            <StatusBanner text={displayReportData?.insights?.nextAction || 'Review the strongest result source and scale carefully.'} />
             <DashboardFooter />
           </div>
         ) : null}
@@ -2329,7 +2424,7 @@ export default function App() {
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
-  const totalConversions = parseNumberString(summaryCards.find((c) => c.label === 'Conversions')?.value)
+  const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
 
   const summaryText = insightsText || buildClientSummary({
     totalSpend,
