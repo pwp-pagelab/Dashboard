@@ -1,6 +1,6 @@
 import { clients, getClientById } from '../data/clients.js'
 import { getMetaData } from '../lib/meta.js'
-import { downloadGoogleInvoicePdf, getGoogleAdsData, getGoogleOfficialInvoices } from '../lib/googleAds.js'
+import { getGoogleAdsData } from '../lib/googleAds.js'
 import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
@@ -1006,135 +1006,8 @@ function parseSelectedAccountIds(value) {
   }
 }
 
-async function buildOfficialInvoicesPayload({ clientId, range, selectedAccountIds = [] }) {
-  const client = getClientById(clientId)
-  if (!client) {
-    const error = new Error('Client not found')
-    error.statusCode = 404
-    throw error
-  }
-
-  const clientGroup = getClientGroup(client)
-  const accountOptions = getAccountOptions(clientGroup)
-  const selectedSet = new Set(selectedAccountIds)
-  const selectedOptions = selectedSet.size
-    ? accountOptions.filter((account) => selectedSet.has(account.id))
-    : accountOptions
-  const googleAccounts = selectedOptions.filter((account) => account.platform === 'google')
-  const manualAccounts = selectedOptions.filter((account) => account.platform !== 'google')
-  const accounts = []
-
-  for (const account of googleAccounts) {
-    const accountClient = getClientById(account.clientId) || client
-    const { startDate, endDate } = getRangeDates(range, accountClient, 'google')
-
-    try {
-      const result = await getGoogleOfficialInvoices({
-        customerId: account.accountId,
-        loginCustomerId: account.loginCustomerId,
-        startDate,
-        endDate
-      })
-
-      accounts.push({
-        platform: 'google',
-        platformLabel: 'Google Ads',
-        accountId: account.accountId,
-        accountName: account.accountName,
-        clientId: account.clientId,
-        clientName: account.clientName,
-        startDate,
-        endDate,
-        ok: result.ok,
-        error: result.error || null,
-        errors: result.errors || [],
-        invoices: (result.invoices || []).map((invoice) => {
-          const params = new URLSearchParams({
-            action: 'google-invoice-pdf',
-            customerId: account.accountId,
-            issueYear: invoice.issueYear,
-            issueMonth: invoice.issueMonth,
-            invoiceId: invoice.id || '',
-            billingSetup: invoice.billingSetup || ''
-          })
-          if (account.loginCustomerId) params.set('loginCustomerId', account.loginCustomerId)
-
-          return {
-            ...invoice,
-            downloadUrl: `/api/dashboard?${params.toString()}`
-          }
-        })
-      })
-    } catch (error) {
-      accounts.push({
-        platform: 'google',
-        platformLabel: 'Google Ads',
-        accountId: account.accountId,
-        accountName: account.accountName,
-        clientId: account.clientId,
-        clientName: account.clientName,
-        ok: false,
-        error: error.message || 'Unable to load Google Ads invoices.',
-        errors: [],
-        invoices: []
-      })
-    }
-  }
-
-  return {
-    ok: true,
-    mode: 'official-invoices',
-    client: {
-      id: client.id,
-      name: client.name
-    },
-    filters: {
-      range
-    },
-    accounts,
-    manualAccounts: manualAccounts.map((account) => ({
-      platform: account.platform,
-      platformLabel: account.platformLabel,
-      accountId: account.accountId,
-      accountName: account.accountName,
-      clientName: account.clientName,
-      note: 'Official invoice PDFs for this platform are not available through the connected reporting API. Download them from the platform billing center.'
-    })),
-    notes: [
-      'Google Ads invoice PDFs can be pulled only when the account uses monthly invoicing and the connected Google user has billing access.',
-      'Meta, TikTok, Snapchat, and LinkedIn reporting APIs used here do not return official invoice PDFs. The dashboard can still export spend backup data for reconciliation.'
-    ]
-  }
-}
-
 export default async function handler(req, res) {
   try {
-    if (req.query.action === 'official-invoices') {
-      const payload = await buildOfficialInvoicesPayload({
-        clientId: req.query.client || 'rimiya',
-        range: req.query.range || '30d',
-        selectedAccountIds: parseSelectedAccountIds(req.query.accounts)
-      })
-
-      return res.status(200).json(payload)
-    }
-
-    if (req.query.action === 'google-invoice-pdf') {
-      const { invoice, bytes } = await downloadGoogleInvoicePdf({
-        customerId: req.query.customerId,
-        loginCustomerId: req.query.loginCustomerId || null,
-        billingSetup: req.query.billingSetup,
-        issueYear: req.query.issueYear,
-        issueMonth: req.query.issueMonth,
-        invoiceId: req.query.invoiceId
-      })
-      const safeInvoiceId = String(invoice.id || 'google-invoice').replace(/[^a-zA-Z0-9_-]/g, '-')
-
-      res.setHeader('Content-Type', 'application/pdf')
-      res.setHeader('Content-Disposition', `attachment; filename="${safeInvoiceId}.pdf"`)
-      return res.status(200).send(bytes)
-    }
-
     const payload = await buildDashboardPayload({
       clientId: req.query.client || 'rimiya',
       platformFilter: req.query.platform || 'all',

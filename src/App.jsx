@@ -147,7 +147,7 @@ function BrandMark({ dark = false }) {
             marginTop: '4px'
           }}
         >
-          Performance and billing
+          Performance reporting
         </div>
       </div>
     </div>
@@ -191,6 +191,17 @@ function PlatformBadge({ label }) {
     >
       {label}
     </span>
+  )
+}
+
+function MetricCard({ label, value }) {
+  return (
+    <div style={{ ...cardStyle(), padding: '14px' }}>
+      <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>{label}</div>
+      <div style={{ color: COLORS.green, fontSize: '22px', fontWeight: 900, marginTop: '6px', lineHeight: 1.1 }}>
+        {value || 'N/A'}
+      </div>
+    </div>
   )
 }
 
@@ -1150,60 +1161,156 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
   ])
 }
 
-function downloadBillingWorkbook({ title, clientReports, range }) {
-  const generatedAt = new Date().toLocaleString()
-  const billingRows = [
-    ['Spend backup workbook', title],
-    ['Date range', range],
-    ['Generated at', generatedAt],
-    [],
-    ['Client', 'Platform', 'Account or campaign', 'Spend', 'Clicks', 'Conversions']
-  ]
-  const platformTotals = [['Client', 'Platform', 'Spend', 'Conversions']]
-  const dailySpend = [['Client', 'Date', 'Spend', 'Conversions']]
+const CUSTOM_REPORT_METRICS = [
+  { id: 'spend', label: 'Spend', summaryLabel: 'Total Spend' },
+  { id: 'impressions', label: 'Impressions', summaryLabel: 'Impressions' },
+  { id: 'clicks', label: 'Clicks', summaryLabel: 'Clicks' },
+  { id: 'ctr', label: 'CTR', summaryLabel: 'CTR' },
+  { id: 'conversions', label: 'Results', summaryLabel: 'Conversions' },
+  { id: 'cpc', label: 'Cost per click' },
+  { id: 'cpa', label: 'Cost per result' }
+]
 
-  clientReports.forEach(({ client, payload }) => {
-    const campaigns = Array.isArray(payload.campaignRows) ? payload.campaignRows : []
-    const daily = buildDailyChartData(payload)
-    const platformSplit = payload.platformSplit || {}
+const CUSTOM_REPORT_SECTIONS = [
+  { id: 'summary', label: 'Insight summary' },
+  { id: 'funnel', label: 'Funnel' },
+  { id: 'trends', label: 'Trends' },
+  { id: 'platforms', label: 'Platform contribution' },
+  { id: 'audience', label: 'Audience and action insights' },
+  { id: 'advanced', label: 'Detailed table' }
+]
 
-    campaigns.forEach((row) => {
-      billingRows.push([
-        payload.client?.name || client.name,
+function getSummaryValue(data, metricId) {
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const byLabel = (label) => summaryCards.find((card) => card.label === label)?.value || ''
+  const spend = parseSarString(byLabel('Total Spend'))
+  const clicks = parseNumberString(byLabel('Clicks'))
+  const conversions = parseNumberString(byLabel('Conversions'))
+
+  if (metricId === 'cpc') return clicks > 0 ? formatSar(spend / clicks) : 'N/A'
+  if (metricId === 'cpa') return conversions > 0 ? formatSar(spend / conversions) : 'N/A'
+
+  const metric = CUSTOM_REPORT_METRICS.find((item) => item.id === metricId)
+  return metric?.summaryLabel ? byLabel(metric.summaryLabel) : ''
+}
+
+function AudienceActionInsights({ data }) {
+  const rows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
+  const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
+  const bestByResults = [...rows]
+    .filter((row) => row.conversions !== 'N/A')
+    .sort((a, b) => parseNumberString(b.conversions) - parseNumberString(a.conversions))[0]
+  const bestByClicks = [...rows]
+    .sort((a, b) => parseNumberString(b.clicks) - parseNumberString(a.clicks))[0]
+  const breakdowns = statuses
+    .map((account) => ({
+      account,
+      text: formatConversionBreakdown(account.conversionBreakdown)
+    }))
+    .filter((item) => item.text)
+
+  return (
+    <div style={panelStyle()}>
+      <SectionTitle
+        title="Audience and action insights"
+        subtitle="Signals from the selected accounts and available platform action data."
+      />
+
+      <div style={{ display: 'grid', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px' }}>
+          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest result source</div>
+            <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
+              {bestByResults ? `${bestByResults.platform} · ${bestByResults.campaign}` : 'Not enough result data yet'}
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest traffic source</div>
+            <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
+              {bestByClicks ? `${bestByClicks.platform} · ${bestByClicks.campaign}` : 'Not enough click data yet'}
+            </div>
+          </div>
+        </div>
+
+        {breakdowns.length ? (
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {breakdowns.map(({ account, text }) => (
+              <div key={account.id} style={{ color: COLORS.text, fontSize: '13px', lineHeight: 1.5, padding: '10px', border: `1px solid ${COLORS.line}`, borderRadius: '10px' }}>
+                <strong style={{ color: COLORS.green }}>{account.accountName}:</strong> {text}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="Audience details need platform breakdown data"
+            text="The report can already compare platforms and result actions. Age, gender, location, placement, and interest breakdowns need dedicated audience reporting endpoints before they can be charted accurately."
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSections, accountOptions, selectedAccountIds, insightText }) {
+  const metricRows = selectedMetrics.map((metricId) => {
+    const metric = CUSTOM_REPORT_METRICS.find((item) => item.id === metricId)
+    return [metric?.label || metricId, getSummaryValue(data, metricId)]
+  })
+  const selectedSet = new Set(selectedAccountIds || [])
+  const selectedAccounts = accountOptions.filter((account) => selectedSet.has(account.id))
+  const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
+  const daily = buildDailyChartData(data)
+
+  saveExcelWorkbook(title, [
+    excelSheet('Report setup', [
+      ['Report', title],
+      ['Client', data?.client?.name || ''],
+      ['Date range', data?.filters?.range || ''],
+      ['Generated at', new Date().toLocaleString()],
+      ['Sections', selectedSections.join(', ')],
+      ['Insight', insightText || data?.insights?.suggested || ''],
+      [],
+      ['Metric', 'Value'],
+      ...metricRows
+    ]),
+    excelSheet('Selected accounts', [
+      ['Platform', 'Account name', 'Account ID', 'Client group'],
+      ...selectedAccounts.map((account) => [
+        account.platformLabel,
+        account.accountName,
+        account.accountId,
+        account.clientName
+      ])
+    ]),
+    excelSheet('Platform rows', [
+      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results', 'Result breakdown'],
+      ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
         parseSarString(row.spend),
         parseNumberString(row.clicks),
-        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
+        formatConversionBreakdown(row.conversionBreakdown)
       ])
-    })
-
-    Object.entries(platformSplit).forEach(([platformKey, value]) => {
-      platformTotals.push([
-        payload.client?.name || client.name,
-        platformKey.replace(/_/g, ' '),
-        parseSarString(value?.spend),
-        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
-      ])
-    })
-
-    daily.forEach((row) => {
-      dailySpend.push([
-        payload.client?.name || client.name,
+    ]),
+    excelSheet('Daily trends', [
+      ['Date', 'Spend', 'Results', 'Cost per result'],
+      ...daily.map((row) => [
         row.date,
         row.spend,
-        row.conversions
+        row.conversions,
+        row.cpa == null ? '' : row.cpa
       ])
-    })
-  })
-
-  saveExcelWorkbook(title, [
-    excelSheet('Spend rows', billingRows),
-    excelSheet('Platform totals', platformTotals),
-    excelSheet('Daily spend', dailySpend),
-    excelSheet('Notes', [
-      ['Note'],
-      ['This workbook uses platform reporting spend for the selected accounts and date range. Use it as a spend backup for reconciliation. It is not an official invoice PDF from the ad platform.']
+    ]),
+    excelSheet('Data confidence', [
+      ['Account', 'Platform', 'Account ID', 'Status', 'Message'],
+      ...(data?.accountStatuses || []).map((account) => [
+        account.accountName,
+        account.platformLabel,
+        account.accountId,
+        account.status,
+        account.message
+      ])
     ])
   ])
 }
@@ -1326,24 +1433,12 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   )
 }
 
-function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
+function AgencyExportView({ availableClients, setView }) {
   const [exportRange, setExportRange] = useState('max')
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
   const [resolvedClients, setResolvedClients] = useState(availableClients || [])
-  const [selectedBillingClientId, setSelectedBillingClientId] = useState('')
-  const [billingHistory, setBillingHistory] = useState(() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      return JSON.parse(window.localStorage.getItem('pwpBillingExportHistory') || '{}')
-    } catch {
-      return {}
-    }
-  })
-  const [officialInvoices, setOfficialInvoices] = useState(null)
-  const [invoiceLoading, setInvoiceLoading] = useState(false)
-  const [invoiceError, setInvoiceError] = useState('')
-  const [exportName, setExportName] = useState(mode === 'billing' ? 'Spend backup' : 'Agency performance')
+  const [exportName, setExportName] = useState('Agency performance')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
@@ -1353,8 +1448,6 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
       try {
         setLoading(true)
         setError('')
-        setOfficialInvoices(null)
-        setInvoiceError('')
         let clientsToLoad = Array.isArray(availableClients) ? availableClients : []
 
         if (!clientsToLoad.length) {
@@ -1364,10 +1457,6 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
         }
 
         setResolvedClients(clientsToLoad)
-        const billingClientId = selectedBillingClientId || clientsToLoad[0]?.id || ''
-        if (mode === 'billing' && !selectedBillingClientId && billingClientId) {
-          setSelectedBillingClientId(billingClientId)
-        }
 
         if (!clientsToLoad.length) {
           setClientPayloads([])
@@ -1376,12 +1465,9 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
           return
         }
 
-        const clientsForRequest = mode === 'billing'
-          ? clientsToLoad.filter((client) => client.id === billingClientId)
-          : clientsToLoad
         const payloads = []
 
-        for (const agencyClient of clientsForRequest) {
+        for (const agencyClient of clientsToLoad) {
           const params = new URLSearchParams({
             client: agencyClient.id,
             platform: 'all',
@@ -1414,7 +1500,7 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
     }
 
     loadAccounts()
-  }, [availableClients, exportRange, mode, selectedBillingClientId])
+  }, [availableClients, exportRange])
 
   const accountOptions = clientPayloads.flatMap(({ payload }) => payload.accountOptions || [])
   const selectedSet = new Set(selectedAccountIds)
@@ -1476,73 +1562,12 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
         }
       }
 
-      const title = exportName || `${mode === 'billing' ? 'Billing export' : 'Agency performance'} ${exportRange}`
-      const downloadWorkbook = mode === 'billing' ? downloadBillingWorkbook : downloadAgencyExcelWorkbook
-      downloadWorkbook({ title, clientReports, range: exportRange })
-
-      if (mode === 'billing') {
-        const downloadedAt = new Date().toISOString()
-        const nextHistory = { ...billingHistory }
-        selectedAccountIds.forEach((accountId) => {
-          nextHistory[accountId] = {
-            downloadedAt,
-            range: exportRange,
-            workbook: title
-          }
-        })
-        setBillingHistory(nextHistory)
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('pwpBillingExportHistory', JSON.stringify(nextHistory))
-        }
-      }
+      const title = exportName || `Agency performance ${exportRange}`
+      downloadAgencyExcelWorkbook({ title, clientReports, range: exportRange })
     } catch (err) {
       setError(err.message || 'Unable to generate agency Excel.')
     } finally {
       setExporting(false)
-    }
-  }
-
-  async function loadOfficialInvoices() {
-    try {
-      setInvoiceLoading(true)
-      setInvoiceError('')
-      setOfficialInvoices(null)
-      const params = new URLSearchParams({
-        action: 'official-invoices',
-        client: selectedBillingClientId || resolvedClients[0]?.id || 'rimiya',
-        range: exportRange,
-        accounts: selectedAccountIds.join(',')
-      })
-      const response = await fetch(`/api/dashboard?${params.toString()}`)
-      const payload = await response.json()
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Unable to load official invoices.')
-      }
-
-      setOfficialInvoices(payload)
-    } catch (err) {
-      setInvoiceError(err.message || 'Unable to load official invoices.')
-    } finally {
-      setInvoiceLoading(false)
-    }
-  }
-
-  function markOfficialInvoiceDownloaded(account, invoice) {
-    const accountKey = `${account.platform}:${account.clientId}:${account.accountId}`
-    const downloadedAt = new Date().toISOString()
-    const nextHistory = {
-      ...billingHistory,
-      [accountKey]: {
-        downloadedAt,
-        range: exportRange,
-        workbook: `Official invoice ${invoice.id || ''}`.trim()
-      }
-    }
-
-    setBillingHistory(nextHistory)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('pwpBillingExportHistory', JSON.stringify(nextHistory))
     }
   }
 
@@ -1562,15 +1587,13 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
           <div>
             <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
-              {mode === 'billing' ? 'BILLING' : 'AGENCY EXPORT'}
+              Agency export
             </div>
             <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
-              {mode === 'billing' ? 'Official invoices and spend backup' : 'All accounts workbook'}
+              All accounts workbook
             </h1>
             <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
-              {mode === 'billing'
-                ? 'Select one client, choose the accounts and date range, then pull real platform invoices where the platform allows it.'
-                : 'Select the exact accounts and date range before downloading agency-wide performance data.'}
+              Select the exact accounts and date range before downloading agency-wide performance data.
             </p>
           </div>
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
@@ -1580,27 +1603,6 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
 
         <div style={{ ...cardStyle(), padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px', alignItems: 'end' }}>
-            {mode === 'billing' ? (
-              <div>
-                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
-                  Client
-                </div>
-                <select
-                  value={selectedBillingClientId}
-                  onChange={(event) => {
-                    setSelectedBillingClientId(event.target.value)
-                    setSelectedAccountIds([])
-                  }}
-                  style={selectStyle()}
-                >
-                  {resolvedClients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
             <div>
               <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                 Workbook name
@@ -1634,123 +1636,15 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
                 disabled={exporting || loading || selectedAccountIds.length === 0}
                 style={buttonStyle(true)}
               >
-                {exporting ? 'Preparing...' : mode === 'billing' ? 'Download spend backup' : 'Download selected'}
+                {exporting ? 'Preparing...' : 'Download selected'}
               </button>
             </div>
           </div>
 
           <div style={{ marginTop: '10px', fontSize: '13px', color: COLORS.muted }}>
-            {selectedAccountIds.length} of {accountOptions.length} accounts selected
-            {mode === 'billing' ? '.' : ` across ${resolvedClients.length} clients.`}
+            {selectedAccountIds.length} of {accountOptions.length} accounts selected across {resolvedClients.length} clients.
           </div>
         </div>
-
-        {mode === 'billing' ? (
-          <div style={{ ...cardStyle(), padding: '16px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <div>
-                <h2 style={{ margin: 0, color: COLORS.green, fontSize: '20px' }}>Official platform invoices</h2>
-                <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px', lineHeight: 1.5 }}>
-                  Google Ads can return real invoice PDFs when monthly invoicing and billing access are enabled. Other platforms are shown as manual because their connected reporting APIs do not provide official invoice PDFs.
-                </p>
-              </div>
-              <button
-                onClick={loadOfficialInvoices}
-                disabled={invoiceLoading || loading || selectedAccountIds.length === 0}
-                style={buttonStyle(true)}
-              >
-                {invoiceLoading ? 'Loading invoices...' : 'Load official invoices'}
-              </button>
-            </div>
-
-            {invoiceError ? (
-              <div style={{ marginTop: '12px', color: COLORS.red, fontWeight: 800, fontSize: '13px' }}>
-                {invoiceError}
-              </div>
-            ) : null}
-
-            {officialInvoices ? (
-              <div style={{ display: 'grid', gap: '12px', marginTop: '14px' }}>
-                {(officialInvoices.accounts || []).map((account) => (
-                  <div key={`${account.platform}-${account.accountId}`} style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ color: COLORS.green, fontWeight: 900 }}>{account.platformLabel} · {account.accountName}</div>
-                        <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '3px' }}>
-                          {account.accountId} · {account.startDate || ''} to {account.endDate || ''}
-                        </div>
-                      </div>
-                      <div style={{ color: (account.invoices || []).length ? COLORS.green : COLORS.amberDeep, fontWeight: 900, fontSize: '13px' }}>
-                        {(account.invoices || []).length} invoice{(account.invoices || []).length === 1 ? '' : 's'}
-                      </div>
-                    </div>
-
-                    {account.error ? (
-                      <div style={{ marginTop: '10px', color: COLORS.amberDeep, fontSize: '13px', lineHeight: 1.5 }}>
-                        {account.error}
-                      </div>
-                    ) : null}
-
-                    {(account.errors || []).length ? (
-                      <details style={{ marginTop: '10px', color: COLORS.muted, fontSize: '12px' }}>
-                        <summary style={{ cursor: 'pointer', color: COLORS.amberDeep, fontWeight: 800 }}>Months without invoice access</summary>
-                        <div style={{ marginTop: '8px', lineHeight: 1.6 }}>
-                          {account.errors.slice(0, 8).map((item) => (
-                            <div key={item}>{item}</div>
-                          ))}
-                          {account.errors.length > 8 ? <div>More months were checked but did not return invoices.</div> : null}
-                        </div>
-                      </details>
-                    ) : null}
-
-                    {(account.invoices || []).length ? (
-                      <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
-                        {account.invoices.map((invoice) => (
-                          <div key={`${invoice.id}-${invoice.issueYear}-${invoice.issueMonth}`} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr auto', gap: '10px', alignItems: 'center', padding: '10px', background: COLORS.white, borderRadius: '10px', border: `1px solid ${COLORS.line}` }}>
-                            <div>
-                              <div style={{ color: COLORS.text, fontWeight: 900 }}>Invoice {invoice.id || invoice.issueMonth}</div>
-                              <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
-                                {invoice.issueMonth} {invoice.issueYear} · {invoice.serviceStartDate || 'service date'} to {invoice.serviceEndDate || ''}
-                              </div>
-                            </div>
-                            <div style={{ color: COLORS.green, fontWeight: 900 }}>
-                              {invoice.currencyCode || ''} {Number(invoice.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                            </div>
-                            <a
-                              href={invoice.downloadUrl}
-                              onClick={() => markOfficialInvoiceDownloaded(account, invoice)}
-                              style={{ ...buttonStyle(false), textDecoration: 'none', display: 'inline-block' }}
-                            >
-                              PDF
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    ) : !account.error ? (
-                      <EmptyState
-                        title="No official invoice found"
-                        text="This can happen when the selected month has not been issued yet, the account is not on monthly invoicing, or the connected Google user does not have billing access."
-                      />
-                    ) : null}
-                  </div>
-                ))}
-
-                {(officialInvoices.manualAccounts || []).length ? (
-                  <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: COLORS.softAmber }}>
-                    <div style={{ color: COLORS.green, fontWeight: 900, marginBottom: '8px' }}>Manual invoice download needed</div>
-                    <div style={{ display: 'grid', gap: '7px' }}>
-                      {officialInvoices.manualAccounts.map((account) => (
-                        <div key={`${account.platform}-${account.accountId}`} style={{ fontSize: '13px', color: COLORS.text }}>
-                          <strong>{account.platformLabel}</strong> · {account.accountName}: {account.note}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
 
         {error ? (
           <div style={{ ...cardStyle(), padding: '12px 14px', marginBottom: '14px', color: COLORS.red, fontWeight: 700 }}>
@@ -1791,13 +1685,6 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
                               <span style={{ display: 'block', color: COLORS.muted, fontSize: '12px', marginTop: '2px' }}>
                                 {account.accountId}
                               </span>
-                              {mode === 'billing' ? (
-                                <span style={{ display: 'block', color: COLORS.amberDeep, fontSize: '12px', marginTop: '4px', fontWeight: 800 }}>
-                                  {billingHistory[account.id]?.downloadedAt
-                                    ? `Last downloaded: ${new Date(billingHistory[account.id].downloadedAt).toLocaleDateString()}`
-                                    : 'Not downloaded yet'}
-                                </span>
-                              ) : null}
                             </span>
                           </label>
                         ))}
@@ -1809,6 +1696,364 @@ function AgencyExportView({ availableClients, setView, mode = 'agency' }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function CustomReportBuilder({ availableClients, setView }) {
+  const [resolvedClients, setResolvedClients] = useState(availableClients || [])
+  const [selectedClientId, setSelectedClientId] = useState(availableClients?.[0]?.id || 'rimiya')
+  const [reportRange, setReportRange] = useState('max')
+  const [reportTitle, setReportTitle] = useState('Custom client report')
+  const [reportData, setReportData] = useState(null)
+  const [selectedAccountIds, setSelectedAccountIds] = useState(null)
+  const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'impressions', 'clicks', 'ctr', 'conversions', 'cpa'])
+  const [selectedSections, setSelectedSections] = useState(['summary', 'funnel', 'trends', 'platforms', 'audience'])
+  const [insightText, setInsightText] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function ensureClients() {
+      if (Array.isArray(availableClients) && availableClients.length) {
+        setResolvedClients(availableClients)
+        if (!selectedClientId) setSelectedClientId(availableClients[0].id)
+        return
+      }
+
+      const response = await fetch('/api/dashboard?client=rimiya&platform=all&range=30d')
+      const payload = await response.json()
+      const clients = Array.isArray(payload?.availableClients) ? payload.availableClients : []
+      setResolvedClients(clients)
+      if (!selectedClientId && clients[0]?.id) setSelectedClientId(clients[0].id)
+    }
+
+    ensureClients().catch((err) => setError(err.message || 'Unable to load clients.'))
+  }, [availableClients, selectedClientId])
+
+  useEffect(() => {
+    async function loadReportData() {
+      try {
+        setLoading(true)
+        setError('')
+        const params = new URLSearchParams({
+          client: selectedClientId || 'rimiya',
+          platform: 'all',
+          range: reportRange
+        })
+
+        if (Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
+          params.set('accounts', selectedAccountIds.join(','))
+        }
+
+        const response = await fetch(`/api/dashboard?${params.toString()}`)
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Unable to load custom report data.')
+
+        setReportData(payload)
+        setInsightText(payload?.insights?.suggested || '')
+        if (selectedAccountIds === null) {
+          setSelectedAccountIds((payload.accountOptions || []).map((account) => account.id))
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load custom report.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (selectedClientId) loadReportData()
+  }, [selectedClientId, reportRange, selectedAccountIds])
+
+  const accountOptions = Array.isArray(reportData?.accountOptions) ? reportData.accountOptions : []
+  const selectedAccountSet = new Set(Array.isArray(selectedAccountIds) ? selectedAccountIds : accountOptions.map((account) => account.id))
+  const summaryCards = Array.isArray(reportData?.summaryCards) ? reportData.summaryCards : []
+  const campaignRows = Array.isArray(reportData?.campaignRows) ? reportData.campaignRows : []
+  const totalSpend = parseSarString(summaryCards.find((card) => card.label === 'Total Spend')?.value)
+  const totalImpressions = parseNumberString(summaryCards.find((card) => card.label === 'Impressions')?.value)
+  const totalClicks = parseNumberString(summaryCards.find((card) => card.label === 'Clicks')?.value)
+  const totalConversions = parseNumberString(summaryCards.find((card) => card.label === 'Conversions')?.value)
+  const dailyChartData = buildDailyChartData(reportData)
+  const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
+  const accountGroups = accountOptions.reduce((groups, account) => {
+    const key = account.platformLabel || account.platform
+    if (!groups[key]) groups[key] = []
+    groups[key].push(account)
+    return groups
+  }, {})
+
+  function toggleFromList(value, setter) {
+    setter((current) => {
+      const next = new Set(current)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      return Array.from(next)
+    })
+  }
+
+  function toggleAccount(accountId) {
+    setSelectedAccountIds((current) => {
+      const base = Array.isArray(current) ? current : accountOptions.map((account) => account.id)
+      const next = new Set(base)
+      if (next.has(accountId)) next.delete(accountId)
+      else next.add(accountId)
+      if (next.size === 0 && accountOptions.length > 0) return base
+      return Array.from(next)
+    })
+  }
+
+  function selectPlatformAccounts(platformName, checked) {
+    const platformAccountIds = (accountGroups[platformName] || []).map((account) => account.id)
+    setSelectedAccountIds((current) => {
+      const base = Array.isArray(current) ? current : accountOptions.map((account) => account.id)
+      const next = new Set(base)
+      platformAccountIds.forEach((id) => {
+        if (checked) next.add(id)
+        else next.delete(id)
+      })
+      if (next.size === 0 && accountOptions.length > 0) return base
+      return Array.from(next)
+    })
+  }
+
+  function exportExcel() {
+    if (!reportData) return
+    downloadCustomReportWorkbook({
+      title: reportTitle || `${reportData.client?.name || 'Client'} custom report`,
+      data: reportData,
+      selectedMetrics,
+      selectedSections,
+      accountOptions,
+      selectedAccountIds: Array.from(selectedAccountSet),
+      insightText
+    })
+  }
+
+  const showFunnel = selectedSections.includes('funnel') && ['impressions', 'clicks', 'conversions'].some((metric) => selectedMetrics.includes(metric))
+  const showTrends = selectedSections.includes('trends') && ['spend', 'conversions', 'cpa'].some((metric) => selectedMetrics.includes(metric))
+  const showPlatforms = selectedSections.includes('platforms')
+
+  return (
+    <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text, padding: '24px' }}>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          .print-report { box-shadow: none !important; }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: COLORS.green, fontWeight: 800, marginBottom: '6px' }}>
+              Custom report builder
+            </div>
+            <h1 style={{ margin: 0, color: COLORS.green, fontSize: '30px', fontWeight: 900 }}>
+              Build a client report
+            </h1>
+            <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
+              Select the client, channels, date range, metrics, and sections before exporting.
+            </p>
+          </div>
+          <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
+            Back to dashboard
+          </button>
+        </div>
+
+        <div className="no-print" style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
+          <div style={{ ...cardStyle(), padding: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px', alignItems: 'end' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Client</div>
+                <select
+                  value={selectedClientId}
+                  onChange={(event) => {
+                    setSelectedClientId(event.target.value)
+                    setSelectedAccountIds(null)
+                  }}
+                  style={selectStyle()}
+                >
+                  {resolvedClients.map((client) => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Date range</div>
+                <select value={reportRange} onChange={(event) => setReportRange(event.target.value)} style={selectStyle()}>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="max">Since promotion start</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Report name</div>
+                <input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} style={selectStyle()} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button onClick={() => window.print()} style={buttonStyle(true)}>Export PDF</button>
+                <button onClick={exportExcel} style={buttonStyle(false)}>Export Excel</button>
+              </div>
+            </div>
+          </div>
+
+          {error ? (
+            <div style={{ ...cardStyle(), padding: '12px 14px', color: COLORS.red, fontWeight: 800 }}>
+              {error}
+            </div>
+          ) : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '14px' }}>
+            <div style={{ ...cardStyle(), padding: '14px' }}>
+              <SectionTitle title="Channels and accounts" subtitle="Choose all channels or exact accounts." />
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {Object.entries(accountGroups).length ? Object.entries(accountGroups).map(([platformName, accounts]) => {
+                  const checkedCount = accounts.filter((account) => selectedAccountSet.has(account.id)).length
+                  return (
+                    <details key={platformName} open style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', overflow: 'hidden' }}>
+                      <summary style={{ padding: '10px 12px', color: COLORS.green, fontWeight: 900, cursor: 'pointer', background: '#FBFAF7' }}>
+                        {platformName} · {checkedCount}/{accounts.length}
+                      </summary>
+                      <div style={{ padding: '10px', display: 'grid', gap: '8px' }}>
+                        <label style={{ display: 'flex', gap: '8px', color: COLORS.text, fontSize: '13px', fontWeight: 800 }}>
+                          <input
+                            type="checkbox"
+                            checked={checkedCount === accounts.length}
+                            onChange={(event) => selectPlatformAccounts(platformName, event.target.checked)}
+                            style={{ accentColor: COLORS.green }}
+                          />
+                          Include all {platformName}
+                        </label>
+                        {accounts.map((account) => (
+                          <label key={account.id} style={{ display: 'flex', gap: '8px', color: COLORS.muted, fontSize: '13px' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedAccountSet.has(account.id)}
+                              onChange={() => toggleAccount(account.id)}
+                              style={{ accentColor: COLORS.green }}
+                            />
+                            {account.accountName} · {account.accountId}
+                          </label>
+                        ))}
+                      </div>
+                    </details>
+                  )
+                }) : (
+                  <EmptyState
+                    title="No connected accounts found"
+                    text="This client does not have selectable accounts for the current setup yet."
+                  />
+                )}
+              </div>
+            </div>
+
+            <div style={{ ...cardStyle(), padding: '14px' }}>
+              <SectionTitle title="Metrics and sections" subtitle="The preview changes based on what you choose." />
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '13px', marginBottom: '8px' }}>Metrics</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '7px' }}>
+                    {CUSTOM_REPORT_METRICS.map((metric) => (
+                      <label key={metric.id} style={{ display: 'flex', gap: '7px', fontSize: '13px', color: COLORS.text }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedMetrics.includes(metric.id)}
+                          onChange={() => toggleFromList(metric.id, setSelectedMetrics)}
+                          style={{ accentColor: COLORS.green }}
+                        />
+                        {metric.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '13px', marginBottom: '8px' }}>Report sections</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '7px' }}>
+                    {CUSTOM_REPORT_SECTIONS.map((section) => (
+                      <label key={section.id} style={{ display: 'flex', gap: '7px', fontSize: '13px', color: COLORS.text }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSections.includes(section.id)}
+                          onChange={() => toggleFromList(section.id, setSelectedSections)}
+                          style={{ accentColor: COLORS.green }}
+                        />
+                        {section.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ ...cardStyle(), padding: '18px', color: COLORS.muted }}>Loading custom report...</div>
+        ) : reportData ? (
+          <div className="print-report" style={{ display: 'grid', gap: '14px' }}>
+            <div style={{ ...cardStyle(), padding: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ marginBottom: '12px', maxWidth: '320px' }}>
+                    <BrandMark />
+                  </div>
+                  <h1 style={{ margin: 0, color: COLORS.green, fontSize: '30px', fontWeight: 900 }}>
+                    {reportTitle || `${reportData.client?.name} report`}
+                  </h1>
+                  <p style={{ margin: '6px 0 0', color: COLORS.muted, fontSize: '13px' }}>
+                    {reportData.client?.name} · {reportRange} · {selectedAccountSet.size} selected accounts
+                  </p>
+                </div>
+                <div style={{ color: COLORS.muted, fontSize: '12px', alignSelf: 'flex-start' }}>
+                  Generated {new Date().toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <DataConfidencePanel data={reportData} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '10px' }}>
+              {selectedMetrics.map((metricId) => {
+                const metric = CUSTOM_REPORT_METRICS.find((item) => item.id === metricId)
+                return (
+                  <MetricCard
+                    key={metricId}
+                    label={metric?.label || metricId}
+                    value={getSummaryValue(reportData, metricId)}
+                  />
+                )
+              })}
+            </div>
+
+            {selectedSections.includes('summary') ? (
+              <SummaryBlock
+                text={insightText}
+                onChange={setInsightText}
+                onReset={() => setInsightText(reportData?.insights?.suggested || '')}
+                onExport={() => window.print()}
+              />
+            ) : null}
+
+            {showFunnel ? <FunnelHero impressions={totalImpressions} clicks={totalClicks} conversions={totalConversions} /> : null}
+            {showTrends ? <TrendCharts daily={dailyChartData} targetCPA={targetCPA} /> : null}
+            {showPlatforms ? (
+              <PlatformContribution
+                rows={campaignRows}
+                totalSpend={totalSpend}
+                totalClicks={totalClicks}
+                totalConversions={totalConversions}
+              />
+            ) : null}
+            {selectedSections.includes('audience') ? <AudienceActionInsights data={reportData} /> : null}
+            {selectedSections.includes('advanced') ? <AdvancedTable rows={campaignRows} googleDiagnostics={reportData?.diagnostics?.google || null} /> : null}
+            <StatusBanner text={reportData?.insights?.nextAction || 'Review the strongest result source and scale carefully.'} />
+            <DashboardFooter />
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -1964,8 +2209,8 @@ export default function App() {
     return <AgencyExportView key="agency-export" availableClients={availableClients} setView={setView} />
   }
 
-  if (view === 'billing-export') {
-    return <AgencyExportView key="billing-export" availableClients={availableClients} setView={setView} mode="billing" />
+  if (view === 'custom-report') {
+    return <CustomReportBuilder key="custom-report" availableClients={availableClients} setView={setView} />
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -2127,7 +2372,7 @@ export default function App() {
                 Agency Excel
               </button>
               <button
-                onClick={() => setView('billing-export')}
+                onClick={() => setView('custom-report')}
                 style={{
                   ...buttonStyle(false),
                   background: 'transparent',
@@ -2135,7 +2380,7 @@ export default function App() {
                   border: '1px solid rgba(255,255,255,0.18)'
                 }}
               >
-                Billing export
+                Custom report
               </button>
             </div>
           </div>
@@ -2411,8 +2656,8 @@ export default function App() {
                   <button onClick={() => setView('agency-export')} style={buttonStyle(false)}>
                     Agency export
                   </button>
-                  <button onClick={() => setView('billing-export')} style={buttonStyle(false)}>
-                    Billing export
+                  <button onClick={() => setView('custom-report')} style={buttonStyle(false)}>
+                    Custom report
                   </button>
                 </div>
               </div>
