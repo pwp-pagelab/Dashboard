@@ -368,6 +368,7 @@ export async function buildDashboardPayload({
         status: 'pending',
         message: 'Waiting to load.',
         spend: 0,
+        reach: 0,
         impressions: 0,
         clicks: 0,
         conversions: 0,
@@ -386,6 +387,7 @@ export async function buildDashboardPayload({
       status,
       message,
       spend: Number(row?.spend || 0),
+      reach: Number(row?.reach || 0),
       impressions: Number(row?.impressions || 0),
       clicks: Number(row?.clicks || 0),
       conversions: Number(row?.conversions || 0),
@@ -793,6 +795,7 @@ export async function buildDashboardPayload({
   }
 
   const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
+  const totalReach = rows.reduce((sum, row) => sum + (row.reach || 0), 0)
   const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
   const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
   const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
@@ -885,6 +888,7 @@ export async function buildDashboardPayload({
         label: 'Total Spend',
         value: totalSpendText
       },
+      { label: 'Reach', value: totalReach > 0 ? totalReach.toLocaleString() : 'N/A' },
       { label: 'Impressions', value: totalImpressions.toLocaleString() },
       { label: 'Clicks', value: totalClicks.toLocaleString() },
       { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
@@ -895,6 +899,7 @@ export async function buildDashboardPayload({
       platform: row.platform,
       campaign: row.campaign,
       spend: `${row.currencyCode || 'SAR'} ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      reach: row.reach == null ? 'N/A' : Number(row.reach || 0).toLocaleString(),
       clicks: row.clicks.toLocaleString(),
       conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString(),
       conversionLabel: row.conversionLabel || null,

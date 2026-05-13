@@ -1163,6 +1163,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
 
 const CUSTOM_REPORT_METRICS = [
   { id: 'spend', label: 'Spend', summaryLabel: 'Total Spend' },
+  { id: 'reach', label: 'Reach', summaryLabel: 'Reach' },
   { id: 'impressions', label: 'Impressions', summaryLabel: 'Impressions' },
   { id: 'clicks', label: 'Clicks', summaryLabel: 'Clicks' },
   { id: 'ctr', label: 'CTR', summaryLabel: 'CTR' },
@@ -1176,6 +1177,7 @@ const CUSTOM_REPORT_SECTIONS = [
   { id: 'funnel', label: 'Funnel' },
   { id: 'trends', label: 'Trends' },
   { id: 'platforms', label: 'Platform contribution' },
+  { id: 'benchmarks', label: 'Benchmark indicators' },
   { id: 'audience', label: 'Audience and action insights' },
   { id: 'advanced', label: 'Detailed table' }
 ]
@@ -1192,6 +1194,100 @@ function getSummaryValue(data, metricId) {
 
   const metric = CUSTOM_REPORT_METRICS.find((item) => item.id === metricId)
   return metric?.summaryLabel ? byLabel(metric.summaryLabel) : ''
+}
+
+function getBenchmarkIndicators(data) {
+  const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
+  const byLabel = (label) => summaryCards.find((card) => card.label === label)?.value || ''
+  const spend = parseSarString(byLabel('Total Spend'))
+  const reach = parseNumberString(byLabel('Reach'))
+  const impressions = parseNumberString(byLabel('Impressions'))
+  const clicks = parseNumberString(byLabel('Clicks'))
+  const conversions = parseNumberString(byLabel('Conversions'))
+  const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0
+  const resultRate = clicks > 0 ? (conversions / clicks) * 100 : 0
+  const cpc = clicks > 0 ? spend / clicks : null
+  const cpa = conversions > 0 ? spend / conversions : null
+  const frequency = reach > 0 ? impressions / reach : null
+  const indicators = []
+
+  if (ctr >= 2) {
+    indicators.push({
+      label: 'CTR over target',
+      value: `${ctr.toFixed(2)}%`,
+      target: 'Target 2.00%+',
+      note: 'Creative and audience fit are generating stronger-than-benchmark engagement.'
+    })
+  }
+
+  if (resultRate >= 3) {
+    indicators.push({
+      label: 'Result rate over target',
+      value: `${resultRate.toFixed(2)}%`,
+      target: 'Target 3.00%+',
+      note: 'Traffic is turning into measurable action at a healthy rate.'
+    })
+  }
+
+  if (cpc != null && cpc <= 1) {
+    indicators.push({
+      label: 'Cost per click under target',
+      value: formatSar(cpc),
+      target: 'Target SAR 1.00 or lower',
+      note: 'The selected accounts are buying traffic efficiently.'
+    })
+  }
+
+  if (cpa != null && cpa <= 50) {
+    indicators.push({
+      label: 'Cost per result under target',
+      value: formatSar(cpa),
+      target: 'Target SAR 50.00 or lower',
+      note: 'Results are being generated at an efficient cost level.'
+    })
+  }
+
+  if (frequency != null && frequency > 0 && frequency <= 3) {
+    indicators.push({
+      label: 'Reach frequency healthy',
+      value: `${frequency.toFixed(2)}x`,
+      target: 'Target below 3.00x',
+      note: 'Reach is not being over-used, which gives room to scale without heavy fatigue.'
+    })
+  }
+
+  return indicators
+}
+
+function BenchmarkIndicators({ data }) {
+  const indicators = getBenchmarkIndicators(data)
+
+  return (
+    <div style={panelStyle()}>
+      <SectionTitle
+        title="Benchmark indicators"
+        subtitle="Positive signals when the selected metrics are beating target levels."
+      />
+
+      {indicators.length ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '10px' }}>
+          {indicators.map((indicator) => (
+            <div key={indicator.label} style={{ border: `1px solid ${COLORS.green}`, borderRadius: '10px', background: '#F5FAF7', padding: '12px' }}>
+              <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>{indicator.label}</div>
+              <div style={{ color: COLORS.green, fontSize: '24px', fontWeight: 900, marginTop: '6px' }}>{indicator.value}</div>
+              <div style={{ color: COLORS.amberDeep, fontSize: '12px', fontWeight: 800, marginTop: '4px' }}>{indicator.target}</div>
+              <div style={{ color: COLORS.muted, fontSize: '12px', lineHeight: 1.45, marginTop: '8px' }}>{indicator.note}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Benchmarks are ready"
+          text="No selected metric is above the current benchmark yet. This still gives a clear baseline for the next optimization period."
+        />
+      )}
+    </div>
+  )
 }
 
 function AudienceActionInsights({ data }) {
@@ -1283,16 +1379,28 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results', 'Result breakdown'],
+      ['Platform', 'Campaign or account', 'Spend', 'Reach', 'Clicks', 'Results', 'Result breakdown'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
         parseSarString(row.spend),
+        row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
         formatConversionBreakdown(row.conversionBreakdown)
       ])
     ]),
+    selectedSections.includes('benchmarks')
+      ? excelSheet('Benchmark indicators', [
+          ['Indicator', 'Value', 'Target', 'Note'],
+          ...getBenchmarkIndicators(data).map((indicator) => [
+            indicator.label,
+            indicator.value,
+            indicator.target,
+            indicator.note
+          ])
+        ])
+      : null,
     excelSheet('Daily trends', [
       ['Date', 'Spend', 'Results', 'Cost per result'],
       ...daily.map((row) => [
@@ -1312,7 +1420,7 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
         account.message
       ])
     ])
-  ])
+  ].filter(Boolean))
 }
 
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
@@ -1708,7 +1816,7 @@ function CustomReportBuilder({ availableClients, setView }) {
   const [reportTitle, setReportTitle] = useState('Custom client report')
   const [reportData, setReportData] = useState(null)
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
-  const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'impressions', 'clicks', 'ctr', 'conversions', 'cpa'])
+  const [selectedMetrics, setSelectedMetrics] = useState(['spend', 'reach', 'impressions', 'clicks', 'ctr', 'conversions', 'cpa'])
   const [selectedSections, setSelectedSections] = useState(['summary', 'funnel', 'trends', 'platforms', 'audience'])
   const [insightText, setInsightText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -2048,6 +2156,7 @@ function CustomReportBuilder({ availableClients, setView }) {
                 totalConversions={totalConversions}
               />
             ) : null}
+            {selectedSections.includes('benchmarks') ? <BenchmarkIndicators data={reportData} /> : null}
             {selectedSections.includes('audience') ? <AudienceActionInsights data={reportData} /> : null}
             {selectedSections.includes('advanced') ? <AdvancedTable rows={campaignRows} googleDiagnostics={reportData?.diagnostics?.google || null} /> : null}
             <StatusBanner text={reportData?.insights?.nextAction || 'Review the strongest result source and scale carefully.'} />
