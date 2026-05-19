@@ -342,7 +342,10 @@ export const clients = [
   {
     id: 'yamama-historical-meta',
     name: 'Yamama Company Historical Meta',
-    reportingStartDate: '2023-09-01',
+    reportingStartDate: '2020-01-01',
+    platformStartDates: {
+      meta: '2020-01-01'
+    },
     metaAccountId: '255716858458735',
     metaAccountName: 'Munerah Al-Nasser',
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
