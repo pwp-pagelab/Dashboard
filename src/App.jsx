@@ -381,10 +381,16 @@ function DataConfidencePanel({ data }) {
         </span>
       </div>
 
-      {quality.currencyWarning || quality.conversionWarning ? (
+      {quality.currencyWarning || quality.conversionWarning || quality.currencyConversionNotes?.length ? (
         <div style={{ display: 'grid', gap: '6px', marginTop: '10px' }}>
           {quality.currencyWarning ? (
             <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45 }}>{quality.currencyWarning}</div>
+          ) : null}
+          {Array.isArray(quality.currencyConversionNotes) && quality.currencyConversionNotes.length ? (
+            <div style={{ color: COLORS.muted, fontSize: '12px', lineHeight: 1.45 }}>
+              {quality.currencyConversionNotes.slice(0, 4).join(' ')}
+              {quality.currencyConversionNotes.length > 4 ? ' More conversion notes are included in the Excel export.' : ''}
+            </div>
           ) : null}
           {quality.conversionWarning ? (
             <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45 }}>{quality.conversionWarning}</div>
@@ -414,6 +420,11 @@ function DataConfidencePanel({ data }) {
                 <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '8px', lineHeight: 1.45 }}>
                   {account.message}
                 </div>
+                {account.spendNote ? (
+                  <div style={{ color: COLORS.amberDeep, fontSize: '12px', marginTop: '6px', lineHeight: 1.45 }}>
+                    {account.spendNote}
+                  </div>
+                ) : null}
                 {formatConversionBreakdown(account.conversionBreakdown) ? (
                   <div style={{ color: COLORS.green, fontSize: '12px', marginTop: '6px', lineHeight: 1.45, fontWeight: 800 }}>
                     {formatConversionBreakdown(account.conversionBreakdown)}
@@ -1051,17 +1062,21 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results'],
+      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Clicks', 'Results'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
         parseSarString(row.spend),
+        row.originalSpend || '',
+        row.originalCurrencyCode || 'SAR',
+        row.spendConversionRate || '',
+        row.spendNote || '',
         parseNumberString(row.clicks),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
       ])
     ]),
     excelSheet('Platform totals', [
-      ['Platform', 'Spend', 'Results'],
+      ['Platform', 'Spend SAR', 'Results'],
       ...Object.entries(platformSplit).map(([platformKey, value]) => [
         platformKey.replace(/_/g, ' '),
         parseSarString(value?.spend),
@@ -1069,7 +1084,7 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Daily trend', [
-      ['Date', 'Spend', 'Results', 'Cost per result'],
+      ['Date', 'Spend SAR', 'Results', 'Cost per result SAR'],
       ...dailyChartData.map((row) => [
         row.date,
         row.spend,
@@ -1093,10 +1108,10 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ['Client', 'Spend', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
   ]
 
-  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend', 'Reach', 'Impressions', 'Clicks', 'Results', 'Currency', 'Result type', 'Result breakdown']]
-  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Reach', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
-  const platformTotals = [['Client', 'Platform', 'Spend', 'Results']]
-  const dailyRows = [['Client', 'Date', 'Spend', 'Results', 'Cost per result']]
+  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
+  const platformTotals = [['Client', 'Platform', 'Spend SAR', 'Results']]
+  const dailyRows = [['Client', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
   const insightRows = [['Client', 'Insight', 'Next action']]
   const diagnosticRows = [['Client', 'Area', 'Detail']]
 
@@ -1131,11 +1146,14 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         status.status || '',
         status.message || '',
         Number(status.spend || 0),
+        Number(status.originalSpend || 0),
+        status.originalCurrencyCode || status.currencyCode || '',
+        status.spendConversionRate || '',
+        status.spendNote || '',
         Number(status.reach || 0),
         Number(status.impressions || 0),
         Number(status.clicks || 0),
         Number(status.conversions || 0),
-        status.currencyCode || '',
         status.conversionLabel || '',
         formatConversionBreakdown(status.conversionBreakdown)
       ])
@@ -1147,6 +1165,10 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         row.platform,
         row.campaign,
         parseSarString(row.spend),
+        row.originalSpend || '',
+        row.originalCurrencyCode || 'SAR',
+        row.spendConversionRate || '',
+        row.spendNote || '',
         row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
@@ -1492,11 +1514,15 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend', 'Reach', 'Clicks', 'Results', 'Result breakdown'],
+      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Results', 'Result breakdown'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
         parseSarString(row.spend),
+        row.originalSpend || '',
+        row.originalCurrencyCode || 'SAR',
+        row.spendConversionRate || '',
+        row.spendNote || '',
         row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
@@ -1515,7 +1541,7 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
         ])
       : null,
     excelSheet('Daily trends', [
-      ['Date', 'Spend', 'Results', 'Cost per result'],
+      ['Date', 'Spend SAR', 'Results', 'Cost per result SAR'],
       ...daily.map((row) => [
         row.date,
         row.spend,
@@ -1524,13 +1550,14 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
       ])
     ]),
     excelSheet('Data confidence', [
-      ['Account', 'Platform', 'Account ID', 'Status', 'Message'],
+      ['Account', 'Platform', 'Account ID', 'Status', 'Message', 'Spend note'],
       ...(data?.accountStatuses || []).map((account) => [
         account.accountName,
         account.platformLabel,
         account.accountId,
         account.status,
-        account.message
+        account.message,
+        account.spendNote || ''
       ])
     ])
   ].filter(Boolean))

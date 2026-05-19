@@ -6,6 +6,17 @@ import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 
 const REPORTING_START_DATE = '2026-01-01'
+const SAR_EXCHANGE_RATES = {
+  SAR: 1,
+  USD: Number(process.env.FX_USD_SAR || 3.75),
+  AED: Number(process.env.FX_AED_SAR || 1.021),
+  QAR: Number(process.env.FX_QAR_SAR || 1.03),
+  KWD: Number(process.env.FX_KWD_SAR || 12.2),
+  BHD: Number(process.env.FX_BHD_SAR || 9.95),
+  OMR: Number(process.env.FX_OMR_SAR || 9.74),
+  EUR: Number(process.env.FX_EUR_SAR || 4.1),
+  GBP: Number(process.env.FX_GBP_SAR || 4.8)
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -23,6 +34,66 @@ function dateOnly(date) {
 
 function formatSar(value) {
   return `SAR ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+function normalizeCurrencyCode(code) {
+  return String(code || 'SAR').trim().toUpperCase()
+}
+
+function formatCurrencyAmount(value, currencyCode) {
+  return `${normalizeCurrencyCode(currencyCode)} ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+function getSarRate(currencyCode) {
+  return SAR_EXCHANGE_RATES[normalizeCurrencyCode(currencyCode)] || null
+}
+
+function convertSpendToSar(spend, currencyCode) {
+  const originalCurrencyCode = normalizeCurrencyCode(currencyCode)
+  const originalSpend = Number(spend || 0)
+  const rate = getSarRate(originalCurrencyCode)
+
+  if (!rate) {
+    return {
+      spendSar: originalSpend,
+      originalSpend,
+      originalCurrencyCode,
+      spendConversionRate: null,
+      spendWasConverted: originalCurrencyCode !== 'SAR',
+      spendConversionUnsupported: originalCurrencyCode !== 'SAR'
+    }
+  }
+
+  return {
+    spendSar: originalSpend * rate,
+    originalSpend,
+    originalCurrencyCode,
+    spendConversionRate: rate,
+    spendWasConverted: originalCurrencyCode !== 'SAR',
+    spendConversionUnsupported: false
+  }
+}
+
+function convertRowSpendToSar(row) {
+  const conversion = convertSpendToSar(row?.spend || 0, row?.currencyCode || 'SAR')
+
+  return {
+    ...row,
+    ...conversion,
+    spend: conversion.spendSar,
+    currencyCode: 'SAR'
+  }
+}
+
+function buildSpendNote(item) {
+  if (!item?.spendWasConverted) return null
+  if (Number(item.originalSpend || 0) === 0) return null
+
+  if (!item.spendConversionRate) {
+    return `${item.originalCurrencyCode} spend is shown in SAR, but no conversion rate is configured yet.`
+  }
+
+  return `${formatCurrencyAmount(item.originalSpend, item.originalCurrencyCode)} converted to SAR at ${item.spendConversionRate}.`
 }
 
 function rangeLabel(range) {
@@ -265,7 +336,7 @@ function combineDailyTrends(rows) {
         conversions: 0
       }
 
-      existing.spend += Number(day.spend || 0)
+      existing.spend += Number(day.spend || 0) * (row.spendConversionRate || getSarRate(row.originalCurrencyCode || row.currencyCode) || 1)
       existing.conversions += Number(day.conversions || 0)
       dailyByDate.set(day.date, existing)
     })
@@ -794,29 +865,42 @@ export async function buildDashboardPayload({
     }
   }
 
-  const totalSpend = rows.reduce((sum, row) => sum + (row.spend || 0), 0)
-  const totalReach = rows.reduce((sum, row) => sum + (row.reach || 0), 0)
-  const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
-  const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
-  const totalConversions = rows.reduce((sum, row) => sum + (row.conversions || 0), 0)
+  const reportingRows = rows.map(convertRowSpendToSar)
+  const totalSpend = reportingRows.reduce((sum, row) => sum + (row.spend || 0), 0)
+  const totalReach = reportingRows.reduce((sum, row) => sum + (row.reach || 0), 0)
+  const totalImpressions = reportingRows.reduce((sum, row) => sum + (row.impressions || 0), 0)
+  const totalClicks = reportingRows.reduce((sum, row) => sum + (row.clicks || 0), 0)
+  const totalConversions = reportingRows.reduce((sum, row) => sum + (row.conversions || 0), 0)
   const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
-  const daily = combineDailyTrends(rows)
-  const activePlatformCount = new Set(rows.map((row) => row.platform)).size
-  const currencyCodes = Array.from(new Set(rows.map((row) => row.currencyCode || 'SAR').filter(Boolean)))
-  const primaryCurrency = currencyCodes.length === 1 ? currencyCodes[0] : 'Mixed'
-  const totalSpendText = primaryCurrency === 'SAR'
-    ? formatSar(totalSpend)
-    : `${primaryCurrency} ${Number(totalSpend || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+  const daily = combineDailyTrends(reportingRows)
+  const activePlatformCount = new Set(reportingRows.map((row) => row.platform)).size
+  const currencyCodes = Array.from(new Set(reportingRows.map((row) => row.originalCurrencyCode || 'SAR').filter(Boolean)))
+  const convertedCurrencyCodes = currencyCodes.filter((code) => code !== 'SAR')
+  const currencyConversionNotes = reportingRows
+    .filter((row) => row.spendWasConverted)
+    .map(buildSpendNote)
+    .filter(Boolean)
+  const totalSpendText = formatSar(totalSpend)
   const accountStatuses = Array.from(accountStatusMap.values()).map((status) => (
     status.status === 'pending'
       ? { ...status, status: 'not_requested', message: 'Not requested by the current platform filter.' }
       : status
-  ))
+  )).map((status) => {
+    const conversion = convertSpendToSar(status.spend, status.currencyCode || 'SAR')
+
+    return {
+      ...status,
+      ...conversion,
+      spend: conversion.spendSar,
+      currencyCode: 'SAR',
+      spendNote: buildSpendNote(conversion)
+    }
+  })
   const loadedAccountCount = accountStatuses.filter((status) => status.status === 'loaded').length
   const noDataAccountCount = accountStatuses.filter((status) => status.status === 'no_data').length
   const failedAccountCount = accountStatuses.filter((status) => status.status === 'error').length
-  const resultLabels = Array.from(new Set(rows.map((row) => row.conversionLabel).filter(Boolean)))
-  const platformSplit = rows.reduce((acc, row) => {
+  const resultLabels = Array.from(new Set(reportingRows.map((row) => row.conversionLabel).filter(Boolean)))
+  const platformSplit = reportingRows.reduce((acc, row) => {
     const key = row.platform.toLowerCase().replace(/\s+/g, '_')
     const existing = acc[key] || {
       spend: 0,
@@ -829,9 +913,9 @@ export async function buildDashboardPayload({
     return acc
   }, {})
 
-  const googleData = rows.find((row) => row.platform === 'Google Ads') || null
-  const metaData = rows.find((row) => row.platform === 'Meta') || null
-  const tiktokData = rows.find((row) => row.platform === 'TikTok') || null
+  const googleData = reportingRows.find((row) => row.platform === 'Google Ads') || null
+  const metaData = reportingRows.find((row) => row.platform === 'Meta') || null
+  const tiktokData = reportingRows.find((row) => row.platform === 'TikTok') || null
   const displayClient = {
     id: client.id,
     name: lockedAccount?.clientName || client.name
@@ -875,9 +959,11 @@ export async function buildDashboardPayload({
       noDataAccounts: noDataAccountCount,
       failedAccounts: failedAccountCount,
       currencyCodes,
-      currencyWarning: currencyCodes.length > 1
-        ? `Spend is coming from multiple account currencies (${currencyCodes.join(', ')}). Totals are shown as a blended reporting total until currency conversion is configured.`
+      currencyWarning: convertedCurrencyCodes.length
+        ? `Some ad accounts spent in ${convertedCurrencyCodes.join(', ')}. Spend totals are converted and shown in SAR.`
         : null,
+      exchangeRates: Object.fromEntries(convertedCurrencyCodes.map((code) => [code, getSarRate(code)])),
+      currencyConversionNotes: Array.from(new Set(currencyConversionNotes)),
       conversionLabels: resultLabels,
       conversionWarning: resultLabels.length > 1
         ? `Results combine different platform actions (${resultLabels.join(', ')}). Use this as a total action volume, not one identical conversion type.`
@@ -895,10 +981,14 @@ export async function buildDashboardPayload({
       { label: 'Results', value: totalConversions.toLocaleString() },
       { label: 'Platforms Active', value: activePlatformCount.toString() }
     ],
-    campaignRows: rows.map((row) => ({
+    campaignRows: reportingRows.map((row) => ({
       platform: row.platform,
       campaign: row.campaign,
-      spend: `${row.currencyCode || 'SAR'} ${row.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      spend: formatSar(row.spend),
+      originalSpend: row.spendWasConverted ? formatCurrencyAmount(row.originalSpend, row.originalCurrencyCode) : null,
+      originalCurrencyCode: row.originalCurrencyCode || 'SAR',
+      spendConversionRate: row.spendConversionRate || null,
+      spendNote: buildSpendNote(row),
       reach: row.reach == null ? 'N/A' : Number(row.reach || 0).toLocaleString(),
       clicks: row.clicks.toLocaleString(),
       conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString(),
@@ -909,7 +999,7 @@ export async function buildDashboardPayload({
       Object.entries(platformSplit).map(([key, value]) => [
         key,
         {
-          spend: `${primaryCurrency === 'Mixed' ? 'Mixed' : primaryCurrency} ${value.spend.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          spend: formatSar(value.spend),
           conversions: value.conversions.toLocaleString()
         }
       ])
@@ -982,7 +1072,7 @@ export async function buildDashboardPayload({
         totalImpressions,
         totalClicks,
         totalConversions,
-        rows,
+        rows: reportingRows,
         daily,
         spendTextOverride: totalSpendText
       }),
