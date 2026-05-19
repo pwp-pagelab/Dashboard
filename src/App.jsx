@@ -1105,7 +1105,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ['Generated at', generatedAt],
     ['Clients included', clientReports.length],
     [],
-    ['Client', 'Spend', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
+    ['Client', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
   ]
 
   const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
@@ -1113,6 +1113,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
   const platformTotals = [['Client', 'Platform', 'Spend SAR', 'Results']]
   const dailyRows = [['Client', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
   const insightRows = [['Client', 'Insight', 'Next action']]
+  const currencyRows = [['Client', 'Account or row', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note']]
   const diagnosticRows = [['Client', 'Area', 'Detail']]
 
   clientReports.forEach(({ client, payload }) => {
@@ -1123,6 +1124,9 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     const accounts = Array.isArray(payload.accountOptions) ? payload.accountOptions : []
     const statuses = Array.isArray(payload.accountStatuses) ? payload.accountStatuses : []
     const statusById = new Map(statuses.map((status) => [status.id, status]))
+    const accountExportRows = statuses.length
+      ? statuses
+      : accounts.map((account) => ({ ...account, ...(statusById.get(account.id) || {}) }))
     const clientName = payload.client?.name || client.name
 
     overviewRows.push([
@@ -1135,14 +1139,14 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
       parseNumberString(summaryCards.find((card) => card.label === 'Platforms Active')?.value)
     ])
 
-    accounts.forEach((account) => {
-      const status = statusById.get(account.id) || {}
+    accountExportRows.forEach((account) => {
+      const status = statusById.get(account.id) || account
       accountRows.push([
         clientName,
-        account.platformLabel,
-        account.accountName,
-        account.accountId,
-        account.clientName,
+        account.platformLabel || status.platformLabel || '',
+        account.accountName || status.accountName || '',
+        account.accountId || status.accountId || '',
+        account.clientName || status.clientName || '',
         status.status || '',
         status.message || '',
         Number(status.spend || 0),
@@ -1157,6 +1161,18 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         status.conversionLabel || '',
         formatConversionBreakdown(status.conversionBreakdown)
       ])
+
+      if (status.spendNote) {
+        currencyRows.push([
+          clientName,
+          account.accountName || status.accountName || account.accountId || status.accountId || '',
+          Number(status.spend || 0),
+          Number(status.originalSpend || 0),
+          status.originalCurrencyCode || status.currencyCode || '',
+          status.spendConversionRate || '',
+          status.spendNote
+        ])
+      }
     })
 
     campaigns.forEach((row) => {
@@ -1175,6 +1191,18 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         row.conversionLabel || '',
         formatConversionBreakdown(row.conversionBreakdown)
       ])
+
+      if (row.spendNote) {
+        currencyRows.push([
+          clientName,
+          row.campaign,
+          parseSarString(row.spend),
+          row.originalSpend || '',
+          row.originalCurrencyCode || 'SAR',
+          row.spendConversionRate || '',
+          row.spendNote
+        ])
+      }
     })
 
     Object.entries(platformSplit).forEach(([platformKey, value]) => {
@@ -1217,6 +1245,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     excelSheet('Platform rows', platformRows),
     excelSheet('Platform totals', platformTotals),
     excelSheet('Daily trends', dailyRows),
+    excelSheet('Currency notes', currencyRows),
     excelSheet('Insights', insightRows),
     excelSheet('Diagnostics', diagnosticRows)
   ])
