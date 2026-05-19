@@ -1085,19 +1085,20 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
 function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
   const generatedAt = new Date().toLocaleString()
   const overviewRows = [
-    ['Agency workbook', title],
+    ['Client account workbook', title],
     ['Date range', range],
     ['Generated at', generatedAt],
     ['Clients included', clientReports.length],
     [],
-    ['Client', 'Spend', 'Impressions', 'Clicks', 'Results', 'Platforms active']
+    ['Client', 'Spend', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
   ]
 
-  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group']]
-  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Clicks', 'Results']]
+  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend', 'Reach', 'Impressions', 'Clicks', 'Results', 'Currency', 'Result type', 'Result breakdown']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend', 'Reach', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
   const platformTotals = [['Client', 'Platform', 'Spend', 'Results']]
   const dailyRows = [['Client', 'Date', 'Spend', 'Results', 'Cost per result']]
   const insightRows = [['Client', 'Insight', 'Next action']]
+  const diagnosticRows = [['Client', 'Area', 'Detail']]
 
   clientReports.forEach(({ client, payload }) => {
     const summaryCards = Array.isArray(payload.summaryCards) ? payload.summaryCards : []
@@ -1105,10 +1106,14 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     const daily = buildDailyChartData(payload)
     const platformSplit = payload.platformSplit || {}
     const accounts = Array.isArray(payload.accountOptions) ? payload.accountOptions : []
+    const statuses = Array.isArray(payload.accountStatuses) ? payload.accountStatuses : []
+    const statusById = new Map(statuses.map((status) => [status.id, status]))
+    const clientName = payload.client?.name || client.name
 
     overviewRows.push([
-      payload.client?.name || client.name,
+      clientName,
       parseSarString(summaryCards.find((card) => card.label === 'Total Spend')?.value),
+      parseNumberString(getSummaryCardValue(summaryCards, 'Reach')),
       parseNumberString(summaryCards.find((card) => card.label === 'Impressions')?.value),
       parseNumberString(summaryCards.find((card) => card.label === 'Clicks')?.value),
       parseNumberString(getSummaryCardValue(summaryCards, 'Results')),
@@ -1116,29 +1121,43 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ])
 
     accounts.forEach((account) => {
+      const status = statusById.get(account.id) || {}
       accountRows.push([
-        payload.client?.name || client.name,
+        clientName,
         account.platformLabel,
         account.accountName,
         account.accountId,
-        account.clientName
+        account.clientName,
+        status.status || '',
+        status.message || '',
+        Number(status.spend || 0),
+        Number(status.reach || 0),
+        Number(status.impressions || 0),
+        Number(status.clicks || 0),
+        Number(status.conversions || 0),
+        status.currencyCode || '',
+        status.conversionLabel || '',
+        formatConversionBreakdown(status.conversionBreakdown)
       ])
     })
 
     campaigns.forEach((row) => {
       platformRows.push([
-        payload.client?.name || client.name,
+        clientName,
         row.platform,
         row.campaign,
         parseSarString(row.spend),
+        row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
-        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
+        row.conversionLabel || '',
+        formatConversionBreakdown(row.conversionBreakdown)
       ])
     })
 
     Object.entries(platformSplit).forEach(([platformKey, value]) => {
       platformTotals.push([
-        payload.client?.name || client.name,
+        clientName,
         platformKey.replace(/_/g, ' '),
         parseSarString(value?.spend),
         value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
@@ -1147,7 +1166,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
 
     daily.forEach((row) => {
       dailyRows.push([
-        payload.client?.name || client.name,
+        clientName,
         row.date,
         row.spend,
         row.conversions,
@@ -1156,10 +1175,18 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     })
 
     insightRows.push([
-      payload.client?.name || client.name,
+      clientName,
       payload.insights?.suggested || '',
       payload.insights?.nextAction || ''
     ])
+
+    Object.entries(payload.diagnostics || {}).forEach(([area, detail]) => {
+      diagnosticRows.push([
+        clientName,
+        area,
+        detail == null ? '' : JSON.stringify(detail)
+      ])
+    })
   })
 
   saveExcelWorkbook(title, [
@@ -1168,7 +1195,8 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     excelSheet('Platform rows', platformRows),
     excelSheet('Platform totals', platformTotals),
     excelSheet('Daily trends', dailyRows),
-    excelSheet('Insights', insightRows)
+    excelSheet('Insights', insightRows),
+    excelSheet('Diagnostics', diagnosticRows)
   ])
 }
 
@@ -1631,15 +1659,15 @@ function AgencyExportView({ availableClients, setView }) {
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
   const [resolvedClients, setResolvedClients] = useState(availableClients || [])
+  const [selectedClientId, setSelectedClientId] = useState(availableClients?.[0]?.id || 'rimiya')
   const [exportName, setExportName] = useState('Agency performance')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    async function loadAccounts() {
+    async function loadClients() {
       try {
-        setLoading(true)
         setError('')
         let clientsToLoad = Array.isArray(availableClients) ? availableClients : []
 
@@ -1650,50 +1678,61 @@ function AgencyExportView({ availableClients, setView }) {
         }
 
         setResolvedClients(clientsToLoad)
+        if (!selectedClientId && clientsToLoad[0]?.id) {
+          setSelectedClientId(clientsToLoad[0].id)
+        }
 
         if (!clientsToLoad.length) {
-          setClientPayloads([])
-          setSelectedAccountIds([])
           setError('No client list is available yet. Go back to the dashboard, wait for it to load, then open Agency Excel again.')
-          return
         }
-
-        const payloads = []
-
-        for (const agencyClient of clientsToLoad) {
-          const params = new URLSearchParams({
-            client: agencyClient.id,
-            platform: 'all',
-            range: exportRange
-          })
-          const response = await fetch(`/api/dashboard?${params.toString()}`)
-          const payload = await response.json()
-          if (response.ok) {
-            payloads.push({
-              client: agencyClient,
-              payload
-            })
-          }
-        }
-
-        setClientPayloads(payloads)
-        setSelectedAccountIds((current) => {
-          const nextIds = payloads.flatMap(({ payload }) =>
-            (payload.accountOptions || []).map((account) => account.id)
-          )
-          const currentSet = new Set(current)
-          const filtered = nextIds.filter((id) => currentSet.has(id))
-          return current.length ? filtered : nextIds
-        })
       } catch (err) {
-        setError(err.message || 'Unable to load agency accounts.')
-      } finally {
-        setLoading(false)
+        setError(err.message || 'Unable to load clients.')
       }
     }
 
-    loadAccounts()
-  }, [availableClients, exportRange])
+    loadClients()
+  }, [availableClients, selectedClientId])
+
+  useEffect(() => {
+    setClientPayloads([])
+    setSelectedAccountIds([])
+  }, [selectedClientId, exportRange])
+
+  async function loadSelectedClientAccounts() {
+    try {
+      setLoading(true)
+      setError('')
+      const selectedClient = resolvedClients.find((client) => client.id === selectedClientId) || resolvedClients[0]
+
+      if (!selectedClient) {
+        setError('Select a client first, then load the export file.')
+        return
+      }
+
+      const params = new URLSearchParams({
+        client: selectedClient.id,
+        platform: 'all',
+        range: exportRange
+      })
+      const response = await fetch(`/api/dashboard?${params.toString()}`)
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Unable to load client account details.')
+      }
+
+      const loaded = [{ client: selectedClient, payload }]
+      setClientPayloads(loaded)
+      setSelectedAccountIds((payload.accountOptions || []).map((account) => account.id))
+      setExportName(`${payload.client?.name || selectedClient.name} performance export`)
+    } catch (err) {
+      setClientPayloads([])
+      setSelectedAccountIds([])
+      setError(err.message || 'Unable to load client account details.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const accountOptions = clientPayloads.flatMap(({ payload }) => payload.accountOptions || [])
   const selectedSet = new Set(selectedAccountIds)
@@ -1783,10 +1822,10 @@ function AgencyExportView({ availableClients, setView }) {
               Agency export
             </div>
             <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: COLORS.green }}>
-              All accounts workbook
+              Client account workbook
             </h1>
             <p style={{ marginTop: '6px', color: COLORS.muted, fontSize: '13px' }}>
-              Select the exact accounts and date range before downloading agency-wide performance data.
+              Select one client, load the connected ad accounts, then download all available details.
             </p>
           </div>
           <button onClick={() => setView('dashboard')} style={buttonStyle(false)}>
@@ -1796,6 +1835,20 @@ function AgencyExportView({ availableClients, setView }) {
 
         <div style={{ ...cardStyle(), padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px', alignItems: 'end' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
+                Client
+              </div>
+              <select
+                value={selectedClientId}
+                onChange={(event) => setSelectedClientId(event.target.value)}
+                style={selectStyle()}
+              >
+                {resolvedClients.map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                 Workbook name
@@ -1818,6 +1871,9 @@ function AgencyExportView({ availableClients, setView }) {
               </select>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button onClick={loadSelectedClientAccounts} disabled={loading || !selectedClientId} style={buttonStyle(true)}>
+                {loading ? 'Loading...' : 'Load file'}
+              </button>
               <button onClick={selectAllAccounts} style={buttonStyle(false)}>
                 Select all
               </button>
@@ -1835,7 +1891,9 @@ function AgencyExportView({ availableClients, setView }) {
           </div>
 
           <div style={{ marginTop: '10px', fontSize: '13px', color: COLORS.muted }}>
-            {selectedAccountIds.length} of {accountOptions.length} accounts selected across {resolvedClients.length} clients.
+            {clientPayloads.length
+              ? `${selectedAccountIds.length} of ${accountOptions.length} accounts selected for ${clientPayloads[0]?.payload?.client?.name || clientPayloads[0]?.client?.name || 'the selected client'}.`
+              : 'Choose a client and click Load file before downloading.'}
           </div>
         </div>
 
@@ -1847,8 +1905,13 @@ function AgencyExportView({ availableClients, setView }) {
 
         {loading ? (
           <div style={{ ...cardStyle(), padding: '18px', color: COLORS.muted }}>
-            Loading accounts...
+            Loading account details...
           </div>
+        ) : clientPayloads.length === 0 ? (
+          <EmptyState
+            title="No client loaded yet"
+            text="Select a client and date range, then click Load file to prepare the export."
+          />
         ) : (
           <div style={{ display: 'grid', gap: '12px' }}>
             {groupedByClient.map(({ client, platformGroups }) => (
