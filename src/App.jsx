@@ -345,6 +345,17 @@ function formatConversionBreakdown(breakdown) {
     .join(' · ')
 }
 
+function objectEntries(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+  return Object.entries(value)
+}
+
+function stringifyDetail(value) {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  return JSON.stringify(value)
+}
+
 function getSummaryCardValue(summaryCards, label) {
   const cards = Array.isArray(summaryCards) ? summaryCards : []
   const direct = cards.find((card) => card.label === label)?.value
@@ -1114,6 +1125,15 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
   const dailyRows = [['Client', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
   const insightRows = [['Client', 'Insight', 'Next action']]
   const currencyRows = [['Client', 'Account or row', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note']]
+  const detailRows = [['Client', 'Platform', 'Account or campaign', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'CTR', 'CPC SAR', 'Results', 'Result type', 'Original currency']]
+  const actionRows = [['Client', 'Platform', 'Account or campaign', 'Action', 'Value']]
+  const rawMetricRows = [['Client', 'Platform', 'Account or campaign', 'Metric', 'Value']]
+  const accountDailyRows = [['Client', 'Platform', 'Account or campaign', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
+  const tiktokChunkRows = [['Client', 'Account or campaign', 'Start date', 'End date', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'CTR', 'CPC SAR', 'Results']]
+  const googleKeywordRows = [['Client', 'Account or campaign', 'Keyword', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR', 'Quality score']]
+  const googleSearchTermRows = [['Client', 'Account or campaign', 'Search term', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR']]
+  const googleVisibilityRows = [['Client', 'Account or campaign', 'Metric', 'Value']]
+  const audienceRows = [['Client', 'Platform', 'Account or campaign', 'Audience breakdown', 'Value', 'Note']]
   const diagnosticRows = [['Client', 'Area', 'Detail']]
 
   clientReports.forEach(({ client, payload }) => {
@@ -1121,6 +1141,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     const campaigns = Array.isArray(payload.campaignRows) ? payload.campaignRows : []
     const daily = buildDailyChartData(payload)
     const platformSplit = payload.platformSplit || {}
+    const exportRows = Array.isArray(payload.exportRows) ? payload.exportRows : []
     const accounts = Array.isArray(payload.accountOptions) ? payload.accountOptions : []
     const statuses = Array.isArray(payload.accountStatuses) ? payload.accountStatuses : []
     const statusById = new Map(statuses.map((status) => [status.id, status]))
@@ -1205,6 +1226,139 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
       }
     })
 
+    exportRows.forEach((row) => {
+      detailRows.push([
+        clientName,
+        row.platform,
+        row.accountName,
+        Number(row.spendSar || 0),
+        row.reach == null ? '' : Number(row.reach || 0),
+        Number(row.impressions || 0),
+        Number(row.clicks || 0),
+        Number(row.ctr || 0),
+        Number(row.cpcSar || 0),
+        Number(row.results || 0),
+        row.resultType || '',
+        row.originalCurrencyCode || 'SAR'
+      ])
+
+      objectEntries(row.resultBreakdown).forEach(([action, value]) => {
+        actionRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          action,
+          Number(value || 0)
+        ])
+      })
+
+      objectEntries(row.rawMetrics).forEach(([metric, value]) => {
+        if (metric === 'actions' && Array.isArray(value)) {
+          value.forEach((action) => {
+            actionRows.push([
+              clientName,
+              row.platform,
+              row.accountName,
+              action.action_type || '',
+              Number(action.value || 0)
+            ])
+          })
+          return
+        }
+
+        rawMetricRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          metric,
+          stringifyDetail(value)
+        ])
+      })
+
+      const spendRate = Number(row.spendConversionRate || 1)
+      ;(row.daily || []).forEach((day) => {
+        const spendSar = Number(day.spend || 0) * spendRate
+        const results = Number(day.conversions || 0)
+        accountDailyRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          day.date || '',
+          spendSar,
+          results,
+          results > 0 ? spendSar / results : ''
+        ])
+      })
+
+      ;(row.tiktok?.chunks || []).forEach((chunk) => {
+        const metrics = chunk.metrics || {}
+        tiktokChunkRows.push([
+          clientName,
+          row.accountName,
+          chunk.start_date || '',
+          chunk.end_date || '',
+          Number(metrics.spend || 0) * spendRate,
+          Number(metrics.reach || 0),
+          Number(metrics.impressions || 0),
+          Number(metrics.clicks || 0),
+          Number(metrics.ctr || 0),
+          Number(metrics.cpc || 0) * spendRate,
+          Number(metrics.conversion || 0)
+        ])
+      })
+
+      ;(row.google?.tables?.keywords || []).forEach((keyword) => {
+        googleKeywordRows.push([
+          clientName,
+          row.accountName,
+          keyword.keyword || keyword.text || '',
+          Number(keyword.spend || keyword.cost || 0),
+          Number(keyword.impressions || 0),
+          Number(keyword.clicks || 0),
+          Number(keyword.ctr || 0),
+          Number(keyword.avgCpc || keyword.averageCpc || 0),
+          Number(keyword.conversions || 0),
+          Number(keyword.cpa || keyword.costPerConversion || 0),
+          keyword.qualityScore ?? ''
+        ])
+      })
+
+      ;(row.google?.tables?.searchTerms || []).forEach((term) => {
+        googleSearchTermRows.push([
+          clientName,
+          row.accountName,
+          term.searchTerm || term.search_term || '',
+          Number(term.spend || term.cost || 0),
+          Number(term.impressions || 0),
+          Number(term.clicks || 0),
+          Number(term.ctr || 0),
+          Number(term.avgCpc || term.averageCpc || (Number(term.clicks || 0) > 0 ? Number(term.cost || 0) / Number(term.clicks || 0) : 0)),
+          Number(term.conversions || 0),
+          Number(term.cpa || term.costPerConversion || 0)
+        ])
+      })
+
+      objectEntries(row.google?.visibility).forEach(([metric, value]) => {
+        googleVisibilityRows.push([
+          clientName,
+          row.accountName,
+          metric,
+          value == null ? '' : value
+        ])
+      })
+    })
+
+    if (!exportRows.some((row) => row.audienceBreakdown)) {
+      audienceRows.push([
+        clientName,
+        'All',
+        payload.client?.name || client.name,
+        '',
+        '',
+        'Audience age, gender, location, placement, and interest breakdowns are not returned by the current platform reporting calls yet.'
+      ])
+    }
+
     Object.entries(platformSplit).forEach(([platformKey, value]) => {
       platformTotals.push([
         clientName,
@@ -1245,6 +1399,15 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     excelSheet('Platform rows', platformRows),
     excelSheet('Platform totals', platformTotals),
     excelSheet('Daily trends', dailyRows),
+    excelSheet('Account daily details', accountDailyRows),
+    excelSheet('Detailed metrics', detailRows),
+    excelSheet('Action breakdown', actionRows),
+    excelSheet('Raw metrics', rawMetricRows),
+    excelSheet('TikTok chunks', tiktokChunkRows),
+    excelSheet('Google keywords', googleKeywordRows),
+    excelSheet('Google search terms', googleSearchTermRows),
+    excelSheet('Google visibility', googleVisibilityRows),
+    excelSheet('Audience breakdown', audienceRows),
     excelSheet('Currency notes', currencyRows),
     excelSheet('Insights', insightRows),
     excelSheet('Diagnostics', diagnosticRows)

@@ -96,6 +96,57 @@ function buildSpendNote(item) {
   return `${formatCurrencyAmount(item.originalSpend, item.originalCurrencyCode)} converted to SAR at ${item.spendConversionRate}.`
 }
 
+function buildExportRow(row) {
+  const rawMetrics =
+    row.metaRawMetrics ||
+    row.tiktokRawMetrics ||
+    row.snapshot ||
+    null
+
+  return {
+    platform: row.platform,
+    accountName: row.campaign,
+    spendSar: Number(row.spend || 0),
+    originalSpend: row.originalSpend,
+    originalCurrencyCode: row.originalCurrencyCode || 'SAR',
+    spendConversionRate: row.spendConversionRate || null,
+    spendNote: buildSpendNote(row),
+    reach: row.reach == null ? null : Number(row.reach || 0),
+    impressions: Number(row.impressions || 0),
+    clicks: Number(row.clicks || 0),
+    ctr: Number(row.ctr || 0),
+    cpcSar: Number(row.cpc || 0) * (row.spendConversionRate || 1),
+    results: Number(row.conversions || 0),
+    resultType: row.conversionLabel || null,
+    resultBreakdown: row.conversionBreakdown || null,
+    rawMetrics,
+    daily: row.daily || [],
+    meta: row.platform === 'Meta'
+      ? {
+          accountId: row.metaAccountId || null,
+          accountName: row.metaAccountName || null,
+          businessKey: row.metaBusinessKeyUsed || null,
+          dateRange: row.metaDateRange || null
+        }
+      : null,
+    tiktok: row.platform === 'TikTok'
+      ? {
+          advertiserId: row.tiktokAdvertiserId || null,
+          dateRange: row.tiktokDateRange || null,
+          chunks: row.tiktokChunks || []
+        }
+      : null,
+    google: row.platform === 'Google Ads'
+      ? {
+          visibility: row.visibility || null,
+          keywordHealth: row.keywordHealth || null,
+          tables: row.tables || null,
+          interpretation: row.interpretation || null
+        }
+      : null
+  }
+}
+
 function rangeLabel(range) {
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
@@ -995,6 +1046,7 @@ export async function buildDashboardPayload({
       conversionLabel: row.conversionLabel || null,
       conversionBreakdown: row.conversionBreakdown || null
     })),
+    exportRows: publicMode ? [] : reportingRows.map(buildExportRow),
     platformSplit: Object.fromEntries(
       Object.entries(platformSplit).map(([key, value]) => [
         key,
