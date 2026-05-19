@@ -199,6 +199,7 @@ export const clients = [
       'yfc',
       'yfc-pwp',
       'test-yfc',
+      'yamama-historical-meta',
       'nc-red-bricks'
     ],
     metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
@@ -334,6 +335,22 @@ export const clients = [
       meta: { enabled: true },
       google: { enabled: false },
       tiktok: { enabled: true },
+      snapchat: { enabled: false },
+      linkedin: { enabled: false }
+    }
+  },
+  {
+    id: 'yamama-historical-meta',
+    name: 'Yamama Company Historical Meta',
+    reportingStartDate: '2023-09-01',
+    metaAccountId: '255716858458735',
+    metaAccountName: 'Munerah Al-Nasser',
+    metaBusinessKeys: ['YAMAMA_COMPANY', 'POSTWITHPASSION'],
+    metaMatch: { type: 'includes', value: 'munerah' },
+    platforms: {
+      meta: { enabled: true },
+      google: { enabled: false },
+      tiktok: { enabled: false },
       snapchat: { enabled: false },
       linkedin: { enabled: false }
     }
