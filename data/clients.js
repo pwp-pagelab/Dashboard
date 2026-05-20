@@ -215,7 +215,11 @@ export const clients = [
   {
     id: 'yamm',
     name: 'Yamm',
-    reportingStartDate: '2026-01-01',
+    reportingStartDate: '2023-09-01',
+    platformStartDates: {
+      meta: '2023-09-01',
+      tiktok: '2023-09-01'
+    },
     tiktokAdvertiserId: '7459712999889240080',
     metaAccountId: '1272102320454403',
     metaAccountName: 'Yamm AC#1',

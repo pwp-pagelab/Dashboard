@@ -1,5 +1,6 @@
 import { clients } from '../data/clients.js'
 import { getAllMetaAdAccounts } from '../lib/metaAccounts.js'
+import { buildDashboardPayload } from './dashboard.js'
 
 const PLATFORM_FIELDS = {
   meta: {
@@ -74,7 +75,9 @@ function buildAccountAudit() {
       name: client.name,
       reportingStartDate: client.reportingStartDate || '2026-01-01',
       checks,
-      needsConfirmation: platforms.filter((platform) => checks[platform].status !== 'connected_exact_id')
+      needsConfirmation: platforms.filter((platform) =>
+        checks[platform].enabled && checks[platform].status !== 'connected_exact_id'
+      )
     }
   })
 
@@ -437,6 +440,73 @@ async function buildLiveDiscoveryAudit() {
   }
 }
 
+function getReportingAuditClients(queryClient) {
+  if (!queryClient || queryClient === 'all') return clients
+  const requested = String(queryClient)
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  return clients.filter((client) => requested.includes(client.id))
+}
+
+async function buildReportingAudit({ client: queryClient = 'all', range = 'max' } = {}) {
+  const auditClients = getReportingAuditClients(queryClient)
+  const results = []
+
+  for (const client of auditClients) {
+    try {
+      const payload = await buildDashboardPayload({
+        clientId: client.id,
+        platformFilter: 'all',
+        range,
+        publicMode: false
+      })
+
+      const statuses = Array.isArray(payload.accountStatuses) ? payload.accountStatuses : []
+      const summaryCards = Array.isArray(payload.summaryCards) ? payload.summaryCards : []
+      results.push({
+        id: client.id,
+        name: client.name,
+        reportingStartDate: client.reportingStartDate || null,
+        platforms: payload.availablePlatforms || [],
+        totalSpend: summaryCards.find((card) => card.label === 'Total Spend')?.value || null,
+        impressions: summaryCards.find((card) => card.label === 'Impressions')?.value || null,
+        clicks: summaryCards.find((card) => card.label === 'Clicks')?.value || null,
+        results: summaryCards.find((card) => card.label === 'Results')?.value || null,
+        accountStatuses: statuses.map((status) => ({
+          platform: status.platformLabel,
+          accountName: status.accountName,
+          accountId: status.accountId,
+          status: status.status,
+          message: status.message,
+          spend: status.spend,
+          impressions: status.impressions,
+          clicks: status.clicks,
+          results: status.conversions
+        })),
+        platformErrors: payload.diagnostics?.platformErrors || [],
+        needsAttention: statuses.filter((status) => status.status !== 'loaded')
+      })
+    } catch (error) {
+      results.push({
+        id: client.id,
+        name: client.name,
+        error: error.message || 'Unable to audit reporting.'
+      })
+    }
+  }
+
+  return {
+    ok: true,
+    type: 'reporting-audit',
+    generatedAt: new Date().toISOString(),
+    range,
+    clientsChecked: results.length,
+    clientsWithAttention: results.filter((result) => result.error || result.needsAttention?.length).length,
+    results
+  }
+}
+
 export default async function handler(req, res) {
   if (req.query.audit === 'accounts') {
     return res.status(200).json(buildAccountAudit())
@@ -444,6 +514,13 @@ export default async function handler(req, res) {
 
   if (req.query.audit === 'live-accounts') {
     return res.status(200).json(await buildLiveDiscoveryAudit())
+  }
+
+  if (req.query.audit === 'reporting') {
+    return res.status(200).json(await buildReportingAudit({
+      client: req.query.client || 'all',
+      range: req.query.range || 'max'
+    }))
   }
 
   res.status(200).json({
