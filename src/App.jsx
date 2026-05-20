@@ -1119,17 +1119,18 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ['Client', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
   ]
 
-  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
-  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Results', 'Result type', 'Result breakdown']]
+  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'Results', 'Result type', 'Result breakdown']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Engagements', 'Video views', 'Results', 'Result type', 'Result breakdown']]
   const platformTotals = [['Client', 'Platform', 'Spend SAR', 'Results']]
   const dailyRows = [['Client', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
   const insightRows = [['Client', 'Insight', 'Next action']]
   const currencyRows = [['Client', 'Account or row', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note']]
-  const detailRows = [['Client', 'Platform', 'Account or campaign', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'CTR', 'CPC SAR', 'Results', 'Result type', 'Original currency']]
+  const detailRows = [['Client', 'Platform', 'Account or campaign', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Results', 'Result type', 'Original currency']]
   const actionRows = [['Client', 'Platform', 'Account or campaign', 'Action', 'Value']]
+  const engagementRows = [['Client', 'Platform', 'Account or campaign', 'Engagement metric', 'Value']]
   const rawMetricRows = [['Client', 'Platform', 'Account or campaign', 'Metric', 'Value']]
   const accountDailyRows = [['Client', 'Platform', 'Account or campaign', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
-  const tiktokChunkRows = [['Client', 'Account or campaign', 'Start date', 'End date', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'CTR', 'CPC SAR', 'Results']]
+  const tiktokChunkRows = [['Client', 'Account or campaign', 'Start date', 'End date', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Results']]
   const googleKeywordRows = [['Client', 'Account or campaign', 'Keyword', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR', 'Quality score']]
   const googleSearchTermRows = [['Client', 'Account or campaign', 'Search term', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR']]
   const googleVisibilityRows = [['Client', 'Account or campaign', 'Metric', 'Value']]
@@ -1178,6 +1179,8 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         Number(status.reach || 0),
         Number(status.impressions || 0),
         Number(status.clicks || 0),
+        Number(status.engagements || 0),
+        Number(status.videoViews || 0),
         Number(status.conversions || 0),
         status.conversionLabel || '',
         formatConversionBreakdown(status.conversionBreakdown)
@@ -1208,6 +1211,8 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         row.spendNote || '',
         row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
+        parseNumberString(row.engagements),
+        parseNumberString(row.videoViews),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
         row.conversionLabel || '',
         formatConversionBreakdown(row.conversionBreakdown)
@@ -1235,6 +1240,8 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
         row.reach == null ? '' : Number(row.reach || 0),
         Number(row.impressions || 0),
         Number(row.clicks || 0),
+        Number(row.engagements || 0),
+        Number(row.videoViews || 0),
         Number(row.ctr || 0),
         Number(row.cpcSar || 0),
         Number(row.results || 0),
@@ -1251,6 +1258,36 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
           Number(value || 0)
         ])
       })
+
+      objectEntries(row.engagementBreakdown).forEach(([metric, value]) => {
+        engagementRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          metric,
+          Number(value || 0)
+        ])
+      })
+
+      if (Number(row.engagements || 0) > 0 && !objectEntries(row.engagementBreakdown).length) {
+        engagementRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          'engagements',
+          Number(row.engagements || 0)
+        ])
+      }
+
+      if (Number(row.videoViews || 0) > 0 && !objectEntries(row.engagementBreakdown).some(([metric]) => metric === 'videoViews')) {
+        engagementRows.push([
+          clientName,
+          row.platform,
+          row.accountName,
+          'videoViews',
+          Number(row.videoViews || 0)
+        ])
+      }
 
       objectEntries(row.rawMetrics).forEach(([metric, value]) => {
         if (metric === 'actions' && Array.isArray(value)) {
@@ -1301,6 +1338,8 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
           Number(metrics.reach || 0),
           Number(metrics.impressions || 0),
           Number(metrics.clicks || 0),
+          Number(metrics.engagements || 0),
+          Number(metrics.video_play_actions || 0),
           Number(metrics.ctr || 0),
           Number(metrics.cpc || 0) * spendRate,
           Number(metrics.conversion || 0)
@@ -1402,6 +1441,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     excelSheet('Account daily details', accountDailyRows),
     excelSheet('Detailed metrics', detailRows),
     excelSheet('Action breakdown', actionRows),
+    excelSheet('Engagement and video', engagementRows),
     excelSheet('Raw metrics', rawMetricRows),
     excelSheet('TikTok chunks', tiktokChunkRows),
     excelSheet('Google keywords', googleKeywordRows),
@@ -1419,6 +1459,8 @@ const CUSTOM_REPORT_METRICS = [
   { id: 'reach', label: 'Reach', summaryLabel: 'Reach' },
   { id: 'impressions', label: 'Impressions', summaryLabel: 'Impressions' },
   { id: 'clicks', label: 'Clicks', summaryLabel: 'Clicks' },
+  { id: 'engagements', label: 'Engagements' },
+  { id: 'videoViews', label: 'Video views' },
   { id: 'ctr', label: 'CTR', summaryLabel: 'CTR' },
   { id: 'conversions', label: 'Results', summaryLabel: 'Results' },
   { id: 'cpc', label: 'Cost per click' },
@@ -1518,6 +1560,12 @@ function getSummaryValue(data, metricId) {
 
   if (metricId === 'cpc') return clicks > 0 ? formatSar(spend / clicks) : 'N/A'
   if (metricId === 'cpa') return conversions > 0 ? formatSar(spend / conversions) : 'N/A'
+  if (metricId === 'engagements') {
+    return (data?.exportRows || []).reduce((sum, row) => sum + Number(row.engagements || 0), 0).toLocaleString()
+  }
+  if (metricId === 'videoViews') {
+    return (data?.exportRows || []).reduce((sum, row) => sum + Number(row.videoViews || 0), 0).toLocaleString()
+  }
 
   const metric = CUSTOM_REPORT_METRICS.find((item) => item.id === metricId)
   return metric?.summaryLabel ? byLabel(metric.summaryLabel) : ''
