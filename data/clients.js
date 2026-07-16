@@ -218,18 +218,21 @@ export const clients = [
     reportingStartDate: '2023-09-01',
     platformStartDates: {
       meta: '2023-09-01',
-      tiktok: '2023-09-01'
+      tiktok: '2023-09-01',
+      snapchat: '2023-09-01',
+      google: '2023-09-01'
     },
     tiktokAdvertiserId: '7459712999889240080',
     metaAccountId: '1272102320454403',
     metaAccountName: 'Yamm AC#1',
     metaBusinessKeys: ['YAMM_SA', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'yamm' },
+    snapMatch: { type: 'includes', value: 'yamm' },
     platforms: {
       meta: { enabled: true },
-      google: { enabled: false },
+      google: { enabled: true },
       tiktok: { enabled: true },
-      snapchat: { enabled: false },
+      snapchat: { enabled: true },
       linkedin: { enabled: false }
     }
   },

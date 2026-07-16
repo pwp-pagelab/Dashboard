@@ -764,7 +764,13 @@ export async function buildDashboardPayload({
   } else if (!hasSelectedAccounts && !lockedAccount && (effectivePlatformFilter === 'all' || effectivePlatformFilter === 'google')) {
     for (const groupClient of clientGroup) {
       if (!groupClient.platforms.google?.enabled) continue
-      if (isGroupedClient && !groupClient.googleCustomerId) continue
+      if (!groupClient.googleCustomerId) {
+        platformErrors.push({
+          platform: 'google',
+          error: `${groupClient.name} has Google Ads enabled, but no Google customer ID is configured yet.`
+        })
+        continue
+      }
       const rangeConfig = getRangeConfig(range, groupClient, 'google')
       const accountOption = findAccountOption({
         platform: 'google',
