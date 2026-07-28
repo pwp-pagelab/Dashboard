@@ -103,13 +103,14 @@ export const clients = [
     reportingStartDate: '2026-01-01',
     linkedinAccountId: '518897967',
     tiktokAdvertiserId: '7436708078663401488',
+    googleCustomerId: '695-433-3013',
     metaAccountId: '1818955255489938',
     metaAccountName: 'Dar Alosrah',
     metaBusinessKeys: ['DAR_ALOSRAH', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'dar alosrah' },
     platforms: {
       meta: { enabled: true },
-      google: { enabled: false },
+      google: { enabled: true },
       tiktok: { enabled: true },
       snapchat: { enabled: false },
       linkedin: { enabled: true }
