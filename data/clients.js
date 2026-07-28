@@ -102,6 +102,7 @@ export const clients = [
     name: 'Dar Alosrah',
     reportingStartDate: '2026-01-01',
     linkedinAccountId: '518897967',
+    tiktokAdvertiserId: '7436708078663401488',
     metaAccountId: '1818955255489938',
     metaAccountName: 'Dar Alosrah',
     metaBusinessKeys: ['DAR_ALOSRAH', 'POSTWITHPASSION'],
@@ -109,7 +110,7 @@ export const clients = [
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
-      tiktok: { enabled: false },
+      tiktok: { enabled: true },
       snapchat: { enabled: false },
       linkedin: { enabled: true }
     }
