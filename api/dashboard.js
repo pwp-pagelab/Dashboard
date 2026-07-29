@@ -4,6 +4,7 @@ import { getGoogleAdsData } from '../lib/googleAds.js'
 import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
+import { getLeadBreakdown } from '../lib/leads.js'
 
 const REPORTING_START_DATE = '2026-01-01'
 const SAR_EXCHANGE_RATES = {
@@ -102,6 +103,7 @@ function buildExportRow(row) {
     row.tiktokRawMetrics ||
     row.snapshot ||
     null
+  const leadBreakdown = getLeadBreakdown(row)
 
   return {
     platform: row.platform,
@@ -118,7 +120,12 @@ function buildExportRow(row) {
     videoViews: Number(row.videoViews || row.engagementBreakdown?.videoViews || 0),
     ctr: Number(row.ctr || 0),
     cpcSar: Number(row.cpc || 0) * (row.spendConversionRate || 1),
-    results: Number(row.conversions || 0),
+    results: leadBreakdown.totalLeads,
+    platformResults: Number(row.conversions || 0),
+    leads: leadBreakdown.totalLeads,
+    formSubmissions: leadBreakdown.formSubmissions,
+    directMessages: leadBreakdown.directMessages,
+    leadBreakdown,
     resultType: row.conversionLabel || null,
     resultBreakdown: row.conversionBreakdown || null,
     engagementBreakdown: row.engagementBreakdown || null,
@@ -360,7 +367,8 @@ function hasReportingActivity(row) {
     Number(row.spend || 0) > 0 ||
     Number(row.impressions || 0) > 0 ||
     Number(row.clicks || 0) > 0 ||
-    Number(row.conversions || 0) > 0
+    Number(row.conversions || 0) > 0 ||
+    getLeadBreakdown(row).totalLeads > 0
   )
 }
 
@@ -387,11 +395,15 @@ function combineDailyTrends(rows) {
       const existing = dailyByDate.get(day.date) || {
         date: day.date,
         spend: 0,
-        conversions: 0
+        conversions: 0,
+        formSubmissions: 0,
+        directMessages: 0
       }
 
       existing.spend += Number(day.spend || 0) * (row.spendConversionRate || getSarRate(row.originalCurrencyCode || row.currencyCode) || 1)
-      existing.conversions += Number(day.conversions || 0)
+      existing.formSubmissions += Number(day.formSubmissions || 0)
+      existing.directMessages += Number(day.directMessages || 0)
+      existing.conversions += Number(day.totalLeads ?? day.conversions ?? 0)
       dailyByDate.set(day.date, existing)
     })
   })
@@ -404,14 +416,14 @@ function combineDailyTrends(rows) {
     }))
 }
 
-function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, totalClicks, totalConversions, rows, daily, spendTextOverride = null }) {
+function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, totalClicks, totalConversions: totalLeads, rows, daily, spendTextOverride = null }) {
   const clientName = client?.name || 'this client'
   const spendText = spendTextOverride || formatSar(totalSpend)
   const impressionText = totalImpressions.toLocaleString()
   const clickText = totalClicks.toLocaleString()
-  const resultText = totalConversions.toLocaleString()
+  const leadText = totalLeads.toLocaleString()
   const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
-  const clickToResult = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
+  const clickToLead = totalClicks > 0 ? (totalLeads / totalClicks) * 100 : 0
   const activePlatforms = rows.map((row) => row.platform).join(', ') || 'the active platforms'
   const hasDaily = daily.length > 1
   const firstDay = hasDaily ? daily[0] : null
@@ -425,14 +437,14 @@ function buildSuggestedInsight({ client, range, totalSpend, totalImpressions, to
     return `${clientName} generated ${impressionText} impressions ${periodPhrase(range)}, creating a useful visibility base on ${activePlatforms}. The next positive step is to test stronger creative hooks and calls to action so more of this reach turns into visits.`
   }
 
-  if (totalConversions === 0) {
-    return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. This shows people are engaging; the next positive step is to review the landing page and result tracking so the existing traffic has a clearer path to become leads, messages, purchases, or other useful actions. ${spendDirection}.`
+  if (totalLeads === 0) {
+    return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions with ${clickText} clicks at a ${ctr.toFixed(2)}% click-through rate. No completed form submissions or new direct-message conversations were reported, so the next step is to verify lead tracking and improve the enquiry path. ${spendDirection}.`
   }
 
-  return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${resultText} results. The funnel is producing measurable action, with a ${clickToResult.toFixed(2)}% click-to-result rate; the next positive step is to identify the strongest platform contribution and scale from that base.`
+  return `${clientName} spent ${spendText} ${periodPhrase(range)} and generated ${impressionText} impressions, ${clickText} clicks, and ${leadText} leads from completed forms or new direct-message conversations. The click-to-lead rate is ${clickToLead.toFixed(2)}%; the next step is to identify the strongest lead source and scale from that base.`
 }
 
-function buildNextAction({ totalImpressions, totalClicks, totalConversions, totalSpend }) {
+function buildNextAction({ totalImpressions, totalClicks, totalConversions: totalLeads, totalSpend }) {
   if (totalImpressions === 0 && totalSpend === 0) {
     return 'Ready to build momentum. Next step: connect active campaign data.'
   }
@@ -441,12 +453,12 @@ function buildNextAction({ totalImpressions, totalClicks, totalConversions, tota
     return 'Building visibility. Next step: improve click-through with stronger creative hooks.'
   }
 
-  if (totalConversions === 0 && totalClicks > 0) {
-    return 'Positive engagement detected. Next step: improve the result path.'
+  if (totalLeads === 0 && totalClicks > 0) {
+    return 'Traffic is arriving, but no form or message leads are recorded. Verify lead tracking and the enquiry path.'
   }
 
-  if (totalConversions > 0) {
-    return 'Results are coming in. Next step: scale the strongest platform.'
+  if (totalLeads > 0) {
+    return 'Leads are coming in. Next step: scale the strongest form or messaging source.'
   }
 
   return 'Healthy momentum. Next step: keep optimizing efficiency.'
@@ -499,6 +511,7 @@ export async function buildDashboardPayload({
         engagements: 0,
         videoViews: 0,
         conversions: 0,
+        leadBreakdown: null,
         currencyCode: null,
         conversionLabel: null,
         conversionBreakdown: null
@@ -509,6 +522,7 @@ export async function buildDashboardPayload({
   function markAccountStatus(option, status, message, row = null) {
     if (!option?.id || !accountStatusMap.has(option.id)) return
 
+    const leadBreakdown = getLeadBreakdown(row)
     accountStatusMap.set(option.id, {
       ...accountStatusMap.get(option.id),
       status,
@@ -519,7 +533,9 @@ export async function buildDashboardPayload({
       clicks: Number(row?.clicks || 0),
       engagements: Number(row?.engagements || row?.engagementBreakdown?.totalEngagements || 0),
       videoViews: Number(row?.videoViews || row?.engagementBreakdown?.videoViews || 0),
-      conversions: Number(row?.conversions || 0),
+      conversions: leadBreakdown.totalLeads,
+      platformResults: Number(row?.conversions || 0),
+      leadBreakdown,
       currencyCode: row?.currencyCode || null,
       conversionLabel: row?.conversionLabel || null,
       conversionBreakdown: row?.conversionBreakdown || null
@@ -934,7 +950,16 @@ export async function buildDashboardPayload({
   const totalReach = reportingRows.reduce((sum, row) => sum + (row.reach || 0), 0)
   const totalImpressions = reportingRows.reduce((sum, row) => sum + (row.impressions || 0), 0)
   const totalClicks = reportingRows.reduce((sum, row) => sum + (row.clicks || 0), 0)
-  const totalConversions = reportingRows.reduce((sum, row) => sum + (row.conversions || 0), 0)
+  const totalPlatformResults = reportingRows.reduce((sum, row) => sum + (row.conversions || 0), 0)
+  const totalFormSubmissions = reportingRows.reduce(
+    (sum, row) => sum + getLeadBreakdown(row).formSubmissions,
+    0
+  )
+  const totalDirectMessages = reportingRows.reduce(
+    (sum, row) => sum + getLeadBreakdown(row).directMessages,
+    0
+  )
+  const totalLeads = totalFormSubmissions + totalDirectMessages
   const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const daily = combineDailyTrends(reportingRows)
   const activePlatformCount = new Set(reportingRows.map((row) => row.platform)).size
@@ -968,11 +993,15 @@ export async function buildDashboardPayload({
     const key = row.platform.toLowerCase().replace(/\s+/g, '_')
     const existing = acc[key] || {
       spend: 0,
-      conversions: 0
+      conversions: 0,
+      formSubmissions: 0,
+      directMessages: 0
     }
 
     existing.spend += Number(row.spend || 0)
-    existing.conversions += Number(row.conversions || 0)
+    existing.conversions += getLeadBreakdown(row).totalLeads
+    existing.formSubmissions += getLeadBreakdown(row).formSubmissions
+    existing.directMessages += getLeadBreakdown(row).directMessages
     acc[key] = existing
     return acc
   }, {})
@@ -1029,9 +1058,9 @@ export async function buildDashboardPayload({
       exchangeRates: Object.fromEntries(convertedCurrencyCodes.map((code) => [code, getSarRate(code)])),
       currencyConversionNotes: Array.from(new Set(currencyConversionNotes)),
       conversionLabels: resultLabels,
-      conversionWarning: resultLabels.length > 1
-        ? `Results combine different platform actions (${resultLabels.join(', ')}). Use this as a total action volume, not one identical conversion type.`
-        : null
+      conversionWarning: 'Leads include only completed form submissions and new direct-message conversations reported by the selected platforms. Clicks and other conversion actions are excluded.',
+      leadDefinition: 'completed_form_or_new_direct_message',
+      totalPlatformResults
     },
     summaryCards: [
       {
@@ -1042,32 +1071,56 @@ export async function buildDashboardPayload({
       { label: 'Impressions', value: totalImpressions.toLocaleString() },
       { label: 'Clicks', value: totalClicks.toLocaleString() },
       { label: 'CTR', value: `${blendedCtr.toFixed(2)}%` },
-      { label: 'Results', value: totalConversions.toLocaleString() },
+      { label: 'Leads', value: totalLeads.toLocaleString() },
+      { label: 'Form Submissions', value: totalFormSubmissions.toLocaleString() },
+      { label: 'Direct Messages', value: totalDirectMessages.toLocaleString() },
+      {
+        label: 'Cost per Lead',
+        value: totalLeads > 0 ? formatSar(totalSpend / totalLeads) : 'N/A'
+      },
+      {
+        label: 'Lead Rate',
+        value: `${(totalClicks > 0 ? (totalLeads / totalClicks) * 100 : 0).toFixed(2)}%`
+      },
       { label: 'Platforms Active', value: activePlatformCount.toString() }
     ],
-    campaignRows: reportingRows.map((row) => ({
-      platform: row.platform,
-      campaign: row.campaign,
-      spend: formatSar(row.spend),
-      originalSpend: row.spendWasConverted ? formatCurrencyAmount(row.originalSpend, row.originalCurrencyCode) : null,
-      originalCurrencyCode: row.originalCurrencyCode || 'SAR',
-      spendConversionRate: row.spendConversionRate || null,
-      spendNote: buildSpendNote(row),
-      reach: row.reach == null ? 'N/A' : Number(row.reach || 0).toLocaleString(),
-      engagements: Number(row.engagements || row.engagementBreakdown?.totalEngagements || 0).toLocaleString(),
-      videoViews: Number(row.videoViews || row.engagementBreakdown?.videoViews || 0).toLocaleString(),
-      clicks: row.clicks.toLocaleString(),
-      conversions: row.conversions == null ? 'N/A' : row.conversions.toLocaleString(),
-      conversionLabel: row.conversionLabel || null,
-      conversionBreakdown: row.conversionBreakdown || null
-    })),
+    campaignRows: reportingRows.map((row) => {
+      const leadBreakdown = getLeadBreakdown(row)
+      return {
+        platform: row.platform,
+        campaign: row.campaign,
+        spend: formatSar(row.spend),
+        originalSpend: row.spendWasConverted ? formatCurrencyAmount(row.originalSpend, row.originalCurrencyCode) : null,
+        originalCurrencyCode: row.originalCurrencyCode || 'SAR',
+        spendConversionRate: row.spendConversionRate || null,
+        spendNote: buildSpendNote(row),
+        reach: row.reach == null ? 'N/A' : Number(row.reach || 0).toLocaleString(),
+        engagements: Number(row.engagements || row.engagementBreakdown?.totalEngagements || 0).toLocaleString(),
+        videoViews: Number(row.videoViews || row.engagementBreakdown?.videoViews || 0).toLocaleString(),
+        clicks: row.clicks.toLocaleString(),
+        conversions: leadBreakdown.totalLeads.toLocaleString(),
+        leads: leadBreakdown.totalLeads.toLocaleString(),
+        formSubmissions: leadBreakdown.formSubmissions.toLocaleString(),
+        directMessages: leadBreakdown.directMessages.toLocaleString(),
+        platformResults: Number(row.conversions || 0).toLocaleString(),
+        conversionLabel: 'Leads (forms + messages)',
+        conversionBreakdown: {
+          leads: leadBreakdown.formSubmissions,
+          messagingConversations: leadBreakdown.directMessages
+        },
+        leadBreakdown
+      }
+    }),
     exportRows: publicMode ? [] : reportingRows.map(buildExportRow),
     platformSplit: Object.fromEntries(
       Object.entries(platformSplit).map(([key, value]) => [
         key,
         {
           spend: formatSar(value.spend),
-          conversions: value.conversions.toLocaleString()
+          conversions: value.conversions.toLocaleString(),
+          leads: value.conversions.toLocaleString(),
+          formSubmissions: value.formSubmissions.toLocaleString(),
+          directMessages: value.directMessages.toLocaleString()
         }
       ])
     ),
@@ -1138,7 +1191,7 @@ export async function buildDashboardPayload({
         totalSpend,
         totalImpressions,
         totalClicks,
-        totalConversions,
+        totalConversions: totalLeads,
         rows: reportingRows,
         daily,
         spendTextOverride: totalSpendText
@@ -1146,7 +1199,7 @@ export async function buildDashboardPayload({
       nextAction: buildNextAction({
         totalImpressions,
         totalClicks,
-        totalConversions,
+        totalConversions: totalLeads,
         totalSpend
       })
     }
