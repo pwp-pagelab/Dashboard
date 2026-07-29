@@ -1821,6 +1821,13 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
+  const leadSummaryCards = summaryCards.filter((card) => [
+    'Leads',
+    'Form Submissions',
+    'Direct Messages',
+    'Cost per Lead',
+    'Lead Rate'
+  ].includes(card.label))
   const dailyChartData = buildDailyChartData(data)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
@@ -3206,6 +3213,26 @@ export default function App() {
                 </div>
               </div>
             ) : null}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+                gap: '10px',
+                marginBottom: '14px'
+              }}
+            >
+              {leadSummaryCards.map((card) => (
+                <div key={card.label} style={{ ...cardStyle(), padding: '14px' }}>
+                  <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>
+                    {metricLabel(card.label)}
+                  </div>
+                  <div style={{ color: COLORS.green, fontSize: '25px', fontWeight: 900, marginTop: '7px' }}>
+                    {card.value}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
               <SummaryBlock
