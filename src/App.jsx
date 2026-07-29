@@ -1821,13 +1821,6 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
-  const leadSummaryCards = summaryCards.filter((card) => [
-    'Leads',
-    'Form Submissions',
-    'Direct Messages',
-    'Cost per Lead',
-    'Lead Rate'
-  ].includes(card.label))
   const dailyChartData = buildDailyChartData(data)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
@@ -2772,6 +2765,13 @@ export default function App() {
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
+  const leadSummaryCards = summaryCards.filter((card) => [
+    'Leads',
+    'Form Submissions',
+    'Direct Messages',
+    'Cost per Lead',
+    'Lead Rate'
+  ].includes(card.label))
 
   const summaryText = insightsText || buildClientSummary({
     totalSpend,
