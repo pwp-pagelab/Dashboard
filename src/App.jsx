@@ -272,18 +272,23 @@ const METRIC_LABELS = {
   Impressions: 'Impressions (الظهور)',
   Clicks: 'Clicks (النقرات)',
   CTR: 'CTR (معدل النقر)',
-  Results: 'Results (النتائج)',
-  Conversions: 'Results (النتائج)',
+  Results: 'Leads (العملاء المحتملون)',
+  Conversions: 'Leads (العملاء المحتملون)',
+  Leads: 'Leads (العملاء المحتملون)',
+  'Form Submissions': 'Form submissions (إرسال النماذج)',
+  'Direct Messages': 'Direct messages (الرسائل المباشرة)',
+  'Cost per Lead': 'Cost per lead (تكلفة العميل المحتمل)',
+  'Lead Rate': 'Lead rate (معدل العملاء المحتملين)',
   'Platforms Active': 'Platforms active (المنصات النشطة)',
   Spend: 'Spend (الإنفاق)',
-  CPA: 'Cost per result (تكلفة النتيجة)',
+  CPA: 'Cost per lead (تكلفة العميل المحتمل)',
   CPC: 'CPC (تكلفة النقرة)',
   Platform: 'Platform',
   Campaign: 'Campaign',
   'Spend share': 'Spend share (حصة الإنفاق)',
   'Click share': 'Click share (حصة النقرات)',
-  'Conversion share': 'Result share (حصة النتائج)',
-  'Result share': 'Result share (حصة النتائج)'
+  'Conversion share': 'Lead share (حصة العملاء المحتملين)',
+  'Result share': 'Lead share (حصة العملاء المحتملين)'
 }
 
 function metricLabel(label) {
@@ -295,7 +300,7 @@ function StatusBanner({ text }) {
     <div style={panelStyle()}>
       <SectionTitle
         title="Next action"
-        subtitle="Recommended focus based on the current results."
+        subtitle="Recommended focus based on confirmed form submissions and direct messages."
       />
       <div
         style={{
@@ -332,8 +337,8 @@ function formatConversionBreakdown(breakdown) {
   if (!breakdown || typeof breakdown !== 'object') return ''
 
   const labels = [
-    ['leads', 'Leads'],
-    ['messagingConversations', 'Messaging conversations'],
+    ['leads', 'Form submissions'],
+    ['messagingConversations', 'Direct messages'],
     ['purchases', 'Purchases'],
     ['registrations', 'Registrations']
   ]
@@ -360,8 +365,16 @@ function getSummaryCardValue(summaryCards, label) {
   const cards = Array.isArray(summaryCards) ? summaryCards : []
   const direct = cards.find((card) => card.label === label)?.value
   if (direct != null) return direct
-  if (label === 'Results') return cards.find((card) => card.label === 'Conversions')?.value || ''
-  if (label === 'Conversions') return cards.find((card) => card.label === 'Results')?.value || ''
+  if (label === 'Results') {
+    return cards.find((card) => card.label === 'Conversions')?.value ||
+      cards.find((card) => card.label === 'Leads')?.value ||
+      ''
+  }
+  if (label === 'Conversions') {
+    return cards.find((card) => card.label === 'Results')?.value ||
+      cards.find((card) => card.label === 'Leads')?.value ||
+      ''
+  }
   return ''
 }
 
@@ -497,7 +510,7 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
       value: conversions.toLocaleString(),
       width: Math.max(resultOfClicks, conversions > 0 ? 4 : 0),
       color: COLORS.greenLight,
-      topRight: `${percent(resultOfImpressions)} of impressions · Click-to-result ${percent(resultOfClicks)}`
+      topRight: `${percent(resultOfImpressions)} of impressions · Click-to-lead ${percent(resultOfClicks)}`
     }
   ]
 
@@ -650,13 +663,13 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
     >
       <div style={panelStyle()}>
         <SectionTitle
-          title="Spend vs. results over time"
-          subtitle="Green bars for spend, amber line for daily results."
+          title="Spend vs. leads over time"
+          subtitle="Green bars for spend, amber line for completed forms and new conversations."
         />
         {!hasDaily ? (
           <EmptyState
             title="Daily trend will appear once reporting returns dates"
-            text="The dashboard still shows the period totals above. When the platform sends day-by-day results, this chart will show how spend and results moved over time."
+            text="The dashboard still shows the period totals above. When the platform sends daily lead data, this chart will show how spend and leads moved over time."
           />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
@@ -696,18 +709,18 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
 
       <div style={panelStyle()}>
         <SectionTitle
-          title="Cost per result trend"
+          title="Cost per lead trend"
           subtitle="Trending down is good."
         />
         {!hasDaily ? (
           <EmptyState
-            title="Cost trend will appear with daily reporting"
-            text="The dashboard still shows the overall performance story. Once daily data is available, this chart will show whether efficiency is improving over time."
+            title="Lead-cost trend will appear with daily reporting"
+            text="Once daily lead data is available, this chart will show whether form and messaging efficiency is improving."
           />
         ) : !daily.some((row) => row.cpa != null) ? (
           <EmptyState
-            title="Cost per result will appear after results"
-            text="Current activity is creating reach and clicks. Once results are recorded, this chart will show the cost trend and make optimization easier to track."
+            title="Cost per lead will appear after the first lead"
+            text="Current activity is creating reach and clicks. Once a completed form or new conversation is recorded, this chart will show lead-cost trends."
           />
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
@@ -798,13 +811,13 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
     <div style={panelStyle()}>
       <SectionTitle
         title="Platform contribution"
-        subtitle="How each platform contributes to spend, clicks, and results."
+        subtitle="How each platform contributes to spend, clicks, and form or message leads."
       />
 
       {platforms.length === 0 ? (
         <EmptyState
-          title="Platform contribution will appear when results are available"
-          text="When platform data is returned, this section will show how spend, clicks, and results are split across each channel."
+          title="Platform contribution will appear when lead data is available"
+          text="This section will show how spend, clicks, and leads are split across each channel."
         />
       ) : (
         <div style={{ width: '100%', height: compact ? 190 : 280 }}>
@@ -900,7 +913,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
                 <td colSpan="7" style={{ padding: '18px 8px' }}>
                   <EmptyState
                     title="Advanced table will appear when platform rows are available"
-                    text="Once campaign or platform results are returned, this optional view will list spend, clicks, CTR, CPC, results, and cost per result in one place."
+                    text="Once lead data is returned, this optional view will list spend, clicks, CTR, CPC, leads, and cost per lead in one place."
                   />
                 </td>
               </tr>
@@ -927,7 +940,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
               .filter((row) => formatConversionBreakdown(row.conversionBreakdown))
               .map((row, index) => (
                 <div key={`${row.platform}-breakdown-${index}`} style={{ color: COLORS.muted, fontSize: '13px', lineHeight: 1.5 }}>
-                  <strong style={{ color: COLORS.green }}>{row.platform} result breakdown:</strong>{' '}
+                  <strong style={{ color: COLORS.green }}>{row.platform} lead breakdown:</strong>{' '}
                   {formatConversionBreakdown(row.conversionBreakdown)}
                 </div>
               ))}
@@ -952,10 +965,10 @@ function buildClientSummary({ totalSpend, totalImpressions, totalClicks, totalCo
       return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to review budget coverage so more eligible demand can be captured.`
     }
 
-    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks. The next positive step is to confirm result tracking and make the post-click path easier before scaling spend.`
+    return `This period, ${spendText} was spent to generate ${impressionText} impressions and ${clicksText} clicks, but no completed forms or new direct messages were recorded. Confirm lead tracking before scaling spend.`
   }
 
-  return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} results. Performance is producing measurable action, and the next step is to compare efficiency against target benchmarks before scaling.`
+  return `This period, ${spendText} was spent to generate ${impressionText} impressions, ${clicksText} clicks, and ${totalConversions.toLocaleString()} leads from completed forms or new direct messages. Compare cost per lead against the target before scaling.`
 }
 
 function buildDailyChartData(data, totalSpend, totalConversions) {
@@ -1073,7 +1086,7 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Clicks', 'Results'],
+      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Clicks', 'Leads', 'Form submissions', 'Direct messages'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
@@ -1083,19 +1096,23 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
         row.spendConversionRate || '',
         row.spendNote || '',
         parseNumberString(row.clicks),
-        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions)
+        row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
+        Number(row.formSubmissions || 0),
+        Number(row.directMessages || 0)
       ])
     ]),
     excelSheet('Platform totals', [
-      ['Platform', 'Spend SAR', 'Results'],
+      ['Platform', 'Spend SAR', 'Leads', 'Form submissions', 'Direct messages'],
       ...Object.entries(platformSplit).map(([platformKey, value]) => [
         platformKey.replace(/_/g, ' '),
         parseSarString(value?.spend),
-        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions)
+        value?.conversions === 'N/A' ? '' : parseNumberString(value?.conversions),
+        Number(value?.formSubmissions || 0),
+        Number(value?.directMessages || 0)
       ])
     ]),
     excelSheet('Daily trend', [
-      ['Date', 'Spend SAR', 'Results', 'Cost per result SAR'],
+      ['Date', 'Spend SAR', 'Leads', 'Cost per lead SAR'],
       ...dailyChartData.map((row) => [
         row.date,
         row.spend,
@@ -1116,21 +1133,21 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
     ['Generated at', generatedAt],
     ['Clients included', clientReports.length],
     [],
-    ['Client', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Results', 'Platforms active']
+    ['Client', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Leads', 'Platforms active']
   ]
 
-  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'Results', 'Result type', 'Result breakdown']]
-  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Engagements', 'Video views', 'Results', 'Result type', 'Result breakdown']]
-  const platformTotals = [['Client', 'Platform', 'Spend SAR', 'Results']]
-  const dailyRows = [['Client', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
+  const accountRows = [['Client', 'Platform', 'Account name', 'Account ID', 'Account group', 'Status', 'Message', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'Leads', 'Lead type', 'Lead breakdown']]
+  const platformRows = [['Client', 'Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Engagements', 'Video views', 'Leads', 'Lead type', 'Lead breakdown']]
+  const platformTotals = [['Client', 'Platform', 'Spend SAR', 'Leads']]
+  const dailyRows = [['Client', 'Date', 'Spend SAR', 'Leads', 'Cost per lead SAR']]
   const insightRows = [['Client', 'Insight', 'Next action']]
   const currencyRows = [['Client', 'Account or row', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note']]
-  const detailRows = [['Client', 'Platform', 'Account or campaign', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Results', 'Result type', 'Original currency']]
+  const detailRows = [['Client', 'Platform', 'Account or campaign', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Leads', 'Lead type', 'Original currency']]
   const actionRows = [['Client', 'Platform', 'Account or campaign', 'Action', 'Value']]
   const engagementRows = [['Client', 'Platform', 'Account or campaign', 'Engagement metric', 'Value']]
   const rawMetricRows = [['Client', 'Platform', 'Account or campaign', 'Metric', 'Value']]
-  const accountDailyRows = [['Client', 'Platform', 'Account or campaign', 'Date', 'Spend SAR', 'Results', 'Cost per result SAR']]
-  const tiktokChunkRows = [['Client', 'Account or campaign', 'Start date', 'End date', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Results']]
+  const accountDailyRows = [['Client', 'Platform', 'Account or campaign', 'Date', 'Spend SAR', 'Leads', 'Cost per lead SAR']]
+  const tiktokChunkRows = [['Client', 'Account or campaign', 'Start date', 'End date', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Engagements', 'Video views', 'CTR', 'CPC SAR', 'Leads']]
   const googleKeywordRows = [['Client', 'Account or campaign', 'Keyword', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR', 'Quality score']]
   const googleSearchTermRows = [['Client', 'Account or campaign', 'Search term', 'Spend SAR', 'Impressions', 'Clicks', 'CTR', 'Average CPC SAR', 'Results', 'Cost per result SAR']]
   const googleVisibilityRows = [['Client', 'Account or campaign', 'Metric', 'Value']]
@@ -1342,7 +1359,7 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
           Number(metrics.video_play_actions || 0),
           Number(metrics.ctr || 0),
           Number(metrics.cpc || 0) * spendRate,
-          Number(metrics.conversion || 0)
+          Number(metrics.formSubmissions || 0) + Number(metrics.directMessages || 0)
         ])
       })
 
@@ -1462,34 +1479,26 @@ const CUSTOM_REPORT_METRICS = [
   { id: 'engagements', label: 'Engagements' },
   { id: 'videoViews', label: 'Video views' },
   { id: 'ctr', label: 'CTR', summaryLabel: 'CTR' },
-  { id: 'conversions', label: 'Results', summaryLabel: 'Results' },
+  { id: 'conversions', label: 'Leads', summaryLabel: 'Leads' },
   { id: 'cpc', label: 'Cost per click' },
-  { id: 'cpa', label: 'Cost per result' }
+  { id: 'cpa', label: 'Cost per lead' }
 ]
 
 const CUSTOM_RESULT_DEFINITIONS = [
-  { id: 'all', label: 'All results' },
-  { id: 'leads', label: 'Leads' },
-  { id: 'messages', label: 'Messages' },
-  { id: 'purchases', label: 'Purchases' },
-  { id: 'registrations', label: 'Registrations' },
-  { id: 'clicks', label: 'Clicks as results' }
+  { id: 'all', label: 'All leads' },
+  { id: 'forms', label: 'Form submissions' },
+  { id: 'messages', label: 'Direct messages' }
 ]
 
 function getRowResultValue(row, resultDefinition = 'all') {
-  const breakdown = row?.conversionBreakdown || {}
-
-  if (resultDefinition === 'leads') return Number(breakdown.leads || 0)
-  if (resultDefinition === 'messages') return Number(breakdown.messagingConversations || 0)
-  if (resultDefinition === 'purchases') return Number(breakdown.purchases || 0)
-  if (resultDefinition === 'registrations') return Number(breakdown.registrations || 0)
-  if (resultDefinition === 'clicks') return parseNumberString(row?.clicks)
+  if (resultDefinition === 'forms') return Number(row?.formSubmissions || 0)
+  if (resultDefinition === 'messages') return Number(row?.directMessages || 0)
 
   return row?.conversions === 'N/A' ? 0 : parseNumberString(row?.conversions)
 }
 
 function getResultDefinitionLabel(resultDefinition) {
-  return CUSTOM_RESULT_DEFINITIONS.find((item) => item.id === resultDefinition)?.label || 'All results'
+  return CUSTOM_RESULT_DEFINITIONS.find((item) => item.id === resultDefinition)?.label || 'All leads'
 }
 
 function applyResultDefinition(data, resultDefinition = 'all') {
@@ -1506,14 +1515,14 @@ function applyResultDefinition(data, resultDefinition = 'all') {
   })
   const totalResults = nextRows.reduce((sum, row) => sum + parseNumberString(row.conversions), 0)
   const summaryCards = (data.summaryCards || []).map((card) => {
-    if (card.label === 'Results' || card.label === 'Conversions') {
-      return { ...card, label: 'Results', value: totalResults.toLocaleString() }
+    if (card.label === 'Leads' || card.label === 'Results' || card.label === 'Conversions') {
+      return { ...card, label: 'Leads', value: totalResults.toLocaleString() }
     }
     return card
   })
 
-  if (!summaryCards.some((card) => card.label === 'Results')) {
-    summaryCards.push({ label: 'Results', value: totalResults.toLocaleString() })
+  if (!summaryCards.some((card) => card.label === 'Leads')) {
+    summaryCards.push({ label: 'Leads', value: totalResults.toLocaleString() })
   }
 
   const platformSplit = nextRows.reduce((acc, row) => {
@@ -1597,10 +1606,10 @@ function getBenchmarkIndicators(data) {
 
   if (resultRate >= 3) {
     indicators.push({
-      label: 'Result rate over target',
+      label: 'Lead rate over target',
       value: `${resultRate.toFixed(2)}%`,
       target: 'Target 3.00%+',
-      note: 'Traffic is turning into measurable action at a healthy rate.'
+      note: 'Clicks are turning into completed forms or direct messages at a healthy rate.'
     })
   }
 
@@ -1615,10 +1624,10 @@ function getBenchmarkIndicators(data) {
 
   if (cpa != null && cpa <= 50) {
     indicators.push({
-      label: 'Cost per result under target',
+      label: 'Cost per lead under target',
       value: formatSar(cpa),
       target: 'Target SAR 50.00 or lower',
-      note: 'Results are being generated at an efficient cost level.'
+      note: 'Leads are being generated at an efficient cost level.'
     })
   }
 
@@ -1690,9 +1699,9 @@ function AudienceActionInsights({ data }) {
       <div style={{ display: 'grid', gap: '10px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px' }}>
           <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
-            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest result source</div>
+            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest lead source</div>
             <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
-              {bestByResults ? `${bestByResults.platform} · ${bestByResults.campaign}` : 'Not enough result data yet'}
+              {bestByResults ? `${bestByResults.platform} · ${bestByResults.campaign}` : 'Not enough lead data yet'}
             </div>
           </div>
           <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
@@ -1754,7 +1763,7 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
       ])
     ]),
     excelSheet('Platform rows', [
-      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Results', 'Result breakdown'],
+      ['Platform', 'Campaign or account', 'Spend SAR', 'Original spend', 'Original currency', 'Conversion rate to SAR', 'Spend note', 'Reach', 'Clicks', 'Leads', 'Form submissions', 'Direct messages'],
       ...campaignRows.map((row) => [
         row.platform,
         row.campaign,
@@ -1766,7 +1775,8 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
         row.reach === 'N/A' ? '' : parseNumberString(row.reach),
         parseNumberString(row.clicks),
         row.conversions === 'N/A' ? '' : parseNumberString(row.conversions),
-        formatConversionBreakdown(row.conversionBreakdown)
+        Number(row.formSubmissions || 0),
+        Number(row.directMessages || 0)
       ])
     ]),
     selectedSections.includes('benchmarks')
@@ -1781,7 +1791,7 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
         ])
       : null,
     excelSheet('Daily trends', [
-      ['Date', 'Spend SAR', 'Results', 'Cost per result SAR'],
+      ['Date', 'Spend SAR', 'Leads', 'Cost per lead SAR'],
       ...daily.map((row) => [
         row.date,
         row.spend,
