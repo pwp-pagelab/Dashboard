@@ -13,6 +13,11 @@ import {
   Area
 } from 'recharts'
 import OnboardingHelper from './OnboardingHelper.jsx'
+import {
+  buildCustomRange,
+  formatReportDate,
+  parseCustomStartDate
+} from '../lib/reportRange.js'
 
 const COLORS = {
   green: '#0A4C3E',
@@ -85,6 +90,55 @@ function selectStyle() {
     color: COLORS.text,
     outline: 'none'
   }
+}
+
+function ReportRangeControl({ value, onChange }) {
+  const today = formatReportDate()
+  const customStartDate = parseCustomStartDate(value) || today
+  const isCustom = Boolean(parseCustomStartDate(value))
+
+  function handleRangeChange(nextValue) {
+    if (nextValue === 'custom') {
+      onChange(buildCustomRange(customStartDate) || `custom:${today}`)
+      return
+    }
+
+    onChange(nextValue)
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: '8px' }}>
+      <select
+        value={isCustom ? 'custom' : value}
+        onChange={(event) => handleRangeChange(event.target.value)}
+        style={selectStyle()}
+      >
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="this_month">This month</option>
+        <option value="max">Since promotion start</option>
+        <option value="custom">Choose report starting date</option>
+      </select>
+
+      {isCustom ? (
+        <label style={{ display: 'grid', gap: '5px' }}>
+          <span style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 700 }}>
+            Report starting date
+          </span>
+          <input
+            type="date"
+            value={customStartDate}
+            max={today}
+            onChange={(event) => {
+              const customRange = buildCustomRange(event.target.value)
+              if (customRange) onChange(customRange)
+            }}
+            style={selectStyle()}
+          />
+        </label>
+      ) : null}
+    </div>
+  )
 }
 
 function BrandMark({ dark = false }) {
@@ -2140,12 +2194,7 @@ function AgencyExportView({ availableClients, setView }) {
               <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                 Date range
               </div>
-              <select value={exportRange} onChange={(event) => setExportRange(event.target.value)} style={selectStyle()}>
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="this_month">This month</option>
-                <option value="max">Since promotion start</option>
-              </select>
+              <ReportRangeControl value={exportRange} onChange={setExportRange} />
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button onClick={loadSelectedClientAccounts} disabled={loading || !selectedClientId} style={buttonStyle(true)}>
@@ -2417,12 +2466,7 @@ function CustomReportBuilder({ availableClients, setView }) {
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Date range</div>
-                <select value={reportRange} onChange={(event) => setReportRange(event.target.value)} style={selectStyle()}>
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="this_month">This month</option>
-                  <option value="max">Since promotion start</option>
-                </select>
+                <ReportRangeControl value={reportRange} onChange={setReportRange} />
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>Report name</div>
@@ -3081,12 +3125,7 @@ export default function App() {
                   <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
                     Date range
                   </div>
-                  <select value={range} onChange={(e) => setRange(e.target.value)} style={selectStyle()}>
-                    <option value="7d">Last 7 days</option>
-                    <option value="30d">Last 30 days</option>
-                    <option value="this_month">This month</option>
-                    <option value="max">Since promotion start</option>
-                  </select>
+                  <ReportRangeControl value={range} onChange={setRange} />
                 </div>
               </div>
             </div>
