@@ -18,6 +18,10 @@ import {
   formatReportDate,
   parseCustomStartDate
 } from '../lib/reportRange.js'
+import {
+  applyMetaImportToDashboard,
+  parseMetaCsv
+} from '../lib/metaCsvImport.js'
 
 const COLORS = {
   green: '#0A4C3E',
@@ -136,6 +140,107 @@ function ReportRangeControl({ value, onChange }) {
             style={selectStyle()}
           />
         </label>
+      ) : null}
+    </div>
+  )
+}
+
+const CLOUD_CHEFS_META_STORAGE_KEY = 'pwp:meta-import:cloud-chefs'
+
+function loadStoredCloudChefsMetaImport() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(CLOUD_CHEFS_META_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function storeCloudChefsMetaImport(value) {
+  if (typeof window === 'undefined') return
+
+  if (value) {
+    window.localStorage.setItem(CLOUD_CHEFS_META_STORAGE_KEY, JSON.stringify(value))
+  } else {
+    window.localStorage.removeItem(CLOUD_CHEFS_META_STORAGE_KEY)
+  }
+}
+
+function MetaCsvUploadPanel({ importedReport, status, onUpload, onClear }) {
+  return (
+    <div style={{ ...cardStyle(), padding: '15px 16px', marginBottom: '12px', borderLeft: '4px solid #244F7A' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '14px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div style={{ maxWidth: '670px' }}>
+          <div style={{ color: COLORS.green, fontSize: '14px', fontWeight: 900 }}>
+            Cloud Chefs Meta report
+          </div>
+          <div style={{ color: COLORS.muted, fontSize: '12px', lineHeight: 1.55, marginTop: '5px' }}>
+            Export a CSV from Meta Ads Manager and upload it here. Include Reporting starts or Day,
+            Amount spent, Reach, Impressions, Link clicks, Leads, and Messaging conversations started
+            where available. Uploaded figures are used in the dashboard cards, charts, report, and client Excel.
+          </div>
+          <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45, marginTop: '6px' }}>
+            The file stays in this browser and is not sent to a separate storage service.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ ...buttonStyle(true), display: 'inline-flex', alignItems: 'center' }}>
+            Upload Meta CSV
+            <input
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              onChange={onUpload}
+              style={{ display: 'none' }}
+            />
+          </label>
+          {importedReport ? (
+            <button type="button" onClick={onClear} style={buttonStyle(false)}>
+              Remove upload
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {importedReport ? (
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            background: COLORS.softGreen,
+            color: COLORS.green,
+            fontSize: '12px',
+            fontWeight: 800,
+            lineHeight: 1.5
+          }}
+        >
+          Using {importedReport.fileName} · {importedReport.rowCount} rows · uploaded{' '}
+          {new Date(importedReport.uploadedAt).toLocaleString()}
+        </div>
+      ) : null}
+
+      {status ? (
+        <div
+          style={{
+            marginTop: '10px',
+            color: status.startsWith('Could not') ? COLORS.red : COLORS.green,
+            fontSize: '12px',
+            fontWeight: 800
+          }}
+        >
+          {status}
+        </div>
       ) : null}
     </div>
   )
@@ -2663,6 +2768,8 @@ export default function App() {
   const [shareStatus, setShareStatus] = useState('')
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
   const [caseStudyName, setCaseStudyName] = useState('')
+  const [cloudChefsMetaImport, setCloudChefsMetaImport] = useState(loadStoredCloudChefsMetaImport)
+  const [metaImportStatus, setMetaImportStatus] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -2700,7 +2807,10 @@ export default function App() {
           throw new Error(json.error || 'Failed to load dashboard data')
         }
 
-        setData(json)
+        setData(applyMetaImportToDashboard(json, cloudChefsMetaImport, {
+          range,
+          platform
+        }))
       } catch (err) {
         setData(null)
         setError(err.message || 'Something went wrong')
@@ -2710,7 +2820,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range, isSharedView, shareToken, selectedAccountIds])
+  }, [client, platform, range, isSharedView, shareToken, selectedAccountIds, cloudChefsMetaImport])
 
   useEffect(() => {
     setInsightsText(data?.insights?.suggested || '')
@@ -2862,6 +2972,34 @@ export default function App() {
       insightsText,
       caseStudyName: caseStudyName || `${data?.client?.name || 'Client'} case study`
     })
+  }
+
+  async function uploadCloudChefsMetaCsv(event) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+
+    try {
+      setMetaImportStatus('Reading Meta report...')
+      const imported = parseMetaCsv(await file.text(), {
+        accountId: '640964945046086',
+        accountName: 'Cloud Chefs',
+        fileName: file.name
+      })
+      storeCloudChefsMetaImport(imported)
+      setCloudChefsMetaImport(imported)
+      setMetaImportStatus(`Meta report imported successfully: ${imported.rows.length} usable rows.`)
+    } catch (importError) {
+      setMetaImportStatus(`Could not import this file: ${importError.message}`)
+    } finally {
+      input.value = ''
+    }
+  }
+
+  function clearCloudChefsMetaImport() {
+    storeCloudChefsMetaImport(null)
+    setCloudChefsMetaImport(null)
+    setMetaImportStatus('The uploaded Meta report was removed.')
   }
 
   async function createShareLink() {
@@ -3129,6 +3267,15 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {!isSharedView && client === 'cloud-chefs' ? (
+              <MetaCsvUploadPanel
+                importedReport={data?.manualImports?.meta || null}
+                status={metaImportStatus}
+                onUpload={uploadCloudChefsMetaCsv}
+                onClear={clearCloudChefsMetaImport}
+              />
+            ) : null}
 
             <DataConfidencePanel data={data} />
 
