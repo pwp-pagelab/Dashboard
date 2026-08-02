@@ -117,6 +117,22 @@ export const clients = [
     }
   },
   {
+    id: 'cloud-chefs',
+    name: 'Cloud Chefs',
+    reportingStartDate: '2026-01-01',
+    linkedinAccountId: '551744400',
+    tiktokAdvertiserId: '7520209563900215313',
+    metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
+    metaMatch: { type: 'includes', value: 'cloud chefs' },
+    platforms: {
+      meta: { enabled: true },
+      google: { enabled: false },
+      tiktok: { enabled: true },
+      snapchat: { enabled: false },
+      linkedin: { enabled: true }
+    }
+  },
+  {
     id: 'first-step',
     name: 'First Step',
     reportingStartDate: '2026-01-01',
