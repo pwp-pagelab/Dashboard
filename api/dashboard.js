@@ -5,6 +5,7 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 import { getLeadBreakdown } from '../lib/leads.js'
+import { parseCustomStartDate } from '../lib/reportRange.js'
 
 const REPORTING_START_DATE = '2026-01-01'
 const SAR_EXCHANGE_RATES = {
@@ -158,6 +159,8 @@ function buildExportRow(row) {
 }
 
 function rangeLabel(range) {
+  const customStartDate = parseCustomStartDate(range)
+  if (customStartDate) return `since ${customStartDate}`
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
   if (range === 'max') return 'since promotion start'
@@ -165,7 +168,9 @@ function rangeLabel(range) {
 }
 
 function periodPhrase(range) {
-  return range === 'max' ? rangeLabel(range) : `in ${rangeLabel(range)}`
+  return range === 'max' || parseCustomStartDate(range)
+    ? rangeLabel(range)
+    : `in ${rangeLabel(range)}`
 }
 
 function getPromotionStartDate(client = null, platform = null) {
@@ -177,6 +182,24 @@ function getPromotionStartDate(client = null, platform = null) {
 }
 
 function getRangeConfig(range, client = null, platform = null) {
+  const customStartDate = parseCustomStartDate(range)
+  if (customStartDate) {
+    return {
+      meta: {
+        datePreset: null,
+        timeRange: {
+          since: customStartDate,
+          until: todayISO()
+        }
+      },
+      google: {
+        dateRange: null,
+        startDate: customStartDate,
+        endDate: todayISO()
+      }
+    }
+  }
+
   if (range === '7d') {
     return {
       meta: { datePreset: 'last_7d', timeRange: null },
@@ -219,6 +242,14 @@ function getRangeConfig(range, client = null, platform = null) {
 function getRangeDates(range, client = null, platform = null) {
   const now = new Date()
   const today = dateOnly(now)
+  const customStartDate = parseCustomStartDate(range, now)
+
+  if (customStartDate) {
+    return {
+      startDate: customStartDate,
+      endDate: today
+    }
+  }
 
   if (range === '7d') {
     return {

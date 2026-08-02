@@ -1,5 +1,6 @@
 import { buildDashboardPayload } from './dashboard.js'
 import { getPublicReportByToken, verifySignedReportToken } from '../data/publicReports.js'
+import { isCustomRange } from '../lib/reportRange.js'
 
 const ALLOWED_RANGES = new Set(['7d', '30d', 'this_month', 'max'])
 
@@ -14,7 +15,9 @@ export default async function handler(req, res) {
     })
   }
 
-  const range = ALLOWED_RANGES.has(req.query.range) ? req.query.range : '30d'
+  const range = ALLOWED_RANGES.has(req.query.range) || isCustomRange(req.query.range)
+    ? req.query.range
+    : '30d'
 
   try {
     const payload = await buildDashboardPayload({
