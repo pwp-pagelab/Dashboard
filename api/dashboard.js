@@ -279,14 +279,16 @@ function getAccountOptions(clientGroup) {
   return clientGroup.flatMap((groupClient) => {
     const options = []
 
-    if (groupClient.platforms?.meta?.enabled && groupClient.metaAccountId) {
+    if (groupClient.platforms?.meta?.enabled) {
+      const metaAccountId = groupClient.metaAccountId ? String(groupClient.metaAccountId) : ''
+
       options.push({
-        id: `meta:${groupClient.id}:${groupClient.metaAccountId}`,
+        id: `meta:${groupClient.id}:${metaAccountId || 'auto'}`,
         platform: 'meta',
         platformLabel: 'Meta',
         clientId: groupClient.id,
         clientName: groupClient.name,
-        accountId: String(groupClient.metaAccountId),
+        accountId: metaAccountId,
         accountName: groupClient.metaAccountName || groupClient.name,
         businessKey: firstMetaBusinessKey(groupClient)
       })
