@@ -187,7 +187,9 @@ function MetaCsvUploadPanel({ importedReport, status, onUpload, onClear }) {
           <div style={{ color: COLORS.muted, fontSize: '12px', lineHeight: 1.55, marginTop: '5px' }}>
             Export a CSV from Meta Ads Manager and upload it here. Include Reporting starts or Day,
             Amount spent, Reach, Impressions, Link clicks, Leads, and Messaging conversations started
-            where available. Uploaded figures are used in the dashboard cards, charts, report, and client Excel.
+            where available. Add breakdown columns such as Age, Gender, Country, Region, City, Device platform,
+            Publisher platform, or Placement to generate audience insights. Uploaded figures are used in the
+            dashboard cards, charts, PDF report, and Excel reports.
           </div>
           <div style={{ color: COLORS.amberDeep, fontSize: '12px', lineHeight: 1.45, marginTop: '6px' }}>
             The file stays in this browser and is not sent to a separate storage service.
@@ -1278,6 +1280,20 @@ function downloadExcelWorkbook({ data, campaignRows, dailyChartData, accountOpti
         row.conversions,
         row.cpa == null ? '' : row.cpa
       ])
+    ]),
+    excelSheet('Audience insights', [
+      ['Platform', 'Account or campaign', 'Dimension', 'Segment', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Leads'],
+      ...collectAudienceBreakdowns(data).map((row) => [
+        row.platform,
+        row.accountName,
+        row.dimension,
+        row.segment,
+        row.spend,
+        row.reach,
+        row.impressions,
+        row.clicks,
+        row.leads
+      ])
     ])
   ]
 
@@ -1563,7 +1579,19 @@ function downloadAgencyExcelWorkbook({ title, clientReports, range }) {
       })
     })
 
-    if (!exportRows.some((row) => row.audienceBreakdown)) {
+    const clientAudienceRows = collectAudienceBreakdowns(payload)
+    clientAudienceRows.forEach((row) => {
+      audienceRows.push([
+        clientName,
+        row.platform,
+        row.accountName,
+        `${row.dimension}: ${row.segment}`,
+        row.impressions || row.reach || row.clicks || row.leads || 0,
+        `Spend SAR ${row.spend.toFixed(2)} · Reach ${row.reach} · Impressions ${row.impressions} · Clicks ${row.clicks} · Leads ${row.leads}`
+      ])
+    })
+
+    if (!clientAudienceRows.length) {
       audienceRows.push([
         clientName,
         'All',
@@ -1833,20 +1861,75 @@ function BenchmarkIndicators({ data }) {
   )
 }
 
+function collectAudienceBreakdowns(data) {
+  return (Array.isArray(data?.exportRows) ? data.exportRows : []).flatMap((row) => (
+    (Array.isArray(row.audienceBreakdown) ? row.audienceBreakdown : [])
+      .filter((item) => item?.dimension && item?.segment)
+      .map((item) => ({
+        platform: row.platform || 'Platform',
+        accountName: row.accountName || 'Account',
+        dimension: String(item.dimension),
+        segment: String(item.segment),
+        spend: Number(item.spend || 0),
+        reach: Number(item.reach || 0),
+        impressions: Number(item.impressions || 0),
+        clicks: Number(item.clicks || 0),
+        leads: Number(item.leads || 0),
+        formSubmissions: Number(item.formSubmissions || 0),
+        directMessages: Number(item.directMessages || 0)
+      }))
+  ))
+}
+
+function summarizeAudienceBreakdowns(data) {
+  const grouped = new Map()
+  collectAudienceBreakdowns(data).forEach((row) => {
+    const key = `${row.dimension}\u0000${row.segment}`
+    const current = grouped.get(key) || {
+      dimension: row.dimension,
+      segment: row.segment,
+      spend: 0,
+      reach: 0,
+      impressions: 0,
+      clicks: 0,
+      leads: 0
+    }
+    current.spend += row.spend
+    current.reach += row.reach
+    current.impressions += row.impressions
+    current.clicks += row.clicks
+    current.leads += row.leads
+    grouped.set(key, current)
+  })
+  return Array.from(grouped.values())
+}
+
 function AudienceActionInsights({ data }) {
   const rows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
+  const audienceRows = summarizeAudienceBreakdowns(data)
   const bestByResults = [...rows]
     .filter((row) => row.conversions !== 'N/A')
     .sort((a, b) => parseNumberString(b.conversions) - parseNumberString(a.conversions))[0]
   const bestByClicks = [...rows]
     .sort((a, b) => parseNumberString(b.clicks) - parseNumberString(a.clicks))[0]
-  const breakdowns = statuses
+  const actionBreakdowns = statuses
     .map((account) => ({
       account,
       text: formatConversionBreakdown(account.conversionBreakdown)
     }))
     .filter((item) => item.text)
+  const audienceGroups = audienceRows.reduce((groups, row) => {
+    if (!groups[row.dimension]) groups[row.dimension] = []
+    groups[row.dimension].push(row)
+    return groups
+  }, {})
+  const strongestAudience = [...audienceRows].sort((a, b) => (
+    b.leads - a.leads ||
+    b.clicks - a.clicks ||
+    b.impressions - a.impressions ||
+    b.reach - a.reach
+  ))[0]
 
   return (
     <div style={panelStyle()}>
@@ -1869,22 +1952,69 @@ function AudienceActionInsights({ data }) {
               {bestByClicks ? `${bestByClicks.platform} · ${bestByClicks.campaign}` : 'Not enough click data yet'}
             </div>
           </div>
+          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest audience segment</div>
+            <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
+              {strongestAudience
+                ? `${strongestAudience.dimension} · ${strongestAudience.segment}`
+                : 'Upload a report with audience breakdown columns'}
+            </div>
+          </div>
         </div>
 
-        {breakdowns.length ? (
+        {audienceRows.length ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '10px' }}>
+            {Object.entries(audienceGroups).map(([dimension, dimensionRows]) => {
+              const sortedRows = [...dimensionRows]
+                .sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks || b.leads - a.leads)
+                .slice(0, 6)
+              const totalImpressions = dimensionRows.reduce((sum, row) => sum + row.impressions, 0)
+              const totalReach = dimensionRows.reduce((sum, row) => sum + row.reach, 0)
+              const totalClicks = dimensionRows.reduce((sum, row) => sum + row.clicks, 0)
+              const shareBase = totalImpressions || totalReach || totalClicks || 1
+
+              return (
+                <div key={dimension} style={{ border: `1px solid ${COLORS.line}`, borderRadius: '12px', padding: '12px', background: '#FBFAF7' }}>
+                  <div style={{ color: COLORS.green, fontWeight: 900, fontSize: '14px', marginBottom: '10px' }}>{dimension}</div>
+                  <div style={{ display: 'grid', gap: '9px' }}>
+                    {sortedRows.map((row) => {
+                      const shareValue = row.impressions || row.reach || row.clicks
+                      const share = Math.min(100, (shareValue / shareBase) * 100)
+                      return (
+                        <div key={`${dimension}-${row.segment}`}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '12px' }}>
+                            <span style={{ color: COLORS.text, fontWeight: 800 }}>{row.segment}</span>
+                            <span style={{ color: COLORS.muted }}>
+                              {share.toFixed(1)}% · {row.clicks.toLocaleString()} clicks · {row.leads.toLocaleString()} leads
+                            </span>
+                          </div>
+                          <div style={{ height: '7px', borderRadius: '999px', background: '#E9E3D6', overflow: 'hidden', marginTop: '5px' }}>
+                            <div style={{ width: `${share}%`, height: '100%', background: COLORS.greenMid, borderRadius: '999px' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            title="Audience breakdowns are ready for import"
+            text="Upload a Meta CSV containing Age, Gender, Country, Region, City, Device platform, Publisher platform, or Placement columns. The dashboard will chart the available segments automatically."
+          />
+        )}
+
+        {actionBreakdowns.length ? (
           <div style={{ display: 'grid', gap: '8px' }}>
-            {breakdowns.map(({ account, text }) => (
+            {actionBreakdowns.map(({ account, text }) => (
               <div key={account.id} style={{ color: COLORS.text, fontSize: '13px', lineHeight: 1.5, padding: '10px', border: `1px solid ${COLORS.line}`, borderRadius: '10px' }}>
                 <strong style={{ color: COLORS.green }}>{account.accountName}:</strong> {text}
               </div>
             ))}
           </div>
-        ) : (
-          <EmptyState
-            title="Audience details need platform breakdown data"
-            text="The report can already compare platforms and result actions. Age, gender, location, placement, and interest breakdowns need dedicated audience reporting endpoints before they can be charted accurately."
-          />
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -1946,6 +2076,22 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
             indicator.value,
             indicator.target,
             indicator.note
+          ])
+        ])
+      : null,
+    selectedSections.includes('audience')
+      ? excelSheet('Audience insights', [
+          ['Platform', 'Account or campaign', 'Dimension', 'Segment', 'Spend SAR', 'Reach', 'Impressions', 'Clicks', 'Leads'],
+          ...collectAudienceBreakdowns(data).map((row) => [
+            row.platform,
+            row.accountName,
+            row.dimension,
+            row.segment,
+            row.spend,
+            row.reach,
+            row.impressions,
+            row.clicks,
+            row.leads
           ])
         ])
       : null,
@@ -2081,6 +2227,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             totalClicks={totalClicks}
             totalConversions={totalConversions}
           />
+          <AudienceActionInsights data={data} />
           <StatusBanner text={nextActionText} />
           <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
         </div>
@@ -2090,7 +2237,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   )
 }
 
-function AgencyExportView({ availableClients, setView }) {
+function AgencyExportView({ availableClients, setView, cloudChefsMetaImport = null }) {
   const [exportRange, setExportRange] = useState('max')
   const [clientPayloads, setClientPayloads] = useState([])
   const [selectedAccountIds, setSelectedAccountIds] = useState([])
@@ -2157,10 +2304,14 @@ function AgencyExportView({ availableClients, setView }) {
         throw new Error(payload.error || 'Unable to load client account details.')
       }
 
-      const loaded = [{ client: selectedClient, payload }]
+      const resolvedPayload = applyMetaImportToDashboard(payload, cloudChefsMetaImport, {
+        range: exportRange,
+        platform: 'all'
+      })
+      const loaded = [{ client: selectedClient, payload: resolvedPayload }]
       setClientPayloads(loaded)
-      setSelectedAccountIds((payload.accountOptions || []).map((account) => account.id))
-      setExportName(`${payload.client?.name || selectedClient.name} performance export`)
+      setSelectedAccountIds((resolvedPayload.accountOptions || []).map((account) => account.id))
+      setExportName(`${resolvedPayload.client?.name || selectedClient.name} performance export`)
     } catch (err) {
       setClientPayloads([])
       setSelectedAccountIds([])
@@ -2223,9 +2374,13 @@ function AgencyExportView({ availableClients, setView }) {
         const response = await fetch(`/api/dashboard?${params.toString()}`)
         const payload = await response.json()
         if (response.ok) {
+          const resolvedPayload = applyMetaImportToDashboard(payload, cloudChefsMetaImport, {
+            range: exportRange,
+            platform: 'all'
+          })
           clientReports.push({
             client: selectedClient.client,
-            payload
+            payload: resolvedPayload
           })
         }
       }
@@ -2388,7 +2543,7 @@ function AgencyExportView({ availableClients, setView }) {
   )
 }
 
-function CustomReportBuilder({ availableClients, setView }) {
+function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport = null }) {
   const [resolvedClients, setResolvedClients] = useState(availableClients || [])
   const [selectedClientId, setSelectedClientId] = useState(availableClients?.[0]?.id || 'rimiya')
   const [reportRange, setReportRange] = useState('max')
@@ -2439,10 +2594,14 @@ function CustomReportBuilder({ availableClients, setView }) {
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Unable to load custom report data.')
 
-        setReportData(payload)
-        setInsightText(payload?.insights?.suggested || '')
+        const resolvedPayload = applyMetaImportToDashboard(payload, cloudChefsMetaImport, {
+          range: reportRange,
+          platform: 'all'
+        })
+        setReportData(resolvedPayload)
+        setInsightText(resolvedPayload?.insights?.suggested || '')
         if (selectedAccountIds === null) {
-          setSelectedAccountIds((payload.accountOptions || []).map((account) => account.id))
+          setSelectedAccountIds((resolvedPayload.accountOptions || []).map((account) => account.id))
         }
       } catch (err) {
         setError(err.message || 'Unable to load custom report.')
@@ -2452,7 +2611,7 @@ function CustomReportBuilder({ availableClients, setView }) {
     }
 
     if (selectedClientId) loadReportData()
-  }, [selectedClientId, reportRange, selectedAccountIds])
+  }, [selectedClientId, reportRange, selectedAccountIds, cloudChefsMetaImport])
 
   const displayReportData = applyResultDefinition(reportData, resultDefinition)
   const accountOptions = Array.isArray(displayReportData?.accountOptions) ? displayReportData.accountOptions : []
@@ -2904,11 +3063,25 @@ export default function App() {
   }
 
   if (view === 'agency-export') {
-    return <AgencyExportView key="agency-export" availableClients={availableClients} setView={setView} />
+    return (
+      <AgencyExportView
+        key="agency-export"
+        availableClients={availableClients}
+        setView={setView}
+        cloudChefsMetaImport={cloudChefsMetaImport}
+      />
+    )
   }
 
   if (view === 'custom-report') {
-    return <CustomReportBuilder key="custom-report" availableClients={availableClients} setView={setView} />
+    return (
+      <CustomReportBuilder
+        key="custom-report"
+        availableClients={availableClients}
+        setView={setView}
+        cloudChefsMetaImport={cloudChefsMetaImport}
+      />
+    )
   }
 
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
@@ -3449,6 +3622,8 @@ export default function App() {
                 />
                 <StatusBanner text={nextActionText} />
               </div>
+
+              <AudienceActionInsights data={data} />
 
               {showAdvanced ? (
                 <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />

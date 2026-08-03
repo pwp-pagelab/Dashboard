@@ -6,9 +6,9 @@ import {
   parseMetaCsv
 } from '../lib/metaCsvImport.js'
 
-const csv = `Reporting starts,Campaign name,Amount spent (SAR),Reach,Impressions,Link clicks,Leads,Messaging conversations started
-2026-07-31,"Cloud Chefs, Riyadh",100.50,1000,1500,75,3,2
-2026-08-01,"Cloud Chefs, Riyadh",80,800,1200,60,2,1
+const csv = `Reporting starts,Campaign name,Amount spent (SAR),Reach,Impressions,Link clicks,Leads,Messaging conversations started,Age,Gender,Region,Device platform
+2026-07-31,"Cloud Chefs, Riyadh",100.50,1000,1500,75,3,2,25-34,Female,Riyadh,mobile
+2026-08-01,"Cloud Chefs, Riyadh",80,800,1200,60,2,1,35-44,Male,Riyadh,mobile
 `
 
 test('parses common Meta Ads Manager CSV columns', () => {
@@ -22,6 +22,16 @@ test('parses common Meta Ads Manager CSV columns', () => {
   assert.equal(imported.rows[0].spend, 100.5)
   assert.equal(imported.rows[0].formSubmissions, 3)
   assert.equal(imported.rows[0].directMessages, 2)
+  assert.deepEqual(imported.rows[0].audience, {
+    age: '25-34',
+    gender: 'Female',
+    country: '',
+    region: 'Riyadh',
+    city: '',
+    device: 'mobile',
+    publisherPlatform: '',
+    placement: ''
+  })
 })
 
 test('adds uploaded Meta totals to the dashboard and respects the selected date range', () => {
@@ -95,6 +105,55 @@ test('adds uploaded Meta totals to the dashboard and respects the selected date 
   assert.equal(result.campaignRows.some((row) => row.platform === 'Meta'), true)
   assert.equal(result.accountOptions[0].accountId, '640964945046086')
   assert.equal(result.accountStatuses.find((status) => status.platform === 'meta').status, 'loaded')
+  assert.deepEqual(
+    result.exportRows.find((row) => row.platform === 'Meta').audienceBreakdown,
+    [
+      {
+        dimension: 'Age',
+        segment: '35-44',
+        spend: 80,
+        reach: 800,
+        impressions: 1200,
+        clicks: 60,
+        leads: 3,
+        formSubmissions: 2,
+        directMessages: 1
+      },
+      {
+        dimension: 'Gender',
+        segment: 'Male',
+        spend: 80,
+        reach: 800,
+        impressions: 1200,
+        clicks: 60,
+        leads: 3,
+        formSubmissions: 2,
+        directMessages: 1
+      },
+      {
+        dimension: 'Region',
+        segment: 'Riyadh',
+        spend: 80,
+        reach: 800,
+        impressions: 1200,
+        clicks: 60,
+        leads: 3,
+        formSubmissions: 2,
+        directMessages: 1
+      },
+      {
+        dimension: 'Device',
+        segment: 'mobile',
+        spend: 80,
+        reach: 800,
+        impressions: 1200,
+        clicks: 60,
+        leads: 3,
+        formSubmissions: 2,
+        directMessages: 1
+      }
+    ]
+  )
   assert.deepEqual(result.trends.daily, [{
     date: '2026-08-01',
     spend: 100,
