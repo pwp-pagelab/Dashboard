@@ -120,6 +120,8 @@ export const clients = [
     id: 'cloud-chefs',
     name: 'Cloud Chefs',
     reportingStartDate: '2026-01-01',
+    metaAccountId: '640964945046086',
+    metaAccountName: 'Cloud Chefs',
     linkedinAccountId: '551744400',
     tiktokAdvertiserId: '7520209563900215313',
     metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
