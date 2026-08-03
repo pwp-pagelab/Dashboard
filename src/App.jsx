@@ -748,7 +748,41 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
   )
 }
 
-function SummaryBlock({ text, onChange, onReset, onExport }) {
+async function downloadValueReport(data) {
+  const response = await fetch('/api/value-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload.error || 'Unable to generate the value report.')
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') || ''
+  const matchedName = disposition.match(/filename="([^"]+)"/i)
+  const fallbackClient = String(data?.client?.name || 'client').replace(/[^\w.-]+/g, '-')
+  const fileName = matchedName?.[1] || `value-report-${fallbackClient}.docx`
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
+function SummaryBlock({
+  text,
+  onChange,
+  onReset,
+  onExport,
+  onValueReport = null,
+  valueReportLoading = false
+}) {
   return (
     <div style={panelStyle()}>
       <SectionTitle
@@ -758,6 +792,11 @@ function SummaryBlock({ text, onChange, onReset, onExport }) {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={onReset} style={buttonStyle(false)}>Reset insight</button>
             <button onClick={onExport} style={buttonStyle(true)}>Share as PDF</button>
+            {onValueReport ? (
+              <button onClick={onValueReport} disabled={valueReportLoading} style={buttonStyle(false)}>
+                {valueReportLoading ? 'Preparing Word...' : 'Value report (Word)'}
+              </button>
+            ) : null}
           </div>
         }
       />
@@ -2119,6 +2158,8 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
 }
 
 function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
+  const [valueReportLoading, setValueReportLoading] = useState(false)
+  const [valueReportError, setValueReportError] = useState('')
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const googleDiagnostics = data?.diagnostics?.google || null
@@ -2129,6 +2170,18 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   const dailyChartData = buildDailyChartData(data)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
+
+  async function exportValueReport() {
+    try {
+      setValueReportLoading(true)
+      setValueReportError('')
+      await downloadValueReport(data)
+    } catch (reportError) {
+      setValueReportError(reportError.message || 'Unable to generate the value report.')
+    } finally {
+      setValueReportLoading(false)
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, padding: '28px', color: COLORS.text }}>
@@ -2150,7 +2203,16 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
           <button onClick={() => window.print()} style={buttonStyle(true)}>
             Export PDF
           </button>
+          <button onClick={exportValueReport} disabled={valueReportLoading} style={buttonStyle(false)}>
+            {valueReportLoading ? 'Preparing Word...' : 'Value report (Word)'}
+          </button>
         </div>
+
+        {valueReportError ? (
+          <div className="no-print" style={{ ...cardStyle(), padding: '12px 14px', marginBottom: '14px', color: COLORS.red, fontWeight: 800 }}>
+            {valueReportError}
+          </div>
+        ) : null}
 
         <div className="report-card" style={{ ...cardStyle(), marginBottom: '18px', padding: 0, overflow: 'hidden' }}>
           <div style={{ background: COLORS.green, color: '#ffffff', padding: '26px 28px' }}>
@@ -2555,6 +2617,7 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
   const [resultDefinition, setResultDefinition] = useState('all')
   const [insightText, setInsightText] = useState('')
   const [loading, setLoading] = useState(true)
+  const [valueReportLoading, setValueReportLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -2678,6 +2741,19 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
     })
   }
 
+  async function exportValueReport() {
+    if (!displayReportData) return
+    try {
+      setValueReportLoading(true)
+      setError('')
+      await downloadValueReport(displayReportData)
+    } catch (reportError) {
+      setError(reportError.message || 'Unable to generate the value report.')
+    } finally {
+      setValueReportLoading(false)
+    }
+  }
+
   const showFunnel = selectedSections.includes('funnel') && ['impressions', 'clicks', 'conversions'].some((metric) => selectedMetrics.includes(metric))
   const showTrends = selectedSections.includes('trends') && ['spend', 'conversions', 'cpa'].some((metric) => selectedMetrics.includes(metric))
   const showPlatforms = selectedSections.includes('platforms')
@@ -2747,6 +2823,9 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button onClick={() => window.print()} style={buttonStyle(true)}>Export PDF</button>
                 <button onClick={exportExcel} style={buttonStyle(false)}>Export Excel</button>
+                <button onClick={exportValueReport} disabled={valueReportLoading} style={buttonStyle(false)}>
+                  {valueReportLoading ? 'Preparing Word...' : 'Value report (Word)'}
+                </button>
               </div>
             </div>
           </div>
@@ -2886,6 +2965,8 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
                 onChange={setInsightText}
                 onReset={() => setInsightText(displayReportData?.insights?.suggested || '')}
                 onExport={() => window.print()}
+                onValueReport={exportValueReport}
+                valueReportLoading={valueReportLoading}
               />
             ) : null}
 
@@ -2929,6 +3010,8 @@ export default function App() {
   const [caseStudyName, setCaseStudyName] = useState('')
   const [cloudChefsMetaImport, setCloudChefsMetaImport] = useState(loadStoredCloudChefsMetaImport)
   const [metaImportStatus, setMetaImportStatus] = useState('')
+  const [valueReportLoading, setValueReportLoading] = useState(false)
+  const [valueReportStatus, setValueReportStatus] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -3145,6 +3228,18 @@ export default function App() {
       insightsText,
       caseStudyName: caseStudyName || `${data?.client?.name || 'Client'} case study`
     })
+  }
+
+  async function exportValueReport() {
+    try {
+      setValueReportLoading(true)
+      setValueReportStatus('')
+      await downloadValueReport(data)
+    } catch (reportError) {
+      setValueReportStatus(reportError.message || 'Unable to generate the value report.')
+    } finally {
+      setValueReportLoading(false)
+    }
   }
 
   async function uploadCloudChefsMetaCsv(event) {
@@ -3599,6 +3694,8 @@ export default function App() {
                 onChange={setInsightsText}
                 onReset={() => setInsightsText(data?.insights?.suggested || '')}
                 onExport={() => setView('report')}
+                onValueReport={exportValueReport}
+                valueReportLoading={valueReportLoading}
               />
 
               <FunnelHero
@@ -3608,6 +3705,12 @@ export default function App() {
                 compact={true}
               />
             </div>
+
+            {valueReportStatus ? (
+              <div style={{ ...cardStyle(), padding: '12px 14px', marginTop: '12px', color: COLORS.red, fontWeight: 800 }}>
+                {valueReportStatus}
+              </div>
+            ) : null}
 
             <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
               <TrendCharts daily={dailyChartData} targetCPA={targetCPA} compact={true} />
