@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  AreaChart,
   Area
 } from 'recharts'
 import OnboardingHelper from './OnboardingHelper.jsx'
@@ -645,10 +644,13 @@ function DashboardFooter() {
   )
 }
 
-function FunnelHero({ impressions, clicks, conversions, compact = false }) {
+function FunnelHero({ impressions, clicks, conversions, convertedCount, compact = false }) {
   const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0
   const resultOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
   const resultOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
+  const hasConvertedStage = convertedCount != null
+  const converted = Number(convertedCount || 0)
+  const convertedOfLeads = conversions > 0 ? (converted / conversions) * 100 : 0
 
   const rows = [
     {
@@ -672,7 +674,16 @@ function FunnelHero({ impressions, clicks, conversions, compact = false }) {
       width: Math.max(resultOfClicks, conversions > 0 ? 4 : 0),
       color: COLORS.greenLight,
       topRight: `${percent(resultOfImpressions)} of impressions · Click-to-lead ${percent(resultOfClicks)}`
-    }
+    },
+    ...(hasConvertedStage
+      ? [{
+          label: 'Converted leads',
+          value: converted.toLocaleString(),
+          width: Math.max(convertedOfLeads, converted > 0 ? 4 : 0),
+          color: COLORS.amber,
+          topRight: `${percent(convertedOfLeads)} of leads converted`
+        }]
+      : [])
   ]
 
   return (
@@ -840,7 +851,9 @@ function SimpleTooltipValue({ active, payload, label }) {
       {payload.map((item) => (
         <div key={item.name} style={{ fontSize: '13px', color: COLORS.text }}>
           <span style={{ color: item.color, fontWeight: 800 }}>{metricLabel(item.name)}:</span>{' '}
-          {item.name.toLowerCase().includes('spend') || item.name.toLowerCase().includes('cpa')
+          {item.name.toLowerCase().includes('conversion rate')
+            ? `${Number(item.value).toFixed(2)}%`
+            : item.name.toLowerCase().includes('spend') || item.name.toLowerCase().includes('cpa')
             ? formatSar(item.value)
             : Number(item.value).toLocaleString()}
         </div>
@@ -851,6 +864,7 @@ function SimpleTooltipValue({ active, payload, label }) {
 
 function TrendCharts({ daily, targetCPA, compact = false }) {
   const hasDaily = Array.isArray(daily) && daily.length > 0
+  const hasConversionRate = hasDaily && daily.some((row) => row.conversionRate != null)
   const actualTargetCPA = Number.isFinite(targetCPA) && targetCPA > 0 ? targetCPA : null
 
   return (
@@ -925,10 +939,18 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
         ) : (
           <div style={{ width: '100%', height: compact ? 220 : 300 }}>
             <ResponsiveContainer>
-              <AreaChart data={daily}>
+              <ComposedChart data={daily}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EEE4D4" />
                 <XAxis dataKey="date" tick={{ fontSize: 12, fill: COLORS.muted }} />
-                <YAxis tick={{ fontSize: 12, fill: COLORS.muted }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12, fill: COLORS.muted }} />
+                {hasConversionRate ? (
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12, fill: COLORS.muted }}
+                    tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
+                  />
+                ) : null}
                 <Tooltip content={<SimpleTooltipValue />} />
                 <Legend />
                 <defs>
@@ -938,6 +960,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
                   </linearGradient>
                 </defs>
                 <Area
+                  yAxisId="left"
                   type="monotone"
                   dataKey="cpa"
                   name={metricLabel('CPA')}
@@ -945,8 +968,22 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
                   fill="url(#cpaFill)"
                   strokeWidth={3}
                 />
+                {hasConversionRate ? (
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="conversionRate"
+                    name="Conversion rate"
+                    stroke={COLORS.amberDeep}
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    connectNulls={false}
+                  />
+                ) : null}
                 {actualTargetCPA ? (
                   <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey={() => actualTargetCPA}
                     name="Target CPA (هدف تكلفة التحويل)"
@@ -956,7 +993,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
                     strokeWidth={2}
                   />
                 ) : null}
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -1061,6 +1098,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
 }
 
 function AdvancedTable({ rows, googleDiagnostics }) {
+  const hasConversionData = rows.some((row) => row.convertedCount != null)
   const platformPerformanceRows = rows.map((row) => {
     const spendNum = parseSarString(row.spend)
     const clicksNum = parseNumberString(row.clicks)
@@ -1105,12 +1143,14 @@ function AdvancedTable({ rows, googleDiagnostics }) {
               <th style={{ padding: '12px 8px' }}>{metricLabel('CPC')}</th>
               <th style={{ padding: '12px 8px' }}>{metricLabel('Results')}</th>
               <th style={{ padding: '12px 8px' }}>{metricLabel('CPA')}</th>
+              {hasConversionData ? <th style={{ padding: '12px 8px' }}>Converted</th> : null}
+              {hasConversionData ? <th style={{ padding: '12px 8px' }}>Cost per converted lead</th> : null}
             </tr>
           </thead>
           <tbody>
             {platformPerformanceRows.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ padding: '18px 8px' }}>
+                <td colSpan={hasConversionData ? 9 : 7} style={{ padding: '18px 8px' }}>
                   <EmptyState
                     title="Advanced table will appear when platform rows are available"
                     text="Once lead data is returned, this optional view will list spend, clicks, CTR, CPC, leads, and cost per lead in one place."
@@ -1129,6 +1169,16 @@ function AdvancedTable({ rows, googleDiagnostics }) {
                   <td style={{ padding: '14px 8px' }}>{row.cpc != null ? formatSar(row.cpc) : 'N/A'}</td>
                   <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
                   <td style={{ padding: '14px 8px' }}>{row.cpa != null ? formatSar(row.cpa) : 'N/A'}</td>
+                  {hasConversionData ? (
+                    <td style={{ padding: '14px 8px' }}>
+                      {row.convertedCount != null ? Number(row.convertedCount).toLocaleString() : 'N/A'}
+                    </td>
+                  ) : null}
+                  {hasConversionData ? (
+                    <td style={{ padding: '14px 8px' }}>
+                      {row.costPerConvertedLead != null ? formatSar(row.costPerConvertedLead) : 'N/A'}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}
@@ -1185,7 +1235,13 @@ function buildDailyChartData(data, totalSpend, totalConversions) {
       spend,
       conversions,
       cpa,
-      targetCPA: Number(row.targetCPA || 0)
+      targetCPA: Number(row.targetCPA || 0),
+      ...(row.convertedCount != null
+        ? {
+            convertedCount: Number(row.convertedCount || 0),
+            conversionRate: row.conversionRate == null ? null : Number(row.conversionRate)
+          }
+        : {})
     }
   })
 }
@@ -1947,9 +2003,17 @@ function AudienceActionInsights({ data }) {
   const rows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
   const audienceRows = summarizeAudienceBreakdowns(data)
-  const bestByResults = [...rows]
-    .filter((row) => row.conversions !== 'N/A')
-    .sort((a, b) => parseNumberString(b.conversions) - parseNumberString(a.conversions))[0]
+  const hasConversionData = rows.some((row) => row.convertedCount != null)
+  const bestByResults = hasConversionData
+    ? [...rows]
+        .filter((row) => row.conversionRate != null)
+        .sort((a, b) => (
+          Number(b.conversionRate || 0) - Number(a.conversionRate || 0) ||
+          Number(a.costPerConvertedLead ?? Number.POSITIVE_INFINITY) - Number(b.costPerConvertedLead ?? Number.POSITIVE_INFINITY)
+        ))[0]
+    : [...rows]
+        .filter((row) => row.conversions !== 'N/A')
+        .sort((a, b) => parseNumberString(b.conversions) - parseNumberString(a.conversions))[0]
   const bestByClicks = [...rows]
     .sort((a, b) => parseNumberString(b.clicks) - parseNumberString(a.clicks))[0]
   const actionBreakdowns = statuses
@@ -1980,9 +2044,15 @@ function AudienceActionInsights({ data }) {
       <div style={{ display: 'grid', gap: '10px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px' }}>
           <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
-            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest lead source</div>
+            <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>
+              {hasConversionData ? 'Strongest converting source' : 'Strongest lead source'}
+            </div>
             <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
-              {bestByResults ? `${bestByResults.platform} · ${bestByResults.campaign}` : 'Not enough lead data yet'}
+              {bestByResults
+                ? `${bestByResults.platform} · ${bestByResults.campaign}`
+                : hasConversionData
+                  ? 'Not enough converted-lead data yet'
+                  : 'Not enough lead data yet'}
             </div>
           </div>
           <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
@@ -2281,7 +2351,12 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
         </div>
 
         <div style={{ display: 'grid', gap: '18px' }}>
-          <FunnelHero impressions={totalImpressions} clicks={totalClicks} conversions={totalConversions} />
+          <FunnelHero
+            impressions={totalImpressions}
+            clicks={totalClicks}
+            conversions={totalConversions}
+            convertedCount={data?.conversionMetrics?.convertedCount}
+          />
           <TrendCharts daily={dailyChartData} targetCPA={targetCPA} />
           <PlatformContribution
             rows={campaignRows}
@@ -2970,7 +3045,14 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
               />
             ) : null}
 
-            {showFunnel ? <FunnelHero impressions={totalImpressions} clicks={totalClicks} conversions={totalConversions} /> : null}
+            {showFunnel ? (
+              <FunnelHero
+                impressions={totalImpressions}
+                clicks={totalClicks}
+                conversions={totalConversions}
+                convertedCount={displayReportData?.conversionMetrics?.convertedCount}
+              />
+            ) : null}
             {showTrends ? <TrendCharts daily={dailyChartData} targetCPA={targetCPA} /> : null}
             {showPlatforms ? (
               <PlatformContribution
@@ -3180,7 +3262,10 @@ export default function App() {
     'Form Submissions',
     'Direct Messages',
     'Cost per Lead',
-    'Lead Rate'
+    'Lead Rate',
+    'Converted Leads',
+    'Lead Conversion Rate',
+    'Cost per Converted Lead'
   ].includes(card.label))
 
   const summaryText = insightsText || buildClientSummary({
@@ -3702,6 +3787,7 @@ export default function App() {
                 impressions={totalImpressions}
                 clicks={totalClicks}
                 conversions={totalConversions}
+                convertedCount={data?.conversionMetrics?.convertedCount}
                 compact={true}
               />
             </div>
