@@ -28,13 +28,15 @@ CLOUD_CHEFS_LEADS_SPREADSHEET_ID=<id from the Google Sheets URL>
 CLOUD_CHEFS_LEADS_SHEET_NAME=<exact visible tab name>
 ```
 
-Set service-account authentication using either one JSON variable:
+Set service-account authentication using the base64-encoded JSON variable from
+the integration specification:
 
 ```text
-GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON=<complete service-account JSON>
+GOOGLE_SERVICE_ACCOUNT_KEY_B64=<base64-encoded service-account JSON>
 ```
 
-or these two variables:
+For compatibility, the dashboard also accepts the complete JSON in
+`GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON`, or these two variables:
 
 ```text
 GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL=<service-account client_email>
