@@ -15,7 +15,7 @@ import OnboardingHelper from './OnboardingHelper.jsx'
 import {
   buildCustomRange,
   formatReportDate,
-  parseCustomStartDate
+  parseCustomDateRange
 } from '../lib/reportRange.js'
 import {
   applyMetaImportToDashboard,
@@ -97,12 +97,14 @@ function selectStyle() {
 
 function ReportRangeControl({ value, onChange }) {
   const today = formatReportDate()
-  const customStartDate = parseCustomStartDate(value) || today
-  const isCustom = Boolean(parseCustomStartDate(value))
+  const customRange = parseCustomDateRange(value)
+  const customStartDate = customRange?.startDate || today
+  const customEndDate = customRange?.endDate || today
+  const isCustom = Boolean(customRange)
 
   function handleRangeChange(nextValue) {
     if (nextValue === 'custom') {
-      onChange(buildCustomRange(customStartDate) || `custom:${today}`)
+      onChange(buildCustomRange(customStartDate, customEndDate) || `custom:${today}:${today}`)
       return
     }
 
@@ -120,26 +122,106 @@ function ReportRangeControl({ value, onChange }) {
         <option value="30d">Last 30 days</option>
         <option value="this_month">This month</option>
         <option value="max">Since promotion start</option>
-        <option value="custom">Choose report starting date</option>
+        <option value="custom">Choose exact start and end dates</option>
       </select>
 
       {isCustom ? (
-        <label style={{ display: 'grid', gap: '5px' }}>
-          <span style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 700 }}>
-            Report starting date
-          </span>
-          <input
-            type="date"
-            value={customStartDate}
-            max={today}
-            onChange={(event) => {
-              const customRange = buildCustomRange(event.target.value)
-              if (customRange) onChange(customRange)
-            }}
-            style={selectStyle()}
-          />
-        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
+          <label style={{ display: 'grid', gap: '5px' }}>
+            <span style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 700 }}>Start date</span>
+            <input
+              type="date"
+              value={customStartDate}
+              max={customEndDate}
+              onChange={(event) => {
+                const nextEndDate = event.target.value > customEndDate ? event.target.value : customEndDate
+                const nextRange = buildCustomRange(event.target.value, nextEndDate)
+                if (nextRange) onChange(nextRange)
+              }}
+              style={selectStyle()}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '5px' }}>
+            <span style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 700 }}>End date</span>
+            <input
+              type="date"
+              value={customEndDate}
+              min={customStartDate}
+              max={today}
+              onChange={(event) => {
+                const nextRange = buildCustomRange(customStartDate, event.target.value)
+                if (nextRange) onChange(nextRange)
+              }}
+              style={selectStyle()}
+            />
+          </label>
+        </div>
       ) : null}
+    </div>
+  )
+}
+
+function reportRangeLabel(value) {
+  const custom = parseCustomDateRange(value)
+  if (custom) return `${custom.startDate} to ${custom.endDate}`
+  return { '7d': 'Last 7 days', '30d': 'Last 30 days', this_month: 'This month', max: 'Since promotion start' }[value] || value
+}
+
+function parseMetricValue(value, type) {
+  if (value == null || value === '' || value === 'N/A') return null
+  if (type === 'rate') {
+    const parsed = Number.parseFloat(String(value).replace('%', ''))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return type === 'currency' ? parseSarString(value) : parseNumberString(value)
+}
+
+function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }) {
+  if (!primary || !comparison) return null
+  const primaryCards = Array.isArray(primary.summaryCards) ? primary.summaryCards : []
+  const comparisonCards = Array.isArray(comparison.summaryCards) ? comparison.summaryCards : []
+  const definitions = [
+    ['Total Spend', 'currency'], ['Impressions', 'number'], ['Clicks', 'number'], ['Leads', 'number'],
+    ['Cost per Lead', 'currency'], ['Converted Leads', 'number'], ['Lead Conversion Rate', 'rate'],
+    ['Cost per Converted Lead', 'currency']
+  ]
+  const rows = definitions.flatMap(([label, type]) => {
+    const currentDisplay = getSummaryCardValue(primaryCards, label)
+    const previousDisplay = getSummaryCardValue(comparisonCards, label)
+    if (!currentDisplay && !previousDisplay) return []
+    const current = parseMetricValue(currentDisplay, type)
+    const previous = parseMetricValue(previousDisplay, type)
+    let delta = 'N/A'
+    if (current != null && previous != null) {
+      if (type === 'rate') delta = `${current - previous >= 0 ? '+' : ''}${(current - previous).toFixed(2)} pp`
+      else if (previous !== 0) {
+        const change = ((current - previous) / Math.abs(previous)) * 100
+        delta = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
+      }
+    }
+    return [{ label, currentDisplay: currentDisplay || 'N/A', previousDisplay: previousDisplay || 'N/A', delta }]
+  })
+
+  return (
+    <div style={{ ...cardStyle(), padding: '15px', marginBottom: '14px' }}>
+      <SectionTitle title="Period comparison" subtitle={`${reportRangeLabel(primaryRange)} compared with ${reportRangeLabel(comparisonRange)}`} />
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', fontSize: '13px' }}>
+          <thead><tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+            {['Metric', 'Selected period', 'Comparison period', 'Change'].map((heading) => (
+              <th key={heading} style={{ padding: '9px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{heading}</th>
+            ))}
+          </tr></thead>
+          <tbody>{rows.map((row) => (
+            <tr key={row.label}>
+              <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}`, fontWeight: 800 }}>{metricLabel(row.label)}</td>
+              <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{row.currentDisplay}</td>
+              <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{row.previousDisplay}</td>
+              <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}`, fontWeight: 900 }}>{row.delta}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -2227,7 +2309,7 @@ function downloadCustomReportWorkbook({ title, data, selectedMetrics, selectedSe
   ].filter(Boolean))
 }
 
-function ReportView({ data, platform, range, setView, insightsText, isSharedView = false }) {
+function ReportView({ data, platform, range, setView, insightsText, isSharedView = false, comparisonData = null, comparisonRange = '30d' }) {
   const [valueReportLoading, setValueReportLoading] = useState(false)
   const [valueReportError, setValueReportError] = useState('')
   const campaignRows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
@@ -2351,6 +2433,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
         </div>
 
         <div style={{ display: 'grid', gap: '18px' }}>
+          <PeriodComparison primary={data} comparison={comparisonData} primaryRange={range} comparisonRange={comparisonRange} />
           <FunnelHero
             impressions={totalImpressions}
             clicks={totalClicks}
@@ -3084,6 +3167,9 @@ export default function App() {
   const [client, setClient] = useState('rimiya')
   const [platform, setPlatform] = useState('all')
   const [range, setRange] = useState(() => getInitialQueryParam('range', '30d'))
+  const [compareEnabled, setCompareEnabled] = useState(false)
+  const [compareRange, setCompareRange] = useState('30d')
+  const [comparisonData, setComparisonData] = useState(null)
   const [view, setView] = useState('dashboard')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [insightsText, setInsightsText] = useState('')
@@ -3101,42 +3187,31 @@ export default function App() {
         setLoading(true)
         setError('')
 
-        const params = isSharedView
-          ? new URLSearchParams({
-              token: shareToken,
-              range
-            })
-          : new URLSearchParams({
-              client,
-              platform,
-              range
-            })
-
-        if (!isSharedView && Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
-          params.set('accounts', selectedAccountIds.join(','))
-        }
-
         const endpoint = isSharedView ? '/api/public-dashboard' : '/api/dashboard'
-        const res = await fetch(`${endpoint}?${params.toString()}`)
-        const text = await res.text()
-
-        let json
-        try {
-          json = JSON.parse(text)
-        } catch {
-          throw new Error(text.slice(0, 300) || 'Server returned non-JSON response')
+        async function fetchRange(requestRange) {
+          const params = isSharedView
+            ? new URLSearchParams({ token: shareToken, range: requestRange })
+            : new URLSearchParams({ client, platform, range: requestRange })
+          if (!isSharedView && Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
+            params.set('accounts', selectedAccountIds.join(','))
+          }
+          const res = await fetch(`${endpoint}?${params.toString()}`)
+          const text = await res.text()
+          let json
+          try { json = JSON.parse(text) } catch { throw new Error(text.slice(0, 300) || 'Server returned non-JSON response') }
+          if (!res.ok) throw new Error(json.error || 'Failed to load dashboard data')
+          return applyMetaImportToDashboard(json, cloudChefsMetaImport, { range: requestRange, platform })
         }
 
-        if (!res.ok) {
-          throw new Error(json.error || 'Failed to load dashboard data')
-        }
-
-        setData(applyMetaImportToDashboard(json, cloudChefsMetaImport, {
-          range,
-          platform
-        }))
+        const [primary, comparison] = await Promise.all([
+          fetchRange(range),
+          compareEnabled ? fetchRange(compareRange) : Promise.resolve(null)
+        ])
+        setData(primary)
+        setComparisonData(comparison)
       } catch (err) {
         setData(null)
+        setComparisonData(null)
         setError(err.message || 'Something went wrong')
       } finally {
         setLoading(false)
@@ -3144,7 +3219,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range, isSharedView, shareToken, selectedAccountIds, cloudChefsMetaImport])
+  }, [client, platform, range, compareEnabled, compareRange, isSharedView, shareToken, selectedAccountIds, cloudChefsMetaImport])
 
   useEffect(() => {
     setInsightsText(data?.insights?.suggested || '')
@@ -3223,6 +3298,8 @@ export default function App() {
         setView={setView}
         insightsText={insightsText}
         isSharedView={isSharedView}
+        comparisonData={comparisonData}
+        comparisonRange={compareRange}
       />
     )
   }
@@ -3619,6 +3696,16 @@ export default function App() {
                   <ReportRangeControl value={range} onChange={setRange} />
                 </div>
               </div>
+
+              <div style={cardStyle()}>
+                <div style={{ padding: '11px 12px 13px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.green, fontSize: '13px', fontWeight: 900 }}>
+                    <input type="checkbox" checked={compareEnabled} onChange={(event) => setCompareEnabled(event.target.checked)} style={{ accentColor: COLORS.green }} />
+                    Compare with another period
+                  </label>
+                  {compareEnabled ? <div style={{ marginTop: '10px' }}><ReportRangeControl value={compareRange} onChange={setCompareRange} /></div> : null}
+                </div>
+              </div>
             </div>
 
             {!isSharedView && client === 'cloud-chefs' ? (
@@ -3772,6 +3859,8 @@ export default function App() {
                 </div>
               ))}
             </div>
+
+            <PeriodComparison primary={data} comparison={comparisonData} primaryRange={range} comparisonRange={compareRange} />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
               <SummaryBlock

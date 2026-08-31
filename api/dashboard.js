@@ -5,8 +5,13 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 import { getLeadBreakdown } from '../lib/leads.js'
-import { parseCustomStartDate } from '../lib/reportRange.js'
-import { getSheetConversions, mergeConversions, summarizeConversions } from '../lib/sheetConversions.js'
+import { parseCustomDateRange } from '../lib/reportRange.js'
+import {
+  filterSheetConversionsByDate,
+  getSheetConversions,
+  mergeConversions,
+  summarizeConversions
+} from '../lib/sheetConversions.js'
 
 const REPORTING_START_DATE = '2026-01-01'
 const SAR_EXCHANGE_RATES = {
@@ -167,8 +172,8 @@ function buildExportRow(row) {
 }
 
 function rangeLabel(range) {
-  const customStartDate = parseCustomStartDate(range)
-  if (customStartDate) return `since ${customStartDate}`
+  const customRange = parseCustomDateRange(range)
+  if (customRange) return `${customRange.startDate} to ${customRange.endDate}`
   if (range === '7d') return 'the last 7 days'
   if (range === 'this_month') return 'this month'
   if (range === 'max') return 'since promotion start'
@@ -176,7 +181,7 @@ function rangeLabel(range) {
 }
 
 function periodPhrase(range) {
-  return range === 'max' || parseCustomStartDate(range)
+  return range === 'max' || parseCustomDateRange(range)
     ? rangeLabel(range)
     : `in ${rangeLabel(range)}`
 }
@@ -190,20 +195,20 @@ function getPromotionStartDate(client = null, platform = null) {
 }
 
 function getRangeConfig(range, client = null, platform = null) {
-  const customStartDate = parseCustomStartDate(range)
-  if (customStartDate) {
+  const customRange = parseCustomDateRange(range)
+  if (customRange) {
     return {
       meta: {
         datePreset: null,
         timeRange: {
-          since: customStartDate,
-          until: todayISO()
+          since: customRange.startDate,
+          until: customRange.endDate
         }
       },
       google: {
         dateRange: null,
-        startDate: customStartDate,
-        endDate: todayISO()
+        startDate: customRange.startDate,
+        endDate: customRange.endDate
       }
     }
   }
@@ -250,12 +255,12 @@ function getRangeConfig(range, client = null, platform = null) {
 function getRangeDates(range, client = null, platform = null) {
   const now = new Date()
   const today = dateOnly(now)
-  const customStartDate = parseCustomStartDate(range, now)
+  const customRange = parseCustomDateRange(range, now)
 
-  if (customStartDate) {
+  if (customRange) {
     return {
-      startDate: customStartDate,
-      endDate: today
+      startDate: customRange.startDate,
+      endDate: customRange.endDate
     }
   }
 
@@ -996,7 +1001,12 @@ export async function buildDashboardPayload({
     }
   }
 
-  const sheetConversions = await getSheetConversions(client)
+  const sheetDateRange = getRangeDates(range, client)
+  const sheetConversions = filterSheetConversionsByDate(
+    await getSheetConversions(client),
+    sheetDateRange.startDate,
+    sheetDateRange.endDate
+  )
   const reportingRows = mergeConversions(rows.map(convertRowSpendToSar), sheetConversions)
   const conversionMetrics = summarizeConversions(reportingRows, sheetConversions)
   const totalSpend = reportingRows.reduce((sum, row) => sum + (row.spend || 0), 0)

@@ -161,6 +161,33 @@ test('adds uploaded Meta totals to the dashboard and respects the selected date 
   }])
 })
 
+test('excludes uploaded Meta rows after an exact custom end date', () => {
+  const imported = parseMetaCsv(csv)
+  const base = {
+    client: { id: 'cloud-chefs', name: 'Cloud Chefs' },
+    summaryCards: [
+      { label: 'Total Spend', value: 'SAR 0' },
+      { label: 'Reach', value: '0' },
+      { label: 'Impressions', value: '0' },
+      { label: 'Clicks', value: '0' },
+      { label: 'Leads', value: '0' },
+      { label: 'Form Submissions', value: '0' },
+      { label: 'Direct Messages', value: '0' }
+    ],
+    campaignRows: [], exportRows: [], accountOptions: [], accountStatuses: [],
+    dataQuality: {}, trends: { daily: [] }, diagnostics: {}, insights: {}
+  }
+
+  const result = applyMetaImportToDashboard(base, imported, {
+    range: 'custom:2026-07-31:2026-07-31',
+    platform: 'all',
+    now: new Date('2026-08-02T12:00:00.000Z')
+  })
+  const byLabel = Object.fromEntries(result.summaryCards.map((card) => [card.label, card.value]))
+  assert.equal(byLabel['Total Spend'], 'SAR 100.5')
+  assert.equal(byLabel.Leads, '5')
+})
+
 test('rejects files that do not contain Meta reporting metrics', () => {
   assert.throws(
     () => parseMetaCsv('Name,Email\nA,a@example.com\n'),

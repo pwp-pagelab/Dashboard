@@ -4,6 +4,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { clients } from '../data/clients.js'
 import {
   getSheetConversions,
+  filterSheetConversionsByDate,
   mergeConversions,
   parseSheetConversionRows,
   summarizeConversions
@@ -72,6 +73,24 @@ test('leaves platform data unchanged when Sheet data is unavailable', () => {
   const platformData = [{ platform: 'Meta', campaign: 'Cloud Chefs', spend: 100 }]
   assert.equal(mergeConversions(platformData, null), platformData)
   assert.equal(summarizeConversions(platformData, null), null)
+})
+
+test('filters dated Sheet conversions to the selected reporting period', () => {
+  const sheetData = {
+    dateColumnConfigured: true,
+    rows: [
+      { leadId: 'before', date: '2026-06-30' },
+      { leadId: 'start', date: '2026-07-01' },
+      { leadId: 'end', date: '2026-07-31' },
+      { leadId: 'after', date: '2026-08-01' },
+      { leadId: 'undated', date: null }
+    ]
+  }
+
+  assert.deepEqual(
+    filterSheetConversionsByDate(sheetData, '2026-07-01', '2026-07-31').rows.map((row) => row.leadId),
+    ['start', 'end']
+  )
 })
 
 test('adds per-platform and overall converted-lead metrics', () => {
