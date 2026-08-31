@@ -124,13 +124,17 @@ export const clients = [
     metaAccountName: 'Cloud Chefs',
     linkedinAccountId: '551744400',
     tiktokAdvertiserId: '7520209563900215313',
+    snapchatAdAccountId: 'c41fc4c1-0a52-4d4b-9dd7-d8fa400babbb',
+    snapchatAdAccountName: 'Aklatbyootksa Self-service',
+    snapchatCurrencyCode: 'USD',
     metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'cloud chefs' },
+    snapMatch: { type: 'includes', value: 'Aklat Byoot' },
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
       tiktok: { enabled: true },
-      snapchat: { enabled: false },
+      snapchat: { enabled: true },
       linkedin: { enabled: true }
     }
   },
