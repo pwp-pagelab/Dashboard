@@ -127,6 +127,14 @@ export const clients = [
     snapchatAdAccountId: 'c41fc4c1-0a52-4d4b-9dd7-d8fa400babbb',
     snapchatAdAccountName: 'Aklatbyootksa Self-service',
     snapchatCurrencyCode: 'USD',
+    leadsSheet: {
+      spreadsheetId: 'env:CLOUD_CHEFS_LEADS_SPREADSHEET_ID',
+      sheetName: 'env:CLOUD_CHEFS_LEADS_SHEET_NAME',
+      leadIdColumn: 'Lead ID',
+      convertedColumn: 'Converted (Y/N)',
+      sourceColumn: 'Source',
+      dateColumn: 'Date'
+    },
     metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'cloud chefs' },
     snapMatch: { type: 'includes', value: 'Aklat Byoot' },
