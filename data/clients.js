@@ -124,13 +124,17 @@ export const clients = [
     metaAccountName: 'Cloud Chefs',
     linkedinAccountId: '551744400',
     tiktokAdvertiserId: '7520209563900215313',
+    snapchatAdAccountId: '0389b55e-d4ef-43f6-b054-4baf1d69c3f5',
+    snapchatAdAccountName: 'Company KAIKRU FOOD TEK For Meals (One Partner) Self Service',
+    snapchatCurrencyCode: 'USD',
     metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'cloud chefs' },
+    snapMatch: { type: 'includes', value: 'KAIKRU FOOD TEK' },
     platforms: {
       meta: { enabled: true },
       google: { enabled: false },
       tiktok: { enabled: true },
-      snapchat: { enabled: false },
+      snapchat: { enabled: true },
       linkedin: { enabled: true }
     }
   },
