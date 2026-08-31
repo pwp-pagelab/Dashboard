@@ -69,6 +69,27 @@ test('parses, normalizes, and deduplicates lead conversion rows', () => {
   ])
 })
 
+test('parses a platform tab with a configured fixed source', () => {
+  const rows = parseSheetConversionRows([
+    ['lead_id', 'created_date', 'تم الفوز بالفرصة؟ نعم/ لا'],
+    ['linkedin-1', '8/8/2026', 'Yes'],
+    ['linkedin-2', '8/9/2026', 'نعم'],
+    ['linkedin-3', '8/10/2026', 'Maybe']
+  ], {
+    leadIdColumn: 'lead_id',
+    dateColumn: 'created_date',
+    convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+    sourceValue: 'LinkedIn',
+    dateFormat: 'MDY'
+  })
+
+  assert.deepEqual(rows, [
+    { leadId: 'linkedin-1', converted: true, source: 'LinkedIn', date: '2026-08-08' },
+    { leadId: 'linkedin-2', converted: true, source: 'LinkedIn', date: '2026-08-09' },
+    { leadId: 'linkedin-3', converted: false, source: 'LinkedIn', date: '2026-08-10' }
+  ])
+})
+
 test('leaves platform data unchanged when Sheet data is unavailable', () => {
   const platformData = [{ platform: 'Meta', campaign: 'Cloud Chefs', spend: 100 }]
   assert.equal(mergeConversions(platformData, null), platformData)
