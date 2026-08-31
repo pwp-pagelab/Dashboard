@@ -145,6 +145,10 @@ test('swallows Sheets authentication failures and logs them', async () => {
 test('falls back to null when an authenticated Sheet request fails', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' })
+  const serviceAccountKey = Buffer.from(JSON.stringify({
+    client_email: 'sheet-failure@example.com',
+    private_key: privateKeyPem
+  })).toString('base64')
   const errors = []
   let fetchCalls = 0
   const result = await getSheetConversions(
@@ -158,8 +162,7 @@ test('falls back to null when an authenticated Sheet request fails', async () =>
     },
     {
       env: {
-        GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL: 'sheet-failure@example.com',
-        GOOGLE_SHEETS_PRIVATE_KEY: privateKeyPem
+        GOOGLE_SERVICE_ACCOUNT_KEY_B64: serviceAccountKey
       },
       fetchImpl: async (url) => {
         fetchCalls += 1
