@@ -6,6 +6,7 @@ import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 import { getLeadBreakdown } from '../lib/leads.js'
 import { parseCustomStartDate } from '../lib/reportRange.js'
+import { getSheetConversions, mergeConversions, summarizeConversions } from '../lib/sheetConversions.js'
 
 const REPORTING_START_DATE = '2026-01-01'
 const SAR_EXCHANGE_RATES = {
@@ -127,6 +128,13 @@ function buildExportRow(row) {
     formSubmissions: leadBreakdown.formSubmissions,
     directMessages: leadBreakdown.directMessages,
     leadBreakdown,
+    ...(row.convertedCount != null
+      ? {
+          convertedCount: Number(row.convertedCount || 0),
+          conversionRate: row.conversionRate,
+          costPerConvertedLeadSar: row.costPerConvertedLead
+        }
+      : {}),
     resultType: row.conversionLabel || null,
     resultBreakdown: row.conversionBreakdown || null,
     engagementBreakdown: row.engagementBreakdown || null,
@@ -437,6 +445,9 @@ function combineDailyTrends(rows) {
       existing.formSubmissions += Number(day.formSubmissions || 0)
       existing.directMessages += Number(day.directMessages || 0)
       existing.conversions += Number(day.totalLeads ?? day.conversions ?? 0)
+      if (day.convertedCount != null) {
+        existing.convertedCount = Number(existing.convertedCount || 0) + Number(day.convertedCount || 0)
+      }
       dailyByDate.set(day.date, existing)
     })
   })
@@ -445,7 +456,14 @@ function combineDailyTrends(rows) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((day) => ({
       ...day,
-      cpa: day.conversions > 0 ? day.spend / day.conversions : null
+      cpa: day.conversions > 0 ? day.spend / day.conversions : null,
+      ...(day.convertedCount != null
+        ? {
+            conversionRate: day.conversions > 0
+              ? (day.convertedCount / day.conversions) * 100
+              : null
+          }
+        : {})
     }))
 }
 
@@ -978,7 +996,9 @@ export async function buildDashboardPayload({
     }
   }
 
-  const reportingRows = rows.map(convertRowSpendToSar)
+  const sheetConversions = await getSheetConversions(client)
+  const reportingRows = mergeConversions(rows.map(convertRowSpendToSar), sheetConversions)
+  const conversionMetrics = summarizeConversions(reportingRows, sheetConversions)
   const totalSpend = reportingRows.reduce((sum, row) => sum + (row.spend || 0), 0)
   const totalReach = reportingRows.reduce((sum, row) => sum + (row.reach || 0), 0)
   const totalImpressions = reportingRows.reduce((sum, row) => sum + (row.impressions || 0), 0)
@@ -1035,6 +1055,9 @@ export async function buildDashboardPayload({
     existing.conversions += getLeadBreakdown(row).totalLeads
     existing.formSubmissions += getLeadBreakdown(row).formSubmissions
     existing.directMessages += getLeadBreakdown(row).directMessages
+    if (row.convertedCount != null) {
+      existing.convertedCount = Number(existing.convertedCount || 0) + Number(row.convertedCount || 0)
+    }
     acc[key] = existing
     return acc
   }, {})
@@ -1093,7 +1116,8 @@ export async function buildDashboardPayload({
       conversionLabels: resultLabels,
       conversionWarning: 'Leads include only completed form submissions and new direct-message conversations reported by the selected platforms. Clicks and other conversion actions are excluded.',
       leadDefinition: 'completed_form_or_new_direct_message',
-      totalPlatformResults
+      totalPlatformResults,
+      ...(conversionMetrics ? { sheetConversionsAvailable: true } : {})
     },
     summaryCards: [
       {
@@ -1115,6 +1139,21 @@ export async function buildDashboardPayload({
         label: 'Lead Rate',
         value: `${(totalClicks > 0 ? (totalLeads / totalClicks) * 100 : 0).toFixed(2)}%`
       },
+      ...(conversionMetrics
+        ? [
+            { label: 'Converted Leads', value: conversionMetrics.convertedCount.toLocaleString() },
+            {
+              label: 'Lead Conversion Rate',
+              value: conversionMetrics.conversionRate == null ? 'N/A' : `${conversionMetrics.conversionRate.toFixed(2)}%`
+            },
+            {
+              label: 'Cost per Converted Lead',
+              value: conversionMetrics.costPerConvertedLead == null
+                ? 'N/A'
+                : formatSar(conversionMetrics.costPerConvertedLead)
+            }
+          ]
+        : []),
       { label: 'Platforms Active', value: activePlatformCount.toString() }
     ],
     campaignRows: reportingRows.map((row) => {
@@ -1141,7 +1180,14 @@ export async function buildDashboardPayload({
           leads: leadBreakdown.formSubmissions,
           messagingConversations: leadBreakdown.directMessages
         },
-        leadBreakdown
+        leadBreakdown,
+        ...(row.convertedCount != null
+          ? {
+              convertedCount: Number(row.convertedCount || 0),
+              conversionRate: row.conversionRate,
+              costPerConvertedLead: row.costPerConvertedLead
+            }
+          : {})
       }
     }),
     exportRows: publicMode ? [] : reportingRows.map(buildExportRow),
@@ -1153,10 +1199,22 @@ export async function buildDashboardPayload({
           conversions: value.conversions.toLocaleString(),
           leads: value.conversions.toLocaleString(),
           formSubmissions: value.formSubmissions.toLocaleString(),
-          directMessages: value.directMessages.toLocaleString()
+          directMessages: value.directMessages.toLocaleString(),
+          ...(value.convertedCount != null
+            ? {
+                convertedCount: value.convertedCount.toLocaleString(),
+                conversionRate: value.conversions > 0
+                  ? (value.convertedCount / value.conversions) * 100
+                  : null,
+                costPerConvertedLead: value.convertedCount > 0
+                  ? value.spend / value.convertedCount
+                  : null
+              }
+            : {})
         }
       ])
     ),
+    ...(conversionMetrics ? { conversionMetrics } : {}),
     diagnostics: publicMode
       ? {
           google: null,
