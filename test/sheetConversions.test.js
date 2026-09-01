@@ -69,6 +69,27 @@ test('parses, normalizes, and deduplicates lead conversion rows', () => {
   ])
 })
 
+test('parses a platform tab with a configured fixed source', () => {
+  const rows = parseSheetConversionRows([
+    ['lead_id', 'created_date', 'تم الفوز بالفرصة؟ نعم/ لا'],
+    ['linkedin-1', '8/8/2026', 'Yes'],
+    ['linkedin-2', '8/9/2026', 'نعم'],
+    ['linkedin-3', '8/10/2026', 'Maybe']
+  ], {
+    leadIdColumn: 'lead_id',
+    dateColumn: 'created_date',
+    convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+    sourceValue: 'LinkedIn',
+    dateFormat: 'MDY'
+  })
+
+  assert.deepEqual(rows, [
+    { leadId: 'linkedin-1', converted: true, source: 'LinkedIn', date: '2026-08-08' },
+    { leadId: 'linkedin-2', converted: true, source: 'LinkedIn', date: '2026-08-09' },
+    { leadId: 'linkedin-3', converted: false, source: 'LinkedIn', date: '2026-08-10' }
+  ])
+})
+
 test('leaves platform data unchanged when Sheet data is unavailable', () => {
   const platformData = [{ platform: 'Meta', campaign: 'Cloud Chefs', spend: 100 }]
   assert.equal(mergeConversions(platformData, null), platformData)
@@ -159,6 +180,47 @@ test('swallows Sheets authentication failures and logs them', async () => {
   assert.equal(result, null)
   assert.equal(errors.length, 1)
   assert.match(errors[0], /Sheet conversions unavailable for cloud-chefs/)
+})
+
+test('uses an OAuth refresh token when service-account keys are unavailable', async () => {
+  const requests = []
+  const result = await getSheetConversions(
+    {
+      id: 'cloud-chefs',
+      leadsSheet: {
+        spreadsheetId: 'sheet-id',
+        tabs: [{
+          ...sheetConfig,
+          sheetName: 'Leads'
+        }]
+      }
+    },
+    {
+      env: {
+        GOOGLE_SHEETS_CLIENT_ID: 'sheets-client-id',
+        GOOGLE_SHEETS_CLIENT_SECRET: 'sheets-client-secret',
+        GOOGLE_SHEETS_REFRESH_TOKEN: 'sheets-refresh-token'
+      },
+      fetchImpl: async (url, options) => {
+        requests.push({ url, options })
+        if (url.includes('oauth2.googleapis.com')) {
+          return { ok: true, json: async () => ({ access_token: 'oauth-access-token', expires_in: 3600 }) }
+        }
+        return {
+          ok: true,
+          json: async () => ({ values: [
+            ['Lead ID', 'Converted (Y/N)', 'Source', 'Date'],
+            ['lead-1', 'Yes', 'Meta', '2026-08-10']
+          ] })
+        }
+      }
+    }
+  )
+
+  assert.equal(requests.length, 2)
+  assert.match(String(requests[0].options.body), /refresh_token=sheets-refresh-token/)
+  assert.equal(requests[1].options.headers.Authorization, 'Bearer oauth-access-token')
+  assert.equal(result.rows[0].converted, true)
 })
 
 test('falls back to null when an authenticated Sheet request fails', async () => {

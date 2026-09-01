@@ -128,12 +128,38 @@ export const clients = [
     snapchatAdAccountName: 'Aklatbyootksa Self-service',
     snapchatCurrencyCode: 'USD',
     leadsSheet: {
-      spreadsheetId: 'env:CLOUD_CHEFS_LEADS_SPREADSHEET_ID',
-      sheetName: 'env:CLOUD_CHEFS_LEADS_SHEET_NAME',
-      leadIdColumn: 'Lead ID',
-      convertedColumn: 'Converted (Y/N)',
-      sourceColumn: 'Source',
-      dateColumn: 'Date'
+      spreadsheetId: '1uC1W4hGPjk4N3K0zs6El5ygZTsarwUucEtSvQJg5Mz4',
+      tabs: [
+        {
+          sheetName: 'Tiktok',
+          leadIdColumn: 'TikTok Lead ID',
+          convertedColumn: 'تم الفوز بالفرصة؟  نعم/ لا',
+          sourceValue: 'TikTok',
+          dateColumn: 'Creation Time'
+        },
+        {
+          sheetName: 'Snapchat',
+          leadIdColumn: 'leadId',
+          convertedColumn: 'هل تم الفوز بالفرصه؟ نعم/ لا',
+          sourceValue: 'Snapchat',
+          dateColumn: 'createTime'
+        },
+        {
+          sheetName: 'Meta',
+          leadIdColumn: 'Column 1',
+          convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+          sourceValue: 'Meta',
+          dateColumn: 'created_time'
+        },
+        {
+          sheetName: 'Linkedin',
+          leadIdColumn: 'lead_id',
+          convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+          sourceValue: 'LinkedIn',
+          dateColumn: 'created_date',
+          dateFormat: 'MDY'
+        }
+      ]
     },
     metaBusinessKeys: ['CLOUD_CHEFS', 'POSTWITHPASSION'],
     metaMatch: { type: 'includes', value: 'cloud chefs' },
