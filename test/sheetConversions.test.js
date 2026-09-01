@@ -20,6 +20,10 @@ const sheetConfig = {
 test('only Cloud Chefs has a lead Sheet configuration', () => {
   const configuredClients = clients.filter((client) => client.leadsSheet)
   assert.deepEqual(configuredClients.map((client) => client.id), ['cloud-chefs'])
+  assert.deepEqual(
+    configuredClients[0].leadsSheet.tabs.map((tab) => tab.sheetName),
+    ['Tiktok', 'Snapchat', 'Meta', 'Linkedin', 'website leads', 'whatsapp']
+  )
 })
 
 test('returns null without a lead Sheet and does not call fetch', async () => {
@@ -156,6 +160,30 @@ test('adds per-platform and overall converted-lead metrics', () => {
   assert.equal(summary.unattributedCount, 1)
 })
 
+test('adds website and WhatsApp Sheet leads as owned lead sources', () => {
+  const sheetData = {
+    rows: [
+      { leadId: 'web-1', converted: true, source: 'Website', date: '2026-08-18' },
+      { leadId: 'web-2', converted: false, source: 'Website', date: '2026-08-19' },
+      { leadId: 'wa-1', converted: true, source: 'WhatsApp', date: '2026-08-20' }
+    ]
+  }
+
+  const merged = mergeConversions([], sheetData)
+  const website = merged.find((row) => row.platform === 'Website')
+  const whatsapp = merged.find((row) => row.platform === 'WhatsApp')
+  const summary = summarizeConversions(merged, sheetData)
+
+  assert.equal(website.leadBreakdown.formSubmissions, 2)
+  assert.equal(website.convertedCount, 1)
+  assert.equal(website.conversionRate, 50)
+  assert.equal(website.costPerConvertedLead, null)
+  assert.equal(whatsapp.leadBreakdown.directMessages, 1)
+  assert.equal(whatsapp.convertedCount, 1)
+  assert.equal(summary.convertedCount, 2)
+  assert.ok(Math.abs(summary.conversionRate - (200 / 3)) < 1e-10)
+})
+
 test('swallows Sheets authentication failures and logs them', async () => {
   const errors = []
   const result = await getSheetConversions(
@@ -221,6 +249,47 @@ test('uses an OAuth refresh token when service-account keys are unavailable', as
   assert.match(String(requests[0].options.body), /refresh_token=sheets-refresh-token/)
   assert.equal(requests[1].options.headers.Authorization, 'Bearer oauth-access-token')
   assert.equal(result.rows[0].converted, true)
+})
+
+test('uses a configured public read-only Sheet fallback when OAuth is unavailable', async () => {
+  const requests = []
+  const result = await getSheetConversions(
+    {
+      id: 'cloud-chefs',
+      leadsSheet: {
+        spreadsheetId: 'public-sheet-id',
+        allowPublicCsvFallback: true,
+        tabs: [{
+          sheetName: 'website leads',
+          leadIdColumn: 'email',
+          convertedColumn: 'Won?',
+          sourceValue: 'Website',
+          dateColumn: 'Date',
+          dateFormat: 'DMY'
+        }]
+      }
+    },
+    {
+      env: {},
+      fetchImpl: async (url) => {
+        requests.push(url)
+        return {
+          ok: true,
+          text: async () => '"email","Date","Won?"\n"lead@example.com","18/8/2026","Yes"'
+        }
+      },
+      logger: { error: () => {} }
+    }
+  )
+
+  assert.equal(requests.length, 1)
+  assert.match(requests[0], /gviz\/tq/)
+  assert.deepEqual(result.rows[0], {
+    leadId: 'lead@example.com',
+    converted: true,
+    source: 'Website',
+    date: '2026-08-18'
+  })
 })
 
 test('falls back to null when an authenticated Sheet request fails', async () => {

@@ -684,6 +684,8 @@ const METRIC_LABELS = {
   Leads: 'Leads (العملاء المحتملون)',
   'Form Submissions': 'Form submissions (إرسال النماذج)',
   'Direct Messages': 'Direct messages (الرسائل المباشرة)',
+  'Website Leads': 'Website leads (عملاء الموقع)',
+  'WhatsApp Leads': 'WhatsApp leads (عملاء واتساب)',
   'Cost per Lead': 'Cost per lead (تكلفة العميل المحتمل)',
   'Lead Rate': 'Lead rate (معدل العملاء المحتملين)',
   Frequency: 'Frequency (التكرار)',
@@ -3511,7 +3513,7 @@ export default function App() {
   const executiveSummaryCards = summaryCards.filter((card) => executiveMetricLabels.includes(card.label))
   const frequency = totalReach > 0 ? totalImpressions / totalReach : null
   const supportingSummaryCards = [
-    ...summaryCards.filter((card) => ['Impressions', 'CTR', 'Lead Rate', 'Lead Conversion Rate', 'Form Submissions', 'Direct Messages'].includes(card.label)),
+    ...summaryCards.filter((card) => ['Impressions', 'CTR', 'Lead Rate', 'Lead Conversion Rate', 'Form Submissions', 'Direct Messages', 'Website Leads', 'WhatsApp Leads'].includes(card.label)),
     ...(frequency == null ? [] : [{ label: 'Frequency', value: frequency.toFixed(2) }])
   ]
 
@@ -3905,6 +3907,23 @@ export default function App() {
                       <span style={{ color: COLORS.green, fontWeight: 900 }}>{card.value}</span>
                     </div>
                   ))}
+                </div>
+              ) : null}
+              {data?.dataQuality?.sheetConversionsConfigured ? (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '10px 12px',
+                    borderRadius: '9px',
+                    background: data?.dataQuality?.sheetConversionsStatus === 'loaded' ? COLORS.softGreen : COLORS.softAmber,
+                    color: data?.dataQuality?.sheetConversionsStatus === 'loaded' ? COLORS.green : COLORS.amberDeep,
+                    fontSize: '12px',
+                    fontWeight: 800
+                  }}
+                >
+                  {data?.dataQuality?.sheetConversionsStatus === 'loaded'
+                    ? `Google Sheet synced · ${Number(data?.dataQuality?.sheetLeadRows || 0).toLocaleString()} lead records in this period`
+                    : data?.dataQuality?.sheetConnectionMessage || 'Google Sheet conversion data is currently unavailable.'}
                 </div>
               ) : null}
             </div>

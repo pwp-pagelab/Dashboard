@@ -129,6 +129,7 @@ export const clients = [
     snapchatCurrencyCode: 'USD',
     leadsSheet: {
       spreadsheetId: '1uC1W4hGPjk4N3K0zs6El5ygZTsarwUucEtSvQJg5Mz4',
+      allowPublicCsvFallback: true,
       tabs: [
         {
           sheetName: 'Tiktok',
@@ -158,6 +159,22 @@ export const clients = [
           sourceValue: 'LinkedIn',
           dateColumn: 'created_date',
           dateFormat: 'MDY'
+        },
+        {
+          sheetName: 'website leads',
+          leadIdColumn: 'email',
+          convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+          sourceValue: 'Website',
+          dateColumn: 'Date',
+          dateFormat: 'DMY'
+        },
+        {
+          sheetName: 'whatsapp',
+          leadIdColumn: 'رقم العميل',
+          convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
+          sourceValue: 'WhatsApp',
+          dateColumn: 'تاريخ المكالمه',
+          dateFormat: 'DMY'
         }
       ]
     },
