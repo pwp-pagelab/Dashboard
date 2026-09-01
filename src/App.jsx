@@ -161,6 +161,141 @@ function ReportRangeControl({ value, onChange }) {
   )
 }
 
+function shiftReportDate(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00.000Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return formatReportDate(date)
+}
+
+function resolveReportRange(value) {
+  const custom = parseCustomDateRange(value)
+  if (custom) return custom
+
+  const today = formatReportDate()
+  if (value === '7d') return { startDate: shiftReportDate(today, -6), endDate: today }
+  if (value === '30d') return { startDate: shiftReportDate(today, -29), endDate: today }
+  if (value === 'this_month') return { startDate: `${today.slice(0, 8)}01`, endDate: today }
+  return { startDate: shiftReportDate(today, -29), endDate: today }
+}
+
+function precedingReportRange(value) {
+  const { startDate, endDate } = resolveReportRange(value)
+  const start = new Date(`${startDate}T00:00:00.000Z`)
+  const end = new Date(`${endDate}T00:00:00.000Z`)
+  const dayCount = Math.round((end - start) / 86400000) + 1
+  const comparisonEnd = shiftReportDate(startDate, -1)
+  const comparisonStart = shiftReportDate(comparisonEnd, -(dayCount - 1))
+  return buildCustomRange(comparisonStart, comparisonEnd) || `custom:${comparisonStart}:${comparisonEnd}`
+}
+
+function ExactDateRange({ value, onChange, heading }) {
+  const today = formatReportDate()
+  const resolved = resolveReportRange(value)
+
+  return (
+    <div style={{ display: 'grid', gap: '8px' }}>
+      {heading ? <div style={{ color: COLORS.green, fontSize: '13px', fontWeight: 900 }}>{heading}</div> : null}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+        <label style={{ display: 'grid', gap: '5px' }}>
+          <span style={{ color: COLORS.muted, fontSize: '11px', fontWeight: 800, letterSpacing: '.03em' }}>START DATE</span>
+          <input
+            aria-label={`${heading || 'Report'} start date`}
+            type="date"
+            value={resolved.startDate}
+            max={resolved.endDate}
+            onChange={(event) => {
+              const nextEnd = event.target.value > resolved.endDate ? event.target.value : resolved.endDate
+              const nextRange = buildCustomRange(event.target.value, nextEnd)
+              if (nextRange) onChange(nextRange)
+            }}
+            style={selectStyle()}
+          />
+        </label>
+        <label style={{ display: 'grid', gap: '5px' }}>
+          <span style={{ color: COLORS.muted, fontSize: '11px', fontWeight: 800, letterSpacing: '.03em' }}>END DATE</span>
+          <input
+            aria-label={`${heading || 'Report'} end date`}
+            type="date"
+            value={resolved.endDate}
+            min={resolved.startDate}
+            max={today}
+            onChange={(event) => {
+              const nextRange = buildCustomRange(resolved.startDate, event.target.value)
+              if (nextRange) onChange(nextRange)
+            }}
+            style={selectStyle()}
+          />
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareEnabledChange, comparisonRange, onComparisonRangeChange }) {
+  const presets = [
+    ['7d', '7 days'],
+    ['30d', '30 days'],
+    ['this_month', 'This month']
+  ]
+  const activePreset = parseCustomDateRange(range) ? null : range
+
+  function toggleComparison(nextEnabled) {
+    onCompareEnabledChange(nextEnabled)
+    if (nextEnabled) onComparisonRangeChange(precedingReportRange(range))
+  }
+
+  return (
+    <div style={{ ...cardStyle(), padding: '16px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap', marginBottom: '14px' }}>
+        <div>
+          <div style={{ color: COLORS.green, fontSize: '15px', fontWeight: 900 }}>Reporting period</div>
+          <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Choose exact dates, then optionally compare against another exact period.</div>
+        </div>
+        <div style={{ display: 'flex', gap: '6px', padding: '4px', borderRadius: '10px', background: COLORS.cream }}>
+          {presets.map(([preset, label]) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => onRangeChange(preset)}
+              style={{
+                border: 0,
+                borderRadius: '8px',
+                padding: '8px 11px',
+                cursor: 'pointer',
+                background: activePreset === preset ? COLORS.green : 'transparent',
+                color: activePreset === preset ? COLORS.white : COLORS.green,
+                fontSize: '12px',
+                fontWeight: 800
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: compareEnabled ? 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))' : 'minmax(0, 560px)', gap: '16px' }}>
+        <ExactDateRange value={range} onChange={onRangeChange} heading="Selected period" />
+        {compareEnabled ? (
+          <div style={{ paddingLeft: '16px', borderLeft: `1px solid ${COLORS.line}` }}>
+            <ExactDateRange value={comparisonRange} onChange={onComparisonRangeChange} heading="Comparison period" />
+          </div>
+        ) : null}
+      </div>
+
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginTop: '14px', color: COLORS.green, fontSize: '13px', fontWeight: 900, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={compareEnabled}
+          onChange={(event) => toggleComparison(event.target.checked)}
+          style={{ accentColor: COLORS.green, width: '16px', height: '16px' }}
+        />
+        Compare with another date range
+      </label>
+    </div>
+  )
+}
+
 function reportRangeLabel(value) {
   const custom = parseCustomDateRange(value)
   if (custom) return `${custom.startDate} to ${custom.endDate}`
@@ -202,9 +337,38 @@ function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }
     return [{ label, currentDisplay: currentDisplay || 'N/A', previousDisplay: previousDisplay || 'N/A', delta }]
   })
 
+  const comparisonInsights = [
+    ['Leads', 'Lead volume', false],
+    ['Cost per Lead', 'Cost efficiency', true],
+    ['Total Spend', 'Investment', false]
+  ].flatMap(([label, title, lowerIsBetter]) => {
+    const row = rows.find((item) => item.label === label)
+    const current = parseMetricValue(row?.currentDisplay, label === 'Cost per Lead' || label === 'Total Spend' ? 'currency' : 'number')
+    const previous = parseMetricValue(row?.previousDisplay, label === 'Cost per Lead' || label === 'Total Spend' ? 'currency' : 'number')
+    if (!row || current == null || previous == null || previous === 0) return []
+    const change = ((current - previous) / Math.abs(previous)) * 100
+    const favorable = lowerIsBetter ? change < 0 : label === 'Leads' ? change > 0 : null
+    const description = label === 'Cost per Lead'
+      ? `${Math.abs(change).toFixed(1)}% ${change <= 0 ? 'more efficient' : 'less efficient'} than the comparison period.`
+      : label === 'Leads'
+        ? `${Math.abs(change).toFixed(1)}% ${change >= 0 ? 'more' : 'fewer'} leads than the comparison period.`
+        : `Spend was ${Math.abs(change).toFixed(1)}% ${change >= 0 ? 'higher' : 'lower'} than the comparison period.`
+    return [{ title, description, favorable }]
+  })
+
   return (
     <div style={{ ...cardStyle(), padding: '15px', marginBottom: '14px' }}>
       <SectionTitle title="Period comparison" subtitle={`${reportRangeLabel(primaryRange)} compared with ${reportRangeLabel(comparisonRange)}`} />
+      {comparisonInsights.length ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '9px', marginBottom: '14px' }}>
+          {comparisonInsights.map((insight) => (
+            <div key={insight.title} style={{ padding: '11px 12px', borderRadius: '10px', background: insight.favorable == null ? COLORS.cream : insight.favorable ? COLORS.softGreen : COLORS.softAmber }}>
+              <div style={{ color: COLORS.green, fontSize: '12px', fontWeight: 900 }}>{insight.title}</div>
+              <div style={{ color: COLORS.text, fontSize: '12px', lineHeight: 1.45, marginTop: '4px' }}>{insight.description}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', fontSize: '13px' }}>
           <thead><tr style={{ color: COLORS.muted, textAlign: 'left' }}>
@@ -511,6 +675,7 @@ function percent(value) {
 
 const METRIC_LABELS = {
   'Total Spend': 'Spend (الإنفاق)',
+  Reach: 'Reach (الوصول)',
   Impressions: 'Impressions (الظهور)',
   Clicks: 'Clicks (النقرات)',
   CTR: 'CTR (معدل النقر)',
@@ -521,6 +686,7 @@ const METRIC_LABELS = {
   'Direct Messages': 'Direct messages (الرسائل المباشرة)',
   'Cost per Lead': 'Cost per lead (تكلفة العميل المحتمل)',
   'Lead Rate': 'Lead rate (معدل العملاء المحتملين)',
+  Frequency: 'Frequency (التكرار)',
   'Platforms Active': 'Platforms active (المنصات النشطة)',
   Spend: 'Spend (الإنفاق)',
   CPA: 'Cost per lead (تكلفة العميل المحتمل)',
@@ -3166,7 +3332,10 @@ export default function App() {
 
   const [client, setClient] = useState('rimiya')
   const [platform, setPlatform] = useState('all')
-  const [range, setRange] = useState(() => getInitialQueryParam('range', '30d'))
+  const [range, setRange] = useState(() => {
+    const initialRange = getInitialQueryParam('range', '30d')
+    return initialRange === 'max' ? '30d' : initialRange
+  })
   const [compareEnabled, setCompareEnabled] = useState(false)
   const [compareRange, setCompareRange] = useState('30d')
   const [comparisonData, setComparisonData] = useState(null)
@@ -3175,6 +3344,7 @@ export default function App() {
   const [insightsText, setInsightsText] = useState('')
   const [shareStatus, setShareStatus] = useState('')
   const [selectedAccountIds, setSelectedAccountIds] = useState(null)
+  const [selectedAccountsClient, setSelectedAccountsClient] = useState(null)
   const [caseStudyName, setCaseStudyName] = useState('')
   const [cloudChefsMetaImport, setCloudChefsMetaImport] = useState(loadStoredCloudChefsMetaImport)
   const [metaImportStatus, setMetaImportStatus] = useState('')
@@ -3192,7 +3362,7 @@ export default function App() {
           const params = isSharedView
             ? new URLSearchParams({ token: shareToken, range: requestRange })
             : new URLSearchParams({ client, platform, range: requestRange })
-          if (!isSharedView && Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
+          if (!isSharedView && selectedAccountsClient === client && Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
             params.set('accounts', selectedAccountIds.join(','))
           }
           const res = await fetch(`${endpoint}?${params.toString()}`)
@@ -3219,7 +3389,7 @@ export default function App() {
     }
 
     loadDashboard()
-  }, [client, platform, range, compareEnabled, compareRange, isSharedView, shareToken, selectedAccountIds, cloudChefsMetaImport])
+  }, [client, platform, range, compareEnabled, compareRange, isSharedView, shareToken, selectedAccountIds, selectedAccountsClient, cloudChefsMetaImport])
 
   useEffect(() => {
     setInsightsText(data?.insights?.suggested || '')
@@ -3229,6 +3399,7 @@ export default function App() {
     if (!isSharedView) {
       setPlatform('all')
       setSelectedAccountIds(null)
+      setSelectedAccountsClient(null)
     }
   }, [client, isSharedView])
 
@@ -3255,9 +3426,10 @@ export default function App() {
   }, [accountOptions])
 
   useEffect(() => {
-    if (isSharedView || !accountOptions.length || selectedAccountIds !== null) return
+    if (isSharedView || data?.client?.id !== client || !accountOptions.length || selectedAccountIds !== null) return
     setSelectedAccountIds(accountOptions.map((account) => account.id))
-  }, [accountOptions, isSharedView, selectedAccountIds])
+    setSelectedAccountsClient(client)
+  }, [accountOptions, client, data?.client?.id, isSharedView, selectedAccountIds])
 
   useEffect(() => {
     if (!isSharedView && !availablePlatforms.includes(platform)) {
@@ -3335,16 +3507,13 @@ export default function App() {
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
-  const leadSummaryCards = summaryCards.filter((card) => [
-    'Leads',
-    'Form Submissions',
-    'Direct Messages',
-    'Cost per Lead',
-    'Lead Rate',
-    'Converted Leads',
-    'Lead Conversion Rate',
-    'Cost per Converted Lead'
-  ].includes(card.label))
+  const executiveMetricLabels = ['Total Spend', 'Reach', 'Clicks', 'Leads', 'Cost per Lead', 'Converted Leads', 'Cost per Converted Lead']
+  const executiveSummaryCards = summaryCards.filter((card) => executiveMetricLabels.includes(card.label))
+  const frequency = totalReach > 0 ? totalImpressions / totalReach : null
+  const supportingSummaryCards = [
+    ...summaryCards.filter((card) => ['Impressions', 'CTR', 'Lead Rate', 'Lead Conversion Rate', 'Form Submissions', 'Direct Messages'].includes(card.label)),
+    ...(frequency == null ? [] : [{ label: 'Frequency', value: frequency.toFixed(2) }])
+  ]
 
   const summaryText = insightsText || buildClientSummary({
     totalSpend,
@@ -3357,13 +3526,14 @@ export default function App() {
   const dailyChartData = buildDailyChartData(data, totalSpend, totalConversions)
   const targetCPA = dailyChartData.length > 0 ? Number(dailyChartData[0]?.targetCPA || 0) : null
   const nextActionText = data?.insights?.nextAction || 'Healthy momentum. Next step: keep optimizing efficiency.'
+  const availableAccountIds = new Set(accountOptions.map((account) => account.id))
   const selectedAccountSet = new Set(
-    Array.isArray(selectedAccountIds)
-      ? selectedAccountIds
-      : accountOptions.map((account) => account.id)
+    (Array.isArray(selectedAccountIds) ? selectedAccountIds : accountOptions.map((account) => account.id))
+      .filter((accountId) => availableAccountIds.has(accountId))
   )
 
   function toggleAccountSelection(accountId) {
+    setSelectedAccountsClient(client)
     setSelectedAccountIds((current) => {
       const base = Array.isArray(current) ? current : accountOptions.map((account) => account.id)
       const next = new Set(base)
@@ -3378,6 +3548,7 @@ export default function App() {
   }
 
   function selectAllAccounts() {
+    setSelectedAccountsClient(client)
     setSelectedAccountIds(accountOptions.map((account) => account.id))
   }
 
@@ -3441,8 +3612,8 @@ export default function App() {
         platform,
         range
       })
-      if (Array.isArray(selectedAccountIds) && selectedAccountIds.length > 0) {
-        params.set('accounts', selectedAccountIds.join(','))
+      if (selectedAccountSet.size > 0) {
+        params.set('accounts', Array.from(selectedAccountSet).join(','))
       }
       const response = await fetch(`/api/share-link?${params.toString()}`)
       const json = await response.json()
@@ -3637,7 +3808,7 @@ export default function App() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
                 gap: '10px',
                 marginBottom: '12px'
               }}
@@ -3689,27 +3860,54 @@ export default function App() {
                 </div>
               )}
 
-              <div style={cardStyle()}>
-                <div style={{ padding: '11px 12px 13px' }}>
-                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', fontWeight: 700 }}>
-                    Date range
-                  </div>
-                  <ReportRangeControl value={range} onChange={setRange} />
-                </div>
-              </div>
-
-              <div style={cardStyle()}>
-                <div style={{ padding: '11px 12px 13px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.green, fontSize: '13px', fontWeight: 900 }}>
-                    <input type="checkbox" checked={compareEnabled} onChange={(event) => setCompareEnabled(event.target.checked)} style={{ accentColor: COLORS.green }} />
-                    Compare with another period
-                  </label>
-                  {compareEnabled ? <div style={{ marginTop: '10px' }}><ReportRangeControl value={compareRange} onChange={setCompareRange} /></div> : null}
-                </div>
-              </div>
             </div>
 
-            {!isSharedView && client === 'cloud-chefs' ? (
+            <ReportingPeriodPanel
+              range={range}
+              onRangeChange={setRange}
+              compareEnabled={compareEnabled}
+              onCompareEnabledChange={setCompareEnabled}
+              comparisonRange={compareRange}
+              onComparisonRangeChange={setCompareRange}
+            />
+
+            <div style={{ ...cardStyle(), padding: '16px', marginBottom: '12px' }}>
+              <SectionTitle
+                title="Performance overview"
+                subtitle={`${reportRangeLabel(range)} · ${platform === 'all' ? 'All active platforms' : platform}`}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))', gap: '9px' }}>
+                {executiveSummaryCards.map((card) => (
+                  <div key={card.label} style={{ padding: '13px', borderRadius: '10px', background: card.label === 'Leads' || card.label === 'Converted Leads' ? COLORS.softGreen : '#FBFAF7', border: `1px solid ${COLORS.line}` }}>
+                    <div style={{ color: COLORS.muted, fontSize: '11px', fontWeight: 800 }}>{metricLabel(card.label)}</div>
+                    <div style={{ color: COLORS.green, fontSize: '23px', fontWeight: 900, marginTop: '7px' }}>{card.value}</div>
+                  </div>
+                ))}
+              </div>
+              {supportingSummaryCards.length ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 18px', marginTop: '13px', paddingTop: '12px', borderTop: `1px solid ${COLORS.line}` }}>
+                  {supportingSummaryCards.map((card) => (
+                    <div key={card.label} style={{ fontSize: '12px', color: COLORS.muted }}>
+                      <span style={{ fontWeight: 800 }}>{metricLabel(card.label)}:</span>{' '}
+                      <span style={{ color: COLORS.green, fontWeight: 900 }}>{card.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <PeriodComparison primary={data} comparison={comparisonData} primaryRange={range} comparisonRange={compareRange} />
+
+            {!isSharedView ? (
+              <details style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
+                <summary style={{ cursor: 'pointer', color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>
+                  Data settings &amp; exports
+                </summary>
+                <div style={{ color: COLORS.muted, fontSize: '12px', margin: '5px 0 12px' }}>
+                  Account selection, data-health details, manual imports, and report exports.
+                </div>
+
+            {client === 'cloud-chefs' ? (
               <MetaCsvUploadPanel
                 importedReport={data?.manualImports?.meta || null}
                 status={metaImportStatus}
@@ -3720,7 +3918,7 @@ export default function App() {
 
             <DataConfidencePanel data={data} />
 
-            {!isSharedView && accountOptions.length > 0 ? (
+            {accountOptions.length > 0 ? (
               <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
                 <details>
                   <summary style={{ cursor: 'pointer', color: COLORS.green, fontWeight: 900, fontSize: '13px' }}>
@@ -3809,59 +4007,39 @@ export default function App() {
               </div>
             ) : null}
 
-            {!isSharedView ? (
-              <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
-                  Case study Excel
-                </div>
-                <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px', marginBottom: '10px' }}>
-                  Generate a client workbook, or download all dashboard clients in one agency workbook.
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input
-                    value={caseStudyName}
-                    onChange={(event) => setCaseStudyName(event.target.value)}
-                    placeholder={`${data?.client?.name || 'Client'} case study`}
-                    style={{
-                      ...selectStyle(),
-                      flex: '1 1 260px',
-                      minWidth: 0
-                    }}
-                  />
-                  <button onClick={downloadCaseStudyExcel} style={buttonStyle(true)}>
-                    Client Excel
-                  </button>
-                  <button onClick={() => setView('agency-export')} style={buttonStyle(false)}>
-                    Agency export
-                  </button>
-                  <button onClick={() => setView('custom-report')} style={buttonStyle(false)}>
-                    Custom report
-                  </button>
-                </div>
+            <div style={{ ...cardStyle(), padding: '13px 14px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', color: COLORS.green, fontWeight: 900 }}>
+                Case study Excel
               </div>
-            ) : null}
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-                gap: '10px',
-                marginBottom: '14px'
-              }}
-            >
-              {leadSummaryCards.map((card) => (
-                <div key={card.label} style={{ ...cardStyle(), padding: '14px' }}>
-                  <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>
-                    {metricLabel(card.label)}
-                  </div>
-                  <div style={{ color: COLORS.green, fontSize: '25px', fontWeight: 900, marginTop: '7px' }}>
-                    {card.value}
-                  </div>
-                </div>
-              ))}
+              <div style={{ fontSize: '12px', color: COLORS.muted, marginTop: '3px', marginBottom: '10px' }}>
+                Generate a client workbook, or download all dashboard clients in one agency workbook.
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  value={caseStudyName}
+                  onChange={(event) => setCaseStudyName(event.target.value)}
+                  placeholder={`${data?.client?.name || 'Client'} case study`}
+                  style={{
+                    ...selectStyle(),
+                    flex: '1 1 260px',
+                    minWidth: 0
+                  }}
+                />
+                <button onClick={downloadCaseStudyExcel} style={buttonStyle(true)}>
+                  Client Excel
+                </button>
+                <button onClick={() => setView('agency-export')} style={buttonStyle(false)}>
+                  Agency export
+                </button>
+                <button onClick={() => setView('custom-report')} style={buttonStyle(false)}>
+                  Custom report
+                </button>
+              </div>
             </div>
-
-            <PeriodComparison primary={data} comparison={comparisonData} primaryRange={range} comparisonRange={compareRange} />
+              </details>
+            ) : (
+              <DataConfidencePanel data={data} />
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '14px', alignItems: 'stretch' }}>
               <SummaryBlock
