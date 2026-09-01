@@ -726,9 +726,9 @@ function DashboardFooter() {
   )
 }
 
-function FunnelHero({ impressions, clicks, conversions, convertedCount, compact = false }) {
-  const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0
-  const resultOfImpressions = impressions > 0 ? (conversions / impressions) * 100 : 0
+function FunnelHero({ reach, clicks, conversions, convertedCount, compact = false }) {
+  const clickOfReach = reach > 0 ? (clicks / reach) * 100 : 0
+  const resultOfReach = reach > 0 ? (conversions / reach) * 100 : 0
   const resultOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
   const hasConvertedStage = convertedCount != null
   const converted = Number(convertedCount || 0)
@@ -736,8 +736,8 @@ function FunnelHero({ impressions, clicks, conversions, convertedCount, compact 
 
   const rows = [
     {
-      label: metricLabel('Impressions'),
-      value: impressions.toLocaleString(),
+      label: metricLabel('Reach'),
+      value: reach.toLocaleString(),
       width: 100,
       color: COLORS.green,
       topRight: '100%',
@@ -746,16 +746,16 @@ function FunnelHero({ impressions, clicks, conversions, convertedCount, compact 
     {
       label: metricLabel('Clicks'),
       value: clicks.toLocaleString(),
-      width: Math.max(clickRate, clicks > 0 ? 6 : 0),
+      width: Math.max(clickOfReach, clicks > 0 ? 6 : 0),
       color: COLORS.greenMid,
-      topRight: `CTR ${percent(clickRate)}`
+      topRight: `Click-to-reach ${percent(clickOfReach)}`
     },
     {
       label: metricLabel('Results'),
       value: conversions.toLocaleString(),
       width: Math.max(resultOfClicks, conversions > 0 ? 4 : 0),
       color: COLORS.greenLight,
-      topRight: `${percent(resultOfImpressions)} of impressions · Click-to-lead ${percent(resultOfClicks)}`
+      topRight: `${percent(resultOfReach)} of reach · Click-to-lead ${percent(resultOfClicks)}`
     },
     ...(hasConvertedStage
       ? [{
@@ -2316,7 +2316,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
   const summaryCards = Array.isArray(data?.summaryCards) ? data.summaryCards : []
   const googleDiagnostics = data?.diagnostics?.google || null
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
-  const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
+  const totalReach = parseNumberString(summaryCards.find((c) => c.label === 'Reach')?.value) || 0
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
   const dailyChartData = buildDailyChartData(data)
@@ -2435,7 +2435,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
         <div style={{ display: 'grid', gap: '18px' }}>
           <PeriodComparison primary={data} comparison={comparisonData} primaryRange={range} comparisonRange={comparisonRange} />
           <FunnelHero
-            impressions={totalImpressions}
+            reach={totalReach}
             clicks={totalClicks}
             conversions={totalConversions}
             convertedCount={data?.conversionMetrics?.convertedCount}
@@ -2840,7 +2840,7 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
   const summaryCards = Array.isArray(displayReportData?.summaryCards) ? displayReportData.summaryCards : []
   const campaignRows = Array.isArray(displayReportData?.campaignRows) ? displayReportData.campaignRows : []
   const totalSpend = parseSarString(getSummaryCardValue(summaryCards, 'Total Spend'))
-  const totalImpressions = parseNumberString(getSummaryCardValue(summaryCards, 'Impressions'))
+  const totalReach = parseNumberString(getSummaryCardValue(summaryCards, 'Reach')) || 0
   const totalClicks = parseNumberString(getSummaryCardValue(summaryCards, 'Clicks'))
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
   const dailyChartData = buildDailyChartData(displayReportData)
@@ -3130,7 +3130,7 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
 
             {showFunnel ? (
               <FunnelHero
-                impressions={totalImpressions}
+                reach={totalReach}
                 clicks={totalClicks}
                 conversions={totalConversions}
                 convertedCount={displayReportData?.conversionMetrics?.convertedCount}
@@ -3331,6 +3331,7 @@ export default function App() {
   const googleDiagnostics = data?.diagnostics?.google || null
 
   const totalSpend = parseSarString(summaryCards.find((c) => c.label === 'Total Spend')?.value)
+  const totalReach = parseNumberString(summaryCards.find((c) => c.label === 'Reach')?.value) || 0
   const totalImpressions = parseNumberString(summaryCards.find((c) => c.label === 'Impressions')?.value)
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
@@ -3873,7 +3874,7 @@ export default function App() {
               />
 
               <FunnelHero
-                impressions={totalImpressions}
+                reach={totalReach}
                 clicks={totalClicks}
                 conversions={totalConversions}
                 convertedCount={data?.conversionMetrics?.convertedCount}
