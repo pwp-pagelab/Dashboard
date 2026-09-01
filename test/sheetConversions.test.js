@@ -182,6 +182,47 @@ test('swallows Sheets authentication failures and logs them', async () => {
   assert.match(errors[0], /Sheet conversions unavailable for cloud-chefs/)
 })
 
+test('uses an OAuth refresh token when service-account keys are unavailable', async () => {
+  const requests = []
+  const result = await getSheetConversions(
+    {
+      id: 'cloud-chefs',
+      leadsSheet: {
+        spreadsheetId: 'sheet-id',
+        tabs: [{
+          ...sheetConfig,
+          sheetName: 'Leads'
+        }]
+      }
+    },
+    {
+      env: {
+        GOOGLE_SHEETS_CLIENT_ID: 'sheets-client-id',
+        GOOGLE_SHEETS_CLIENT_SECRET: 'sheets-client-secret',
+        GOOGLE_SHEETS_REFRESH_TOKEN: 'sheets-refresh-token'
+      },
+      fetchImpl: async (url, options) => {
+        requests.push({ url, options })
+        if (url.includes('oauth2.googleapis.com')) {
+          return { ok: true, json: async () => ({ access_token: 'oauth-access-token', expires_in: 3600 }) }
+        }
+        return {
+          ok: true,
+          json: async () => ({ values: [
+            ['Lead ID', 'Converted (Y/N)', 'Source', 'Date'],
+            ['lead-1', 'Yes', 'Meta', '2026-08-10']
+          ] })
+        }
+      }
+    }
+  )
+
+  assert.equal(requests.length, 2)
+  assert.match(String(requests[0].options.body), /refresh_token=sheets-refresh-token/)
+  assert.equal(requests[1].options.headers.Authorization, 'Bearer oauth-access-token')
+  assert.equal(result.rows[0].converted, true)
+})
+
 test('falls back to null when an authenticated Sheet request fails', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' })

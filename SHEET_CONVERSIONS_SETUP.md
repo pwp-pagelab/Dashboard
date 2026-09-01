@@ -37,8 +37,32 @@ No separate Cloud Chefs spreadsheet ID or tab-name environment variable is
 required. Only the service-account authentication below must be configured in
 Vercel.
 
-Set service-account authentication using the base64-encoded JSON variable from
-the integration specification:
+### Recommended when service-account keys are disabled: OAuth
+
+The dashboard can use an offline Google OAuth grant from a user who can view the
+Sheet. Set:
+
+```text
+GOOGLE_SHEETS_REFRESH_TOKEN=<refresh token authorized for spreadsheets.readonly>
+```
+
+It reuses `GOOGLE_ADS_CLIENT_ID` and `GOOGLE_ADS_CLIENT_SECRET` when they are
+already configured. Dedicated credentials may instead be supplied as:
+
+```text
+GOOGLE_SHEETS_CLIENT_ID=<OAuth web client ID>
+GOOGLE_SHEETS_CLIENT_SECRET=<OAuth web client secret>
+```
+
+The authorization must request offline access to:
+
+```text
+https://www.googleapis.com/auth/spreadsheets.readonly
+```
+
+### Alternative: service-account JSON
+
+If the Google organization permits external service-account keys, set:
 
 ```text
 GOOGLE_SERVICE_ACCOUNT_KEY_B64=<base64-encoded service-account JSON>
