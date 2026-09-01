@@ -133,6 +133,7 @@ export const clients = [
       tabs: [
         {
           sheetName: 'Tiktok',
+          sheetId: 0,
           leadIdColumn: 'TikTok Lead ID',
           convertedColumn: 'تم الفوز بالفرصة؟  نعم/ لا',
           sourceValue: 'TikTok',
@@ -140,6 +141,7 @@ export const clients = [
         },
         {
           sheetName: 'Snapchat',
+          sheetId: 91841505,
           leadIdColumn: 'leadId',
           convertedColumn: 'هل تم الفوز بالفرصه؟ نعم/ لا',
           sourceValue: 'Snapchat',
@@ -147,6 +149,7 @@ export const clients = [
         },
         {
           sheetName: 'Meta',
+          sheetId: 2108011309,
           leadIdColumn: 'Column 1',
           convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
           sourceValue: 'Meta',
@@ -154,6 +157,7 @@ export const clients = [
         },
         {
           sheetName: 'Linkedin',
+          sheetId: 1808667877,
           leadIdColumn: 'lead_id',
           convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
           sourceValue: 'LinkedIn',
@@ -162,6 +166,7 @@ export const clients = [
         },
         {
           sheetName: 'website leads',
+          sheetId: 386441524,
           leadIdColumn: 'email',
           convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
           sourceValue: 'Website',
@@ -170,6 +175,7 @@ export const clients = [
         },
         {
           sheetName: 'whatsapp',
+          sheetId: 1994010252,
           leadIdColumn: 'رقم العميل',
           convertedColumn: 'تم الفوز بالفرصة؟ نعم/ لا',
           sourceValue: 'WhatsApp',
