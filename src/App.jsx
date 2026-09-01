@@ -195,7 +195,7 @@ function ExactDateRange({ value, onChange, heading }) {
   return (
     <div style={{ display: 'grid', gap: '8px' }}>
       {heading ? <div style={{ color: COLORS.green, fontSize: '13px', fontWeight: 900 }}>{heading}</div> : null}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+      <div className="report-date-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
         <label style={{ display: 'grid', gap: '5px' }}>
           <span style={{ color: COLORS.muted, fontSize: '11px', fontWeight: 800, letterSpacing: '.03em' }}>START DATE</span>
           <input
@@ -251,7 +251,7 @@ function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareE
           <div style={{ color: COLORS.green, fontSize: '15px', fontWeight: 900 }}>Reporting period</div>
           <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Choose exact dates, then optionally compare against another exact period.</div>
         </div>
-        <div style={{ display: 'flex', gap: '6px', padding: '4px', borderRadius: '10px', background: COLORS.cream }}>
+        <div className="report-preset-group" style={{ display: 'flex', gap: '6px', padding: '4px', borderRadius: '10px', background: COLORS.cream }}>
           {presets.map(([preset, label]) => (
             <button
               key={preset}
@@ -277,7 +277,7 @@ function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareE
       <div style={{ display: 'grid', gridTemplateColumns: compareEnabled ? 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))' : 'minmax(0, 560px)', gap: '16px' }}>
         <ExactDateRange value={range} onChange={onRangeChange} heading="Selected period" />
         {compareEnabled ? (
-          <div style={{ paddingLeft: '16px', borderLeft: `1px solid ${COLORS.line}` }}>
+          <div className="comparison-period-column" style={{ paddingLeft: '16px', borderLeft: `1px solid ${COLORS.line}` }}>
             <ExactDateRange value={comparisonRange} onChange={onComparisonRangeChange} heading="Comparison period" />
           </div>
         ) : null}
@@ -3635,9 +3635,22 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.cream, color: COLORS.text }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isSharedView ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
+      <style>{`
+        @media (max-width: 800px) {
+          .client-dashboard-shell { grid-template-columns: 1fr !important; }
+          .client-dashboard-sidebar { display: none !important; }
+          .client-dashboard-main { padding: 14px 12px 24px !important; min-width: 0; }
+          .comparison-period-column { padding-left: 0 !important; border-left: 0 !important; padding-top: 14px; border-top: 1px solid ${COLORS.line}; }
+        }
+        @media (max-width: 480px) {
+          .report-date-fields { grid-template-columns: 1fr !important; }
+          .report-preset-group { width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr); }
+        }
+      `}</style>
+      <div className="client-dashboard-shell" style={{ display: 'grid', gridTemplateColumns: isSharedView ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
         {!isSharedView ? (
           <aside
+            className="client-dashboard-sidebar"
             style={{
               background: COLORS.green,
               borderRight: '1px solid rgba(255,255,255,0.08)',
@@ -3722,7 +3735,7 @@ export default function App() {
           </aside>
         ) : null}
 
-        <main style={{ padding: '20px 22px 30px' }}>
+        <main className="client-dashboard-main" style={{ padding: '20px 22px 30px', minWidth: 0 }}>
           <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
             {isSharedView ? (
               <div
