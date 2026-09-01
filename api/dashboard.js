@@ -1002,12 +1002,30 @@ export async function buildDashboardPayload({
   }
 
   const sheetDateRange = getRangeDates(range, client)
+  const sheetErrors = []
+  const rawSheetConversions = await getSheetConversions(client, {
+    logger: {
+      error(message) {
+        console.error(message)
+        sheetErrors.push(message)
+      }
+    }
+  })
   const sheetConversions = filterSheetConversionsByDate(
-    await getSheetConversions(client),
+    rawSheetConversions,
     sheetDateRange.startDate,
     sheetDateRange.endDate
   )
-  const reportingRows = mergeConversions(rows.map(convertRowSpendToSar), sheetConversions)
+  const ownedSourceFilter = effectivePlatformFilter === 'all'
+    ? 'all'
+    : ['website', 'whatsapp'].includes(effectivePlatformFilter)
+      ? effectivePlatformFilter
+      : null
+  const reportingRows = mergeConversions(
+    rows.map(convertRowSpendToSar),
+    sheetConversions,
+    { ownedSourceFilter }
+  )
   const conversionMetrics = summarizeConversions(reportingRows, sheetConversions)
   const totalSpend = reportingRows.reduce((sum, row) => sum + (row.spend || 0), 0)
   const totalReach = reportingRows.reduce((sum, row) => sum + (row.reach || 0), 0)
@@ -1023,6 +1041,12 @@ export async function buildDashboardPayload({
     0
   )
   const totalLeads = totalFormSubmissions + totalDirectMessages
+  const websiteLeads = reportingRows
+    .filter((row) => String(row.platform).toLowerCase() === 'website')
+    .reduce((sum, row) => sum + getLeadBreakdown(row).totalLeads, 0)
+  const whatsappLeads = reportingRows
+    .filter((row) => String(row.platform).toLowerCase() === 'whatsapp')
+    .reduce((sum, row) => sum + getLeadBreakdown(row).totalLeads, 0)
   const blendedCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const daily = combineDailyTrends(reportingRows)
   const activePlatformCount = new Set(reportingRows.map((row) => row.platform)).size
@@ -1085,6 +1109,9 @@ export async function buildDashboardPayload({
       if (config?.enabled) availablePlatformSet.add(key)
     })
   })
+  const configuredSheetTabs = Array.isArray(client?.leadsSheet?.tabs) ? client.leadsSheet.tabs : []
+  if (configuredSheetTabs.some((tab) => String(tab.sourceValue).toLowerCase() === 'website')) availablePlatformSet.add('website')
+  if (configuredSheetTabs.some((tab) => String(tab.sourceValue).toLowerCase() === 'whatsapp')) availablePlatformSet.add('whatsapp')
 
   return {
     updatedAt: new Date().toISOString(),
@@ -1127,6 +1154,15 @@ export async function buildDashboardPayload({
       conversionWarning: 'Leads include only completed form submissions and new direct-message conversations reported by the selected platforms. Clicks and other conversion actions are excluded.',
       leadDefinition: 'completed_form_or_new_direct_message',
       totalPlatformResults,
+      sheetConversionsConfigured: Boolean(client?.leadsSheet),
+      sheetConversionsStatus: client?.leadsSheet
+        ? sheetConversions ? 'loaded' : 'unavailable'
+        : 'not_configured',
+      sheetLeadRows: sheetConversions?.rows?.length || 0,
+      sheetTabs: sheetConversions?.sheetNames || configuredSheetTabs.map((tab) => tab.sheetName),
+      sheetConnectionMessage: !sheetConversions && sheetErrors.length
+        ? 'Google Sheets could not be read. Check the Sheets OAuth refresh token and spreadsheet access in Vercel.'
+        : null,
       ...(conversionMetrics ? { sheetConversionsAvailable: true } : {})
     },
     summaryCards: [
@@ -1141,6 +1177,8 @@ export async function buildDashboardPayload({
       { label: 'Leads', value: totalLeads.toLocaleString() },
       { label: 'Form Submissions', value: totalFormSubmissions.toLocaleString() },
       { label: 'Direct Messages', value: totalDirectMessages.toLocaleString() },
+      ...(websiteLeads > 0 ? [{ label: 'Website Leads', value: websiteLeads.toLocaleString() }] : []),
+      ...(whatsappLeads > 0 ? [{ label: 'WhatsApp Leads', value: whatsappLeads.toLocaleString() }] : []),
       {
         label: 'Cost per Lead',
         value: totalLeads > 0 ? formatSar(totalSpend / totalLeads) : 'N/A'
