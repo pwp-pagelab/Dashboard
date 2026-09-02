@@ -1016,6 +1016,12 @@ export async function buildDashboardPayload({
     sheetDateRange.startDate,
     sheetDateRange.endDate
   )
+  const rawSheetSourceTotals = (rawSheetConversions?.rows || []).reduce((totals, lead) => {
+    const source = String(lead.source || '').trim().toLowerCase()
+    if (source === 'website') totals.website += 1
+    if (source === 'whatsapp') totals.whatsapp += 1
+    return totals
+  }, { website: 0, whatsapp: 0 })
   const ownedSourceFilter = effectivePlatformFilter === 'all'
     ? 'all'
     : ['website', 'whatsapp'].includes(effectivePlatformFilter)
@@ -1159,6 +1165,8 @@ export async function buildDashboardPayload({
         ? sheetConversions ? 'loaded' : 'unavailable'
         : 'not_configured',
       sheetLeadRows: sheetConversions?.rows?.length || 0,
+      sheetSourceTotals: rawSheetSourceTotals,
+      sheetSourcePeriodCounts: { website: websiteLeads, whatsapp: whatsappLeads },
       sheetTabs: sheetConversions?.sheetNames || configuredSheetTabs.map((tab) => tab.sheetName),
       sheetConnectionMessage: !sheetConversions && sheetErrors.length
         ? 'Google Sheets could not be read. Check the Sheets OAuth refresh token and spreadsheet access in Vercel.'
