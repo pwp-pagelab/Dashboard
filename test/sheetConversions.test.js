@@ -94,6 +94,22 @@ test('parses a platform tab with a configured fixed source', () => {
   ])
 })
 
+test('infers mixed day-first and month-first dates when one value is unambiguous', () => {
+  const rows = parseSheetConversionRows([
+    ['email', 'Date', 'Won?'],
+    ['day-first@example.com', '18/8/2026', 'Yes'],
+    ['month-first@example.com', '8/30/2026', 'No']
+  ], {
+    leadIdColumn: 'email',
+    dateColumn: 'Date',
+    convertedColumn: 'Won?',
+    sourceValue: 'Website',
+    dateFormat: 'DMY'
+  })
+
+  assert.deepEqual(rows.map((row) => row.date), ['2026-08-18', '2026-08-30'])
+})
+
 test('leaves platform data unchanged when Sheet data is unavailable', () => {
   const platformData = [{ platform: 'Meta', campaign: 'Cloud Chefs', spend: 100 }]
   assert.equal(mergeConversions(platformData, null), platformData)

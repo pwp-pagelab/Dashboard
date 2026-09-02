@@ -3922,7 +3922,18 @@ export default function App() {
                   }}
                 >
                   {data?.dataQuality?.sheetConversionsStatus === 'loaded'
-                    ? `Google Sheet synced · ${Number(data?.dataQuality?.sheetLeadRows || 0).toLocaleString()} lead records in this period`
+                    ? (
+                        <>
+                          <div>Google Sheet synced · {Number(data?.dataQuality?.sheetLeadRows || 0).toLocaleString()} lead records in this period</div>
+                          {(data?.dataQuality?.sheetSourceTotals?.website || data?.dataQuality?.sheetSourceTotals?.whatsapp) ? (
+                            <div style={{ marginTop: '4px', fontWeight: 700 }}>
+                              Website: {Number(data?.dataQuality?.sheetSourcePeriodCounts?.website || 0).toLocaleString()} in period / {Number(data?.dataQuality?.sheetSourceTotals?.website || 0).toLocaleString()} total Sheet rows
+                              {' · '}
+                              WhatsApp: {Number(data?.dataQuality?.sheetSourcePeriodCounts?.whatsapp || 0).toLocaleString()} in period / {Number(data?.dataQuality?.sheetSourceTotals?.whatsapp || 0).toLocaleString()} total Sheet rows
+                            </div>
+                          ) : null}
+                        </>
+                      )
                     : data?.dataQuality?.sheetConnectionMessage || 'Google Sheet conversion data is currently unavailable.'}
                 </div>
               ) : null}
