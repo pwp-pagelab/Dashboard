@@ -12,6 +12,7 @@ import {
   Area
 } from 'recharts'
 import OnboardingHelper from './OnboardingHelper.jsx'
+import ContentPerformanceStudio from './ContentPerformance.jsx'
 import {
   buildCustomRange,
   formatReportDate,
@@ -2616,6 +2617,7 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             totalConversions={totalConversions}
           />
           <AudienceActionInsights data={data} />
+          <ContentPerformanceStudio report={data?.contentPerformance} isSharedView={isSharedView} />
           <StatusBanner text={nextActionText} />
           <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
         </div>
@@ -3321,208 +3323,6 @@ function CustomReportBuilder({ availableClients, setView, cloudChefsMetaImport =
           </div>
         ) : null}
       </div>
-    </div>
-  )
-}
-
-const CONTENT_LIBRARY_STORAGE_PREFIX = 'pwp:content-library:v1:'
-
-function readClientContent(clientId) {
-  if (typeof window === 'undefined' || !clientId) return { posts: [], ads: [] }
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(`${CONTENT_LIBRARY_STORAGE_PREFIX}${clientId}`) || '{}')
-    return {
-      posts: Array.isArray(parsed.posts) ? parsed.posts : [],
-      ads: Array.isArray(parsed.ads) ? parsed.ads : []
-    }
-  } catch {
-    return { posts: [], ads: [] }
-  }
-}
-
-function writeClientContent(clientId, content) {
-  if (typeof window === 'undefined' || !clientId) return
-  window.localStorage.setItem(`${CONTENT_LIBRARY_STORAGE_PREFIX}${clientId}`, JSON.stringify(content))
-}
-
-function contentMetric(value) {
-  const number = Number(value || 0)
-  return Number.isFinite(number) ? number : 0
-}
-
-function rankBestAds(manualAds, campaignRows) {
-  const automaticAds = (Array.isArray(campaignRows) ? campaignRows : []).map((row, index) => ({
-    id: `reported-${row.platform}-${index}`,
-    name: row.campaign || `${row.platform} campaign`,
-    channel: row.platform || 'Platform',
-    spend: parseSarString(row.spend),
-    reach: row.reach === 'N/A' ? 0 : parseNumberString(row.reach),
-    clicks: parseNumberString(row.clicks),
-    leads: row.conversions === 'N/A' ? 0 : parseNumberString(row.conversions),
-    converted: contentMetric(row.convertedCount),
-    source: 'reporting'
-  }))
-
-  return [...(manualAds || []).map((ad) => ({ ...ad, name: ad.name || ad.title })), ...automaticAds]
-    .map((ad) => ({
-      ...ad,
-      spend: contentMetric(ad.spend),
-      reach: contentMetric(ad.reach),
-      clicks: contentMetric(ad.clicks),
-      leads: contentMetric(ad.leads),
-      converted: contentMetric(ad.converted)
-    }))
-    .filter((ad) => ad.source === 'manual' || ad.spend > 0 || ad.reach > 0 || ad.clicks > 0 || ad.leads > 0 || ad.converted > 0)
-    .sort((a, b) => (
-      b.converted - a.converted ||
-      b.leads - a.leads ||
-      (a.leads > 0 ? a.spend / a.leads : Number.POSITIVE_INFINITY) - (b.leads > 0 ? b.spend / b.leads : Number.POSITIVE_INFINITY) ||
-      b.clicks - a.clicks
-    ))
-    .slice(0, 5)
-}
-
-function ContentPerformanceStudio({ clientId, platforms, campaignRows, isSharedView }) {
-  const [content, setContent] = useState(() => readClientContent(clientId))
-  const [mode, setMode] = useState('post')
-  const [showForm, setShowForm] = useState(false)
-  const [draft, setDraft] = useState({
-    title: '', channel: '', publishedAt: formatReportDate(), url: '', thumbnailUrl: '',
-    reach: '', engagements: '', clicks: '', leads: '', spend: '', converted: ''
-  })
-
-  useEffect(() => {
-    setContent(readClientContent(clientId))
-    setDraft((current) => ({ ...current, channel: '' }))
-  }, [clientId])
-
-  const channelOptions = useMemo(() => {
-    const values = new Set((platforms || []).filter((item) => item && item !== 'all'))
-    ;['Instagram', 'Facebook', 'TikTok', 'LinkedIn', 'Snapchat', 'Google', 'Website', 'WhatsApp'].forEach((item) => values.add(item))
-    return Array.from(values)
-  }, [platforms])
-
-  const bestAds = useMemo(() => rankBestAds(content.ads, campaignRows), [content.ads, campaignRows])
-
-  function updateContent(next) {
-    setContent(next)
-    writeClientContent(clientId, next)
-  }
-
-  function submitContent(event) {
-    event.preventDefault()
-    if (!draft.title.trim() || !draft.channel) return
-    const entry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: draft.title.trim(),
-      name: draft.title.trim(),
-      channel: draft.channel,
-      publishedAt: draft.publishedAt,
-      url: draft.url.trim(),
-      thumbnailUrl: draft.thumbnailUrl.trim(),
-      reach: contentMetric(draft.reach),
-      engagements: contentMetric(draft.engagements),
-      clicks: contentMetric(draft.clicks),
-      leads: contentMetric(draft.leads),
-      spend: contentMetric(draft.spend),
-      converted: contentMetric(draft.converted),
-      source: 'manual'
-    }
-    const key = mode === 'post' ? 'posts' : 'ads'
-    updateContent({ ...content, [key]: [entry, ...content[key]] })
-    setDraft({ title: '', channel: '', publishedAt: formatReportDate(), url: '', thumbnailUrl: '', reach: '', engagements: '', clicks: '', leads: '', spend: '', converted: '' })
-    setShowForm(false)
-  }
-
-  function removeEntry(kind, id) {
-    updateContent({ ...content, [kind]: content[kind].filter((entry) => entry.id !== id) })
-  }
-
-  const miniMetric = (label, value) => (
-    <span style={{ color: COLORS.muted, fontSize: '11px' }}><strong style={{ color: COLORS.text }}>{contentMetric(value).toLocaleString()}</strong> {label}</span>
-  )
-
-  return (
-    <div id="content-performance" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '14px', scrollMarginTop: '20px' }}>
-      <section style={panelStyle()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '14px' }}>
-          <div>
-            <div style={{ fontSize: '17px', fontWeight: 900, color: COLORS.text }}>Published content</div>
-            <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Posts published across each client channel.</div>
-          </div>
-          {!isSharedView ? <button onClick={() => { setMode('post'); setShowForm(true) }} style={buttonStyle(true)}>+ Add post</button> : null}
-        </div>
-
-        {content.posts.length ? (
-          <div style={{ display: 'grid', gap: '9px' }}>
-            {content.posts.slice(0, 8).map((post) => (
-              <div key={post.id} style={{ display: 'grid', gridTemplateColumns: '42px 1fr auto', gap: '10px', alignItems: 'center', padding: '10px', border: `1px solid ${COLORS.line}`, borderRadius: '10px' }}>
-                {post.thumbnailUrl ? <img src={post.thumbnailUrl} alt="" style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover', background: '#ECE9FF' }} /> : <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ECE9FF', display: 'grid', placeItems: 'center', fontWeight: 900, color: COLORS.greenMid }}>{post.channel.slice(0, 2).toUpperCase()}</div>}
-                <div style={{ minWidth: 0 }}>
-                  {post.url ? <a href={post.url} target="_blank" rel="noreferrer" style={{ color: COLORS.text, fontWeight: 850, fontSize: '13px', textDecoration: 'none' }}>{post.title}</a> : <div style={{ color: COLORS.text, fontWeight: 850, fontSize: '13px' }}>{post.title}</div>}
-                  <div style={{ color: COLORS.muted, fontSize: '11px', marginTop: '3px' }}>{post.channel} · {post.publishedAt || 'Date not set'}</div>
-                  <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap', marginTop: '5px' }}>
-                    {miniMetric('reach', post.reach)}{miniMetric('engagements', post.engagements)}{miniMetric('leads', post.leads)}
-                  </div>
-                </div>
-                {!isSharedView ? <button aria-label="Remove post" onClick={() => removeEntry('posts', post.id)} style={{ border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '16px' }}>×</button> : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: '22px', borderRadius: '11px', background: '#F7F7F9', color: COLORS.muted, fontSize: '13px', textAlign: 'center' }}>No published posts have been added for this client yet.</div>
-        )}
-      </section>
-
-      <section style={panelStyle()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '14px' }}>
-          <div>
-            <div style={{ fontSize: '17px', fontWeight: 900, color: COLORS.text }}>Best-performing ads</div>
-            <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Ranked by converted leads, leads, efficiency, then clicks.</div>
-          </div>
-          {!isSharedView ? <button onClick={() => { setMode('ad'); setShowForm(true) }} style={buttonStyle(false)}>+ Add ad</button> : null}
-        </div>
-
-        {bestAds.length ? (
-          <div style={{ display: 'grid', gap: '8px' }}>
-            {bestAds.map((ad, index) => {
-              const cpl = ad.leads > 0 ? ad.spend / ad.leads : null
-              return (
-                <div key={ad.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: '10px', alignItems: 'center', padding: '10px', background: index === 0 ? '#FFF7CE' : '#F8F8FA', borderRadius: '10px' }}>
-                  <div style={{ width: '28px', height: '28px', display: 'grid', placeItems: 'center', borderRadius: '8px', background: index === 0 ? COLORS.amber : '#E9EAF0', fontSize: '12px', fontWeight: 900 }}>{index + 1}</div>
-                  <div style={{ minWidth: 0 }}>
-                    {ad.url ? <a href={ad.url} target="_blank" rel="noreferrer" style={{ color: COLORS.text, fontWeight: 850, fontSize: '13px', textDecoration: 'none' }}>{ad.name}</a> : <div style={{ color: COLORS.text, fontWeight: 850, fontSize: '13px' }}>{ad.name}</div>}
-                    <div style={{ color: COLORS.muted, fontSize: '11px', marginTop: '3px' }}>{ad.channel} · {ad.source === 'reporting' ? 'Live reporting data' : ad.publishedAt || 'Manual entry'}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: '11px', color: COLORS.muted }}>
-                    <strong style={{ display: 'block', color: COLORS.text, fontSize: '13px' }}>{ad.leads.toLocaleString()} leads</strong>
-                    {cpl == null ? 'CPL N/A' : `CPL SAR ${cpl.toFixed(2)}`}
-                    {ad.source === 'manual' && !isSharedView ? <button onClick={() => removeEntry('ads', ad.id)} style={{ display: 'block', marginLeft: 'auto', border: 0, background: 'transparent', color: COLORS.red, cursor: 'pointer', fontSize: '10px', padding: '3px 0 0' }}>Remove</button> : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div style={{ padding: '22px', borderRadius: '11px', background: '#F7F7F9', color: COLORS.muted, fontSize: '13px', textAlign: 'center' }}>Ad-level results are not available yet. Add an ad manually or connect detailed reporting.</div>
-        )}
-      </section>
-
-      {showForm && !isSharedView ? (
-        <form onSubmit={submitContent} style={{ ...panelStyle(), gridColumn: '1 / -1', background: '#FBFBFC' }}>
-          <div style={{ fontSize: '16px', fontWeight: 900, marginBottom: '12px' }}>{mode === 'post' ? 'Add published post' : 'Add ad performance'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-            <label style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800 }}>Title *</span><input required value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} style={selectStyle()} placeholder={mode === 'post' ? 'Post title or caption' : 'Ad or campaign name'} /></label>
-            <label style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800 }}>Channel *</span><select required value={draft.channel} onChange={(e) => setDraft({ ...draft, channel: e.target.value })} style={selectStyle()}><option value="">Choose channel</option>{channelOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
-            <label style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800 }}>Published date</span><input type="date" value={draft.publishedAt} onChange={(e) => setDraft({ ...draft, publishedAt: e.target.value })} style={selectStyle()} /></label>
-            <label style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800 }}>Post / ad URL</span><input type="url" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} style={selectStyle()} placeholder="https://..." /></label>
-            <label style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800 }}>Thumbnail URL</span><input type="url" value={draft.thumbnailUrl} onChange={(e) => setDraft({ ...draft, thumbnailUrl: e.target.value })} style={selectStyle()} placeholder="https://..." /></label>
-            {['reach', 'engagements', 'clicks', 'leads', ...(mode === 'ad' ? ['spend', 'converted'] : [])].map((field) => <label key={field} style={{ display: 'grid', gap: '5px' }}><span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'capitalize' }}>{field}{field === 'spend' ? ' (SAR)' : ''}</span><input type="number" min="0" step={field === 'spend' ? '0.01' : '1'} value={draft[field]} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} style={selectStyle()} /></label>)}
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}><button type="submit" style={buttonStyle(true)}>Save {mode}</button><button type="button" onClick={() => setShowForm(false)} style={buttonStyle(false)}>Cancel</button></div>
-          <div style={{ color: COLORS.muted, fontSize: '11px', marginTop: '10px' }}>Entries are saved per client in this browser. Reporting-derived rankings continue to update automatically.</div>
-        </form>
-      ) : null}
     </div>
   )
 }
@@ -4316,9 +4116,7 @@ export default function App() {
               <TrendCharts daily={dailyChartData} targetCPA={targetCPA} compact={true} />
 
               <ContentPerformanceStudio
-                clientId={data?.client?.id || client}
-                platforms={availablePlatforms}
-                campaignRows={campaignRows}
+                report={data?.contentPerformance}
                 isSharedView={isSharedView}
               />
 
