@@ -5,6 +5,8 @@ import { getSnapchatData } from '../lib/snapchat.js'
 import { getTikTokData } from '../lib/tiktok.js'
 import { getLinkedInReport } from '../lib/linkedin.js'
 import { getLeadBreakdown } from '../lib/leads.js'
+import { getContentPerformance } from '../lib/contentPerformance.js'
+import { getMetaAccountIdOverride, getMetaBusinessKeyOverride } from '../lib/metaAccounts.js'
 import { parseCustomDateRange } from '../lib/reportRange.js'
 import {
   filterSheetConversionsByDate,
@@ -1119,8 +1121,35 @@ export async function buildDashboardPayload({
   if (configuredSheetTabs.some((tab) => String(tab.sourceValue).toLowerCase() === 'website')) availablePlatformSet.add('website')
   if (configuredSheetTabs.some((tab) => String(tab.sourceValue).toLowerCase() === 'whatsapp')) availablePlatformSet.add('whatsapp')
 
+  // Separate read-only detail queries. They must never change the summary totals.
+  // A shared account link is scoped to its exact account, not the client's other accounts.
+  const contentAccounts = lockedAccount
+    ? [{ ...lockedAccount, clientId: client.id, accountName: lockedAccount.accountName || client.name }]
+    : statusOptions
+  const contentPerformance = await getContentPerformance(contentAccounts.map((option) => {
+    const matchingRow = rows.find((row) => row.platform === (option.platformLabel ||
+      { meta: 'Meta', linkedin: 'LinkedIn', google: 'Google Ads', snapchat: 'Snapchat', tiktok: 'TikTok' }[option.platform]) &&
+      (row.ownerClientId || client.id) === option.clientId)
+    return {
+      ...option,
+      ...(option.platform === 'meta' && !lockedAccount ? {
+        accountId: getMetaAccountIdOverride(option.clientId) || matchingRow?.metaAccountId || option.accountId,
+        businessKey: matchingRow?.metaBusinessKeyUsed || getMetaBusinessKeyOverride(option.clientId) || option.businessKey
+      } : {}),
+      currencyCode: accountStatusMap.get(option.id)?.currencyCode || matchingRow?.currencyCode || null
+    }
+  }), {
+    lockedAccount,
+    platform: effectivePlatformFilter,
+    getDates: (option) => getRangeDates(range, getClientById(option.clientId) || client, option.platform)
+  }).catch(() => ({ posts: [], ads: [], connections: [
+    { kind: 'ads', platform: 'all', status: 'unavailable', message: 'Content detail sync is temporarily unavailable. Summary reporting is unaffected.' },
+    { kind: 'posts', platform: 'all', status: 'unavailable', message: 'Content detail sync is temporarily unavailable. Summary reporting is unaffected.' }
+  ] }))
+
   return {
     updatedAt: new Date().toISOString(),
+    contentPerformance,
     client: displayClient,
     filters: {
       client: clientId,
