@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getContentPerformance, scopeContentAccounts, filterPublishedPosts, rankAds } from '../lib/contentPerformance.js'
+import { getClientById } from '../data/clients.js'
 
 const account = { clientId: 'cloud-chefs', platform: 'meta', accountId: '640964945046086', accountName: 'Cloud Chefs', businessKey: 'CLOUD_CHEFS' }
 const dates = () => ({ startDate: '2026-08-01', endDate: '2026-08-31' })
@@ -116,15 +117,83 @@ test('TikTok Display API is client-scoped, handles pagination, and filters posts
   } finally { restore() }
 })
 
-test('Meta profile mapping is required; no agency-wide feed discovery is performed', async () => {
-  const restore = setEnv({ FACEBOOK_PAGE_ID_CLOUD_CHEFS: '', INSTAGRAM_ACCOUNT_ID_CLOUD_CHEFS: '' })
+test('only the exact verified Cloud Chefs profiles are mapped; Snapchat is not inferred', () => {
+  const social = getClientById('cloud-chefs').socialAccounts
+  assert.equal(social.facebookUrl, 'https://www.facebook.com/cloudchefsapp/')
+  assert.equal(social.instagramUrl, 'https://www.instagram.com/cloudchefsapp/')
+  assert.equal(social.tiktokUrl, 'https://www.tiktok.com/@cloudchefsapp')
+  assert.equal(social.linkedinUrl, 'https://www.linkedin.com/company/cloudchefsapp/')
+  assert.equal(social.xUrl, 'https://x.com/cloudchefsapp')
+  assert.equal(social.snapchatProfileId, undefined)
+})
+
+test('Meta resolves the confirmed Page handle and its linked Instagram account without account discovery', async () => {
+  const restore = setEnv({ META_PAGE_ACCESS_TOKEN_CLOUD_CHEFS: 'page-token', FACEBOOK_PAGE_ID_CLOUD_CHEFS: '', INSTAGRAM_ACCOUNT_ID_CLOUD_CHEFS: '' })
+  const paths = []
   try {
     const result = await getContentPerformance([account], {
+      getDates: dates, adsAdapter: async () => [],
+      fetchImpl: async (target, options) => {
+        const parsed = new URL(target)
+        paths.push(parsed.pathname)
+        assert.equal(options.headers.Authorization, 'Bearer page-token')
+        if (parsed.pathname === '/v25.0/me') {
+          assert.equal(parsed.searchParams.get('fields'), 'id,name,username,instagram_business_account{id,username}')
+          return response({ id: 'facebook-page-1', username: 'cloudchefsapp', instagram_business_account: { id: 'instagram-1', username: 'cloudchefsapp' } })
+        }
+        if (parsed.pathname === '/v25.0/facebook-page-1/published_posts') {
+          return response({ data: [{ id: 'fb-post', message: 'Facebook post', created_time: '2026-08-10T12:00:00Z' }] })
+        }
+        if (parsed.pathname === '/v25.0/instagram-1/media') {
+          return response({ data: [
+            { id: 'ig-post', caption: 'Instagram post', timestamp: '2026-08-11T12:00:00Z' },
+            { id: 'ig-old', caption: 'Old post', timestamp: '2026-07-01T12:00:00Z' }
+          ] })
+        }
+        assert.fail(`unexpected Meta endpoint ${parsed.pathname}`)
+      }
+    })
+    assert.deepEqual(paths, ['/v25.0/me', '/v25.0/facebook-page-1/published_posts', '/v25.0/instagram-1/media'])
+    assert.deepEqual(result.posts.map((post) => post.channel).sort(), ['Facebook', 'Instagram'])
+  } finally { restore() }
+})
+
+test('Meta profile mapping is required for an unmapped client; no agency-wide discovery is performed', async () => {
+  const unmapped = { ...account, clientId: 'unmapped-client' }
+  const restore = setEnv({ FACEBOOK_PAGE_ID_UNMAPPED_CLIENT: '', INSTAGRAM_ACCOUNT_ID_UNMAPPED_CLIENT: '' })
+  try {
+    const result = await getContentPerformance([unmapped], {
       getDates: dates, adsAdapter: async () => [],
       fetchImpl: async () => { assert.fail('must not fetch an unmapped profile') }
     })
     assert.equal(result.connections.find((c) => c.kind === 'posts').status, 'unavailable')
-    assert.match(result.connections.find((c) => c.kind === 'posts').message, /FACEBOOK_PAGE_ID_CLOUD_CHEFS/)
+    assert.match(result.connections.find((c) => c.kind === 'posts').message, /FACEBOOK_PAGE_ID_UNMAPPED_CLIENT/)
+  } finally { restore() }
+})
+
+test('LinkedIn resolves the exact configured company vanity name before reading posts', async () => {
+  const restore = setEnv({ LINKEDIN_ACCESS_TOKEN: 'test-linkedin', LINKEDIN_ORGANIZATION_ID_CLOUD_CHEFS: '' })
+  const calls = []
+  try {
+    const result = await getContentPerformance([{ ...account, platform: 'linkedin' }], {
+      getDates: dates, adsAdapter: async () => [],
+      fetchImpl: async (target) => {
+        const parsed = new URL(target)
+        calls.push(parsed.pathname)
+        if (parsed.pathname === '/rest/organizations') {
+          assert.equal(parsed.searchParams.get('q'), 'vanityName')
+          assert.equal(parsed.searchParams.get('vanityName'), 'cloudchefsapp')
+          return response({ elements: [{ id: 998877, vanityName: 'cloudchefsapp' }] })
+        }
+        assert.equal(parsed.pathname, '/rest/posts')
+        assert.equal(parsed.searchParams.get('author'), 'urn:li:organization:998877')
+        return response({ elements: [{ id: 'urn:li:share:1', commentary: 'Cloud Chefs update',
+          lifecycleState: 'PUBLISHED', distribution: { feedDistribution: 'MAIN_FEED' },
+          publishedAt: Date.parse('2026-08-12T10:00:00Z') }] })
+      }
+    })
+    assert.deepEqual(calls, ['/rest/organizations', '/rest/posts'])
+    assert.equal(result.posts[0].channel, 'LinkedIn')
   } finally { restore() }
 })
 
