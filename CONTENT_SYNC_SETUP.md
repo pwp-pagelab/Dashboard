@@ -24,7 +24,7 @@ In Vercel → dashboard project → Settings → Environment Variables, configur
 | --- | --- | --- |
 | Facebook | FACEBOOK_PAGE_ID_CLOUD_CHEFS, META_PAGE_ACCESS_TOKEN_CLOUD_CHEFS | Page token with pages_read_engagement and access to that Page |
 | Instagram | INSTAGRAM_ACCOUNT_ID_CLOUD_CHEFS, META_PAGE_ACCESS_TOKEN_CLOUD_CHEFS | Facebook Login route: Instagram professional account access, instagram_basic and pages_read_engagement |
-| TikTok | TIKTOK_CONTENT_ACCESS_TOKEN_CLOUD_CHEFS | Client-profile Display API token with video.list; not the advertising API token |
+| TikTok | TIKTOK_CONTENT_REFRESH_TOKEN_CLOUD_CHEFS | TikTok for Business Accounts API authorization with Account User and Get Account Media. Existing TIKTOK_APP_ID / TIKTOK_APP_SECRET refresh the one-day account access token automatically. Display API access tokens remain supported as a fallback. |
 | LinkedIn | LINKEDIN_ORGANIZATION_ID_CLOUD_CHEFS | Existing LINKEDIN_ACCESS_TOKEN must include r_organization_social and organization access |
 | Snapchat | SNAPCHAT_PROFILE_ID_CLOUD_CHEFS, SNAPCHAT_CONTENT_ACCESS_TOKEN_CLOUD_CHEFS | Client-authorized Public Profile API token with snapchat-profile-api |
 
@@ -45,11 +45,11 @@ Profile IDs can alternatively be stored in the optional per-client socialAccount
       snapchatProfileId: 'confirmed-public-profile-id'
     }
 
-When a confirmed Facebook username is configured without a numeric Page ID, the server asks the client-specific Page token for its Page identity, verifies that it matches the configured handle, and reads its linked Instagram professional account. It does not search Pages by display name. This resolution requires `META_PAGE_ACCESS_TOKEN_<CLIENT>` to be a Page token for that exact Page. When a confirmed LinkedIn vanity name is configured without an organization ID, the server uses LinkedIn's exact vanity-name lookup before requesting that organization's posts. TikTok handles document the verified profile, but the Display API still requires the channel-specific profile token shown above.
+When a confirmed Facebook username is configured without a numeric Page ID, the server asks the client-specific Page token for its Page identity, verifies that it matches the configured handle, and reads its linked Instagram professional account. It does not search Pages by display name. This resolution requires `META_PAGE_ACCESS_TOKEN_<CLIENT>` to be a Page token for that exact Page. When a confirmed LinkedIn vanity name is configured without an organization ID, the server uses LinkedIn's exact vanity-name lookup before requesting that organization's posts. TikTok handles document the verified profile, but the client must still authorize the Business Accounts API; an advertiser token alone cannot read account media.
 
 Cloud Chefs is mapped to the verified `cloudchefsapp` profiles from its Linktree for Facebook, Instagram, TikTok, LinkedIn, and X. The Linktree does not contain a Snapchat profile, so no Snapchat Public Profile ID has been inferred from the Snapchat advertising account.
 
-Store tokens only in Vercel; do not commit them or send them in chat. This implementation does not create consent grants or automatically refresh the new TikTok/Snapchat content tokens. Renew those tokens through their approved OAuth flow when they expire. Existing Google/Snapchat advertising token refresh remains in use for paid reporting.
+Store tokens only in Vercel; do not commit them or send them in chat. TikTok Accounts API access tokens are refreshed automatically from the client-specific refresh token, which remains valid for one year. Reauthorize the profile when that refresh token expires. Snapchat content-token renewal remains external to this dashboard. Existing Google/Snapchat advertising token refresh remains in use for paid reporting.
 
 ## Coverage and behavior
 
@@ -68,7 +68,7 @@ Store tokens only in Vercel; do not commit them or send them in chat. This imple
 ## References
 
 - [Meta Marketing API official collection](https://www.postman.com/meta/facebook-marketing-api/documentation/0zr4mes/facebook-marketing-api-mapi)
-- [TikTok Display API: list videos](https://developers.tiktok.com/doc/tiktok-api-v2-video-list/)
+- [TikTok for Business Accounts API](https://business-api.tiktok.com/gateway/docs/index?doc_id=1735713875563521&language=ENGLISH)
 - [LinkedIn creatives](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-creatives?view=li-lms-2025-11)
 - [LinkedIn Posts API](https://learn.microsoft.com/en-au/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-03)
 - [LinkedIn Organization Lookup API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/organizations/organization-lookup-api?view=li-lms-2026-02)

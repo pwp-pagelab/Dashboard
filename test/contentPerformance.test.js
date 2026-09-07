@@ -117,6 +117,44 @@ test('TikTok Display API is client-scoped, handles pagination, and filters posts
   } finally { restore() }
 })
 
+test('TikTok Business Accounts API refreshes its client token and reads the authorized account media', async () => {
+  const restore = setEnv({
+    TIKTOK_CONTENT_ACCESS_TOKEN_CLOUD_CHEFS: '',
+    TIKTOK_CONTENT_REFRESH_TOKEN_CLOUD_CHEFS: 'account-refresh-token',
+    TIKTOK_APP_ID: 'business-app', TIKTOK_APP_SECRET: 'business-secret'
+  })
+  const calls = []
+  try {
+    const result = await getContentPerformance([{ ...account, platform: 'tiktok' }], {
+      getDates: dates, adsAdapter: async () => [],
+      fetchImpl: async (target, options) => {
+        const parsed = new URL(target)
+        calls.push(parsed.pathname)
+        if (parsed.pathname.endsWith('/tt_user/oauth2/refresh_token/')) {
+          assert.equal(options.method, 'POST')
+          assert.deepEqual(JSON.parse(options.body), {
+            client_id: 'business-app', client_secret: 'business-secret',
+            grant_type: 'refresh_token', refresh_token: 'account-refresh-token'
+          })
+          return response({ code: 0, data: { access_token: 'account-access-token', open_id: 'cloud-chefs-open-id', expires_in: 86400 } })
+        }
+        assert.equal(parsed.pathname, '/open_api/v1.3/business/video/list/')
+        assert.equal(parsed.searchParams.get('business_id'), 'cloud-chefs-open-id')
+        assert.ok(JSON.parse(parsed.searchParams.get('fields')).includes('item_id'))
+        assert.equal(options.headers['Access-Token'], 'account-access-token')
+        return response({ code: 0, data: { videos: [{ item_id: 'organic-1', caption: 'Cloud Chefs menu',
+          create_time: Date.parse('2026-08-20T12:00:00Z') / 1000, share_url: 'https://www.tiktok.com/@cloudchefsapp/video/1',
+          video_views: 500, reach: 400, likes: 20, comments: 3, shares: 2 }], has_more: false } })
+      }
+    })
+    assert.deepEqual(calls, ['/open_api/v1.3/tt_user/oauth2/refresh_token/', '/open_api/v1.3/business/video/list/'])
+    assert.equal(result.posts[0].channel, 'TikTok')
+    assert.equal(result.posts[0].views, 500)
+    assert.equal(result.posts[0].reach, 400)
+    assert.equal(result.posts[0].engagements, 25)
+  } finally { restore() }
+})
+
 test('only the exact verified Cloud Chefs profiles are mapped; Snapchat is not inferred', () => {
   const social = getClientById('cloud-chefs').socialAccounts
   assert.equal(social.facebookUrl, 'https://www.facebook.com/cloudchefsapp/')
