@@ -238,11 +238,28 @@ function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareE
     ['30d', '30 days'],
     ['this_month', 'This month']
   ]
-  const activePreset = parseCustomDateRange(range) ? null : range
+  const [draftRange, setDraftRange] = useState(range)
+  const [draftCompareEnabled, setDraftCompareEnabled] = useState(compareEnabled)
+  const [draftComparisonRange, setDraftComparisonRange] = useState(comparisonRange)
+  const activePreset = parseCustomDateRange(draftRange) ? null : draftRange
+  const hasPendingChanges = draftRange !== range ||
+    draftCompareEnabled !== compareEnabled ||
+    (draftCompareEnabled && draftComparisonRange !== comparisonRange)
+
+  useEffect(() => setDraftRange(range), [range])
+  useEffect(() => setDraftCompareEnabled(compareEnabled), [compareEnabled])
+  useEffect(() => setDraftComparisonRange(comparisonRange), [comparisonRange])
 
   function toggleComparison(nextEnabled) {
-    onCompareEnabledChange(nextEnabled)
-    if (nextEnabled) onComparisonRangeChange(precedingReportRange(range))
+    setDraftCompareEnabled(nextEnabled)
+    if (nextEnabled && !draftCompareEnabled) setDraftComparisonRange(precedingReportRange(draftRange))
+  }
+
+  function applyDates() {
+    if (!hasPendingChanges) return
+    onRangeChange(draftRange)
+    if (draftCompareEnabled) onComparisonRangeChange(draftComparisonRange)
+    onCompareEnabledChange(draftCompareEnabled)
   }
 
   return (
@@ -250,14 +267,14 @@ function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareE
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap', marginBottom: '14px' }}>
         <div>
           <div style={{ color: COLORS.green, fontSize: '15px', fontWeight: 900 }}>Reporting period</div>
-          <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Choose exact dates, then optionally compare against another exact period.</div>
+          <div style={{ color: COLORS.muted, fontSize: '12px', marginTop: '4px' }}>Choose both dates, then apply once to refresh the report.</div>
         </div>
         <div className="report-preset-group" style={{ display: 'flex', gap: '6px', padding: '4px', borderRadius: '10px', background: COLORS.cream }}>
           {presets.map(([preset, label]) => (
             <button
               key={preset}
               type="button"
-              onClick={() => onRangeChange(preset)}
+              onClick={() => setDraftRange(preset)}
               style={{
                 border: 0,
                 borderRadius: '8px',
@@ -275,24 +292,44 @@ function ReportingPeriodPanel({ range, onRangeChange, compareEnabled, onCompareE
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: compareEnabled ? 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))' : 'minmax(0, 560px)', gap: '16px' }}>
-        <ExactDateRange value={range} onChange={onRangeChange} heading="Selected period" />
-        {compareEnabled ? (
+      <div style={{ display: 'grid', gridTemplateColumns: draftCompareEnabled ? 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))' : 'minmax(0, 560px)', gap: '16px' }}>
+        <ExactDateRange value={draftRange} onChange={setDraftRange} heading="Selected period" />
+        {draftCompareEnabled ? (
           <div className="comparison-period-column" style={{ paddingLeft: '16px', borderLeft: `1px solid ${COLORS.line}` }}>
-            <ExactDateRange value={comparisonRange} onChange={onComparisonRangeChange} heading="Comparison period" />
+            <ExactDateRange value={draftComparisonRange} onChange={setDraftComparisonRange} heading="Comparison period" />
           </div>
         ) : null}
       </div>
 
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginTop: '14px', color: COLORS.green, fontSize: '13px', fontWeight: 900, cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={compareEnabled}
-          onChange={(event) => toggleComparison(event.target.checked)}
-          style={{ accentColor: COLORS.green, width: '16px', height: '16px' }}
-        />
-        Compare with another date range
-      </label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '14px' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', color: COLORS.green, fontSize: '13px', fontWeight: 900, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={draftCompareEnabled}
+            onChange={(event) => toggleComparison(event.target.checked)}
+            style={{ accentColor: COLORS.green, width: '16px', height: '16px' }}
+          />
+          Compare with another date range
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span aria-live="polite" style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 700 }}>
+            {hasPendingChanges ? 'Dates changed — apply when ready' : 'Showing the applied period'}
+          </span>
+          <button
+            type="button"
+            onClick={applyDates}
+            disabled={!hasPendingChanges}
+            style={{
+              ...buttonStyle(true),
+              minWidth: '112px',
+              opacity: hasPendingChanges ? 1 : 0.45,
+              cursor: hasPendingChanges ? 'pointer' : 'not-allowed'
+            }}
+          >
+            Apply dates
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
