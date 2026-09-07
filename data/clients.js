@@ -127,6 +127,17 @@ export const clients = [
     snapchatAdAccountId: 'c41fc4c1-0a52-4d4b-9dd7-d8fa400babbb',
     snapchatAdAccountName: 'Aklatbyootksa Self-service',
     snapchatCurrencyCode: 'USD',
+    socialAccounts: {
+      facebookUrl: 'https://www.facebook.com/cloudchefsapp/',
+      facebookPageUsername: 'cloudchefsapp',
+      instagramUrl: 'https://www.instagram.com/cloudchefsapp/',
+      instagramUsername: 'cloudchefsapp',
+      tiktokUrl: 'https://www.tiktok.com/@cloudchefsapp',
+      tiktokUsername: 'cloudchefsapp',
+      linkedinUrl: 'https://www.linkedin.com/company/cloudchefsapp/',
+      linkedinVanityName: 'cloudchefsapp',
+      xUrl: 'https://x.com/cloudchefsapp'
+    },
     leadsSheet: {
       spreadsheetId: '1uC1W4hGPjk4N3K0zs6El5ygZTsarwUucEtSvQJg5Mz4',
       allowPublicCsvFallback: true,

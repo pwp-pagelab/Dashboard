@@ -16,7 +16,7 @@ Unknown ad names show “Ad name unavailable” plus the real ID. Account or cam
 
 ## Published posts: client-specific profile authorization
 
-An ad account is different from a Facebook Page, Instagram profile, LinkedIn organization, or Snapchat Public Profile. Do not use an ad account ID in a social profile field. To avoid cross-client data leakage the app never guesses a profile by display name or reads an agency-wide feed.
+An ad account is different from a Facebook Page, Instagram profile, LinkedIn organization, or Snapchat Public Profile. Do not use an ad account ID in a social profile field. To avoid cross-client data leakage the app never guesses a profile by display name or reads an agency-wide feed. A stored profile URL or handle confirms identity but does not grant API access; the matching read authorization is still required.
 
 In Vercel → dashboard project → Settings → Environment Variables, configure the following for the correct client. The suffix is the client ID in uppercase with hyphens replaced by underscores (Cloud Chefs = CLOUD_CHEFS). Set for Production and Preview when both should work, then redeploy.
 
@@ -31,11 +31,23 @@ In Vercel → dashboard project → Settings → Environment Variables, configur
 Profile IDs can alternatively be stored in the optional per-client socialAccounts object:
 
     socialAccounts: {
+      facebookUrl: 'https://www.facebook.com/confirmed-handle/',
+      facebookPageUsername: 'confirmed-handle',
       facebookPageId: 'confirmed-page-id',
+      instagramUrl: 'https://www.instagram.com/confirmed-handle/',
+      instagramUsername: 'confirmed-handle',
       instagramAccountId: 'confirmed-professional-profile-id',
+      tiktokUrl: 'https://www.tiktok.com/@confirmed-handle',
+      tiktokUsername: 'confirmed-handle',
+      linkedinUrl: 'https://www.linkedin.com/company/confirmed-handle/',
+      linkedinVanityName: 'confirmed-handle',
       linkedinOrganizationId: 'confirmed-organization-id',
       snapchatProfileId: 'confirmed-public-profile-id'
     }
+
+When a confirmed Facebook username is configured without a numeric Page ID, the server asks the client-specific Page token for its Page identity, verifies that it matches the configured handle, and reads its linked Instagram professional account. It does not search Pages by display name. This resolution requires `META_PAGE_ACCESS_TOKEN_<CLIENT>` to be a Page token for that exact Page. When a confirmed LinkedIn vanity name is configured without an organization ID, the server uses LinkedIn's exact vanity-name lookup before requesting that organization's posts. TikTok handles document the verified profile, but the Display API still requires the channel-specific profile token shown above.
+
+Cloud Chefs is mapped to the verified `cloudchefsapp` profiles from its Linktree for Facebook, Instagram, TikTok, LinkedIn, and X. The Linktree does not contain a Snapchat profile, so no Snapchat Public Profile ID has been inferred from the Snapchat advertising account.
 
 Store tokens only in Vercel; do not commit them or send them in chat. This implementation does not create consent grants or automatically refresh the new TikTok/Snapchat content tokens. Renew those tokens through their approved OAuth flow when they expire. Existing Google/Snapchat advertising token refresh remains in use for paid reporting.
 
@@ -59,5 +71,6 @@ Store tokens only in Vercel; do not commit them or send them in chat. This imple
 - [TikTok Display API: list videos](https://developers.tiktok.com/doc/tiktok-api-v2-video-list/)
 - [LinkedIn creatives](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-creatives?view=li-lms-2025-11)
 - [LinkedIn Posts API](https://learn.microsoft.com/en-au/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-03)
+- [LinkedIn Organization Lookup API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/organizations/organization-lookup-api?view=li-lms-2026-02)
 - [Snapchat ads](https://developers.snap.com/marketing-api/Ads-API/ads)
 - [Snapchat profile assets](https://developers.snap.com/marketing-api/Public-Profile-API/ProfileAssetManagement)
