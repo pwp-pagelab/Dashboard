@@ -349,6 +349,10 @@ function parseMetricValue(value, type) {
   return type === 'currency' ? parseSarString(value) : parseNumberString(value)
 }
 
+function hasClientDisplayValue(value) {
+  return value != null && String(value).trim() !== '' && String(value).trim().toUpperCase() !== 'N/A'
+}
+
 function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }) {
   if (!primary || !comparison) return null
   const primaryCards = Array.isArray(primary.summaryCards) ? primary.summaryCards : []
@@ -361,10 +365,10 @@ function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }
   const rows = definitions.flatMap(([label, type]) => {
     const currentDisplay = getSummaryCardValue(primaryCards, label)
     const previousDisplay = getSummaryCardValue(comparisonCards, label)
-    if (!currentDisplay && !previousDisplay) return []
+    if (!hasClientDisplayValue(currentDisplay) || !hasClientDisplayValue(previousDisplay)) return []
     const current = parseMetricValue(currentDisplay, type)
     const previous = parseMetricValue(previousDisplay, type)
-    let delta = 'N/A'
+    let delta = ''
     if (current != null && previous != null) {
       if (type === 'rate') delta = `${current - previous >= 0 ? '+' : ''}${(current - previous).toFixed(2)} pp`
       else if (previous !== 0) {
@@ -394,6 +398,9 @@ function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }
     return [{ title, description, favorable }]
   })
 
+  if (!rows.length) return null
+  const showComparisonDelta = rows.some((row) => row.delta)
+
   return (
     <div style={{ ...cardStyle(), padding: '15px', marginBottom: '14px' }}>
       <SectionTitle title="Period comparison" subtitle={`${reportRangeLabel(primaryRange)} compared with ${reportRangeLabel(comparisonRange)}`} />
@@ -410,7 +417,7 @@ function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', fontSize: '13px' }}>
           <thead><tr style={{ color: COLORS.muted, textAlign: 'left' }}>
-            {['Metric', 'Selected period', 'Comparison period', 'Change'].map((heading) => (
+            {['Metric', 'Selected period', 'Comparison period', ...(showComparisonDelta ? ['Change'] : [])].map((heading) => (
               <th key={heading} style={{ padding: '9px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{heading}</th>
             ))}
           </tr></thead>
@@ -419,7 +426,7 @@ function PeriodComparison({ primary, comparison, primaryRange, comparisonRange }
               <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}`, fontWeight: 800 }}>{metricLabel(row.label)}</td>
               <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{row.currentDisplay}</td>
               <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}` }}>{row.previousDisplay}</td>
-              <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}`, fontWeight: 900 }}>{row.delta}</td>
+              {showComparisonDelta ? <td style={{ padding: '10px 8px', borderBottom: `1px solid ${COLORS.line}`, fontWeight: 900 }}>{row.delta}</td> : null}
             </tr>
           ))}</tbody>
         </table>
@@ -932,13 +939,15 @@ function DashboardFooter() {
   )
 }
 
-function FunnelHero({ reach, clicks, conversions, convertedCount, compact = false }) {
+function FunnelHero({ reach, clicks, conversions, convertedCount, compact = false, hideEmpty = false }) {
   const clickOfReach = reach > 0 ? (clicks / reach) * 100 : 0
   const resultOfReach = reach > 0 ? (conversions / reach) * 100 : 0
   const resultOfClicks = clicks > 0 ? (conversions / clicks) * 100 : 0
   const hasConvertedStage = convertedCount != null
   const converted = Number(convertedCount || 0)
   const convertedOfLeads = conversions > 0 ? (converted / conversions) * 100 : 0
+
+  if (hideEmpty && reach <= 0 && clicks <= 0 && conversions <= 0 && converted <= 0) return null
 
   const rows = [
     {
@@ -1150,10 +1159,13 @@ function SimpleTooltipValue({ active, payload, label }) {
   )
 }
 
-function TrendCharts({ daily, targetCPA, compact = false }) {
+function TrendCharts({ daily, targetCPA, compact = false, hideEmpty = false }) {
   const hasDaily = Array.isArray(daily) && daily.length > 0
   const hasConversionRate = hasDaily && daily.some((row) => row.conversionRate != null)
+  const hasCpa = hasDaily && daily.some((row) => row.cpa != null)
   const actualTargetCPA = Number.isFinite(targetCPA) && targetCPA > 0 ? targetCPA : null
+
+  if (hideEmpty && !hasDaily) return null
 
   return (
     <div
@@ -1163,7 +1175,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
         gap: '14px'
       }}
     >
-      <div style={panelStyle()}>
+      {hasDaily || !hideEmpty ? <div style={panelStyle()}>
         <SectionTitle
           title="Spend vs. leads over time"
           subtitle="Green bars for spend, amber line for completed forms and new conversations."
@@ -1207,9 +1219,9 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
             </ResponsiveContainer>
           </div>
         )}
-      </div>
+      </div> : null}
 
-      <div style={panelStyle()}>
+      {hasCpa || !hideEmpty ? <div style={panelStyle()}>
         <SectionTitle
           title="Cost per lead trend"
           subtitle="Trending down is good."
@@ -1219,7 +1231,7 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
             title="Lead-cost trend will appear with daily reporting"
             text="Once daily lead data is available, this chart will show whether form and messaging efficiency is improving."
           />
-        ) : !daily.some((row) => row.cpa != null) ? (
+        ) : !hasCpa ? (
           <EmptyState
             title="Cost per lead will appear after the first lead"
             text="Current activity is creating reach and clicks. Once a completed form or new conversation is recorded, this chart will show lead-cost trends."
@@ -1285,12 +1297,12 @@ function TrendCharts({ daily, targetCPA, compact = false }) {
             </ResponsiveContainer>
           </div>
         )}
-      </div>
+      </div> : null}
     </div>
   )
 }
 
-function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions, compact = false }) {
+function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions, compact = false, hideEmpty = false }) {
   const platformMap = new Map()
 
   rows.forEach((row) => {
@@ -1331,6 +1343,8 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
   ]
 
   const palette = [COLORS.green, COLORS.amber, COLORS.greenMid, '#5F766E', '#2B2F2D', '#B08D2B']
+
+  if (hideEmpty && (platforms.length === 0 || (totalSpend <= 0 && totalClicks <= 0 && totalConversions <= 0))) return null
 
   return (
     <div style={panelStyle()}>
@@ -1385,7 +1399,7 @@ function PlatformContribution({ rows, totalSpend, totalClicks, totalConversions,
   )
 }
 
-function AdvancedTable({ rows, googleDiagnostics }) {
+function AdvancedTable({ rows, googleDiagnostics, hideUnavailable = false }) {
   const hasConversionData = rows.some((row) => row.convertedCount != null)
   const platformPerformanceRows = rows.map((row) => {
     const spendNum = parseSarString(row.spend)
@@ -1414,6 +1428,25 @@ function AdvancedTable({ rows, googleDiagnostics }) {
     }
   })
 
+  if (hideUnavailable && platformPerformanceRows.length === 0) return null
+
+  const allColumns = [
+    { key: 'platform', label: 'Platform', available: true, render: (row) => <PlatformBadge label={row.platform} /> },
+    { key: 'spend', label: metricLabel('Spend'), available: platformPerformanceRows.some((row) => hasClientDisplayValue(row.spend)), render: (row) => row.spend },
+    { key: 'clicks', label: metricLabel('Clicks'), available: platformPerformanceRows.some((row) => hasClientDisplayValue(row.clicks)), render: (row) => row.clicks },
+    { key: 'ctr', label: metricLabel('CTR'), available: platformPerformanceRows.some((row) => row.ctr != null), render: (row) => row.ctr != null ? `${row.ctr.toFixed(2)}%` : '' },
+    { key: 'cpc', label: metricLabel('CPC'), available: platformPerformanceRows.some((row) => row.cpc != null), render: (row) => row.cpc != null ? formatSar(row.cpc) : '' },
+    { key: 'conversions', label: metricLabel('Results'), available: platformPerformanceRows.some((row) => hasClientDisplayValue(row.conversions)), render: (row) => row.conversions === 'N/A' ? '' : row.conversions },
+    { key: 'cpa', label: metricLabel('CPA'), available: platformPerformanceRows.some((row) => row.cpa != null), render: (row) => row.cpa != null ? formatSar(row.cpa) : '' },
+    { key: 'converted', label: 'Converted', available: hasConversionData, render: (row) => row.convertedCount != null ? Number(row.convertedCount).toLocaleString() : '' },
+    { key: 'costPerConvertedLead', label: 'Cost per converted lead', available: platformPerformanceRows.some((row) => row.costPerConvertedLead != null), render: (row) => row.costPerConvertedLead != null ? formatSar(row.costPerConvertedLead) : '' }
+  ]
+  const columns = allColumns.filter((column) => (
+    hideUnavailable
+      ? column.available
+      : !['converted', 'costPerConvertedLead'].includes(column.key) || hasConversionData
+  ))
+
   return (
     <div style={panelStyle()}>
       <SectionTitle
@@ -1424,21 +1457,13 @@ function AdvancedTable({ rows, googleDiagnostics }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: `1px solid ${COLORS.line}` }}>
-              <th style={{ padding: '12px 8px' }}>Platform</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('Spend')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('Clicks')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('CTR')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('CPC')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('Results')}</th>
-              <th style={{ padding: '12px 8px' }}>{metricLabel('CPA')}</th>
-              {hasConversionData ? <th style={{ padding: '12px 8px' }}>Converted</th> : null}
-              {hasConversionData ? <th style={{ padding: '12px 8px' }}>Cost per converted lead</th> : null}
+              {columns.map((column) => <th key={column.key} style={{ padding: '12px 8px' }}>{column.label}</th>)}
             </tr>
           </thead>
           <tbody>
             {platformPerformanceRows.length === 0 ? (
               <tr>
-                <td colSpan={hasConversionData ? 9 : 7} style={{ padding: '18px 8px' }}>
+                <td colSpan={columns.length} style={{ padding: '18px 8px' }}>
                   <EmptyState
                     title="Advanced table will appear when platform rows are available"
                     text="Once lead data is returned, this optional view will list spend, clicks, CTR, CPC, leads, and cost per lead in one place."
@@ -1448,25 +1473,7 @@ function AdvancedTable({ rows, googleDiagnostics }) {
             ) : (
               platformPerformanceRows.map((row, index) => (
                 <tr key={`${row.platform}-${index}`} style={{ borderBottom: '1px solid #F1E9D8' }}>
-                  <td style={{ padding: '14px 8px' }}>
-                    <PlatformBadge label={row.platform} />
-                  </td>
-                  <td style={{ padding: '14px 8px' }}>{row.spend}</td>
-                  <td style={{ padding: '14px 8px' }}>{row.clicks}</td>
-                  <td style={{ padding: '14px 8px' }}>{row.ctr != null ? `${row.ctr.toFixed(2)}%` : 'N/A'}</td>
-                  <td style={{ padding: '14px 8px' }}>{row.cpc != null ? formatSar(row.cpc) : 'N/A'}</td>
-                  <td style={{ padding: '14px 8px' }}>{row.conversions}</td>
-                  <td style={{ padding: '14px 8px' }}>{row.cpa != null ? formatSar(row.cpa) : 'N/A'}</td>
-                  {hasConversionData ? (
-                    <td style={{ padding: '14px 8px' }}>
-                      {row.convertedCount != null ? Number(row.convertedCount).toLocaleString() : 'N/A'}
-                    </td>
-                  ) : null}
-                  {hasConversionData ? (
-                    <td style={{ padding: '14px 8px' }}>
-                      {row.costPerConvertedLead != null ? formatSar(row.costPerConvertedLead) : 'N/A'}
-                    </td>
-                  ) : null}
+                  {columns.map((column) => <td key={column.key} style={{ padding: '14px 8px' }}>{column.render(row)}</td>)}
                 </tr>
               ))
             )}
@@ -2287,22 +2294,23 @@ function summarizeAudienceBreakdowns(data) {
   return Array.from(grouped.values())
 }
 
-function AudienceActionInsights({ data }) {
+function AudienceActionInsights({ data, hideEmpty = false }) {
   const rows = Array.isArray(data?.campaignRows) ? data.campaignRows : []
   const statuses = Array.isArray(data?.accountStatuses) ? data.accountStatuses : []
   const audienceRows = summarizeAudienceBreakdowns(data)
   const hasConversionData = rows.some((row) => row.convertedCount != null)
   const bestByResults = hasConversionData
     ? [...rows]
-        .filter((row) => row.conversionRate != null)
+        .filter((row) => row.conversionRate != null && (!hideEmpty || Number(row.convertedCount || 0) > 0))
         .sort((a, b) => (
           Number(b.conversionRate || 0) - Number(a.conversionRate || 0) ||
           Number(a.costPerConvertedLead ?? Number.POSITIVE_INFINITY) - Number(b.costPerConvertedLead ?? Number.POSITIVE_INFINITY)
         ))[0]
     : [...rows]
-        .filter((row) => row.conversions !== 'N/A')
+        .filter((row) => row.conversions !== 'N/A' && (!hideEmpty || parseNumberString(row.conversions) > 0))
         .sort((a, b) => parseNumberString(b.conversions) - parseNumberString(a.conversions))[0]
   const bestByClicks = [...rows]
+    .filter((row) => !hideEmpty || parseNumberString(row.clicks) > 0)
     .sort((a, b) => parseNumberString(b.clicks) - parseNumberString(a.clicks))[0]
   const actionBreakdowns = statuses
     .map((account) => ({
@@ -2315,12 +2323,19 @@ function AudienceActionInsights({ data }) {
     groups[row.dimension].push(row)
     return groups
   }, {})
-  const strongestAudience = [...audienceRows].sort((a, b) => (
+  const strongestAudience = [...audienceRows]
+    .filter((row) => !hideEmpty || row.leads > 0 || row.clicks > 0 || row.impressions > 0 || row.reach > 0)
+    .sort((a, b) => (
     b.leads - a.leads ||
     b.clicks - a.clicks ||
     b.impressions - a.impressions ||
     b.reach - a.reach
   ))[0]
+  const showResultCard = Boolean(bestByResults) || !hideEmpty
+  const showTrafficCard = Boolean(bestByClicks) || !hideEmpty
+  const showAudienceCard = Boolean(strongestAudience) || !hideEmpty
+
+  if (hideEmpty && !showResultCard && !showTrafficCard && !showAudienceCard && !audienceRows.length && !actionBreakdowns.length) return null
 
   return (
     <div style={panelStyle()}>
@@ -2331,7 +2346,7 @@ function AudienceActionInsights({ data }) {
 
       <div style={{ display: 'grid', gap: '10px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '10px' }}>
-          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+          {showResultCard ? <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
             <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>
               {hasConversionData ? 'Strongest converting source' : 'Strongest lead source'}
             </div>
@@ -2342,21 +2357,21 @@ function AudienceActionInsights({ data }) {
                   ? 'Not enough converted-lead data yet'
                   : 'Not enough lead data yet'}
             </div>
-          </div>
-          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+          </div> : null}
+          {showTrafficCard ? <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
             <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest traffic source</div>
             <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
               {bestByClicks ? `${bestByClicks.platform} · ${bestByClicks.campaign}` : 'Not enough click data yet'}
             </div>
-          </div>
-          <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
+          </div> : null}
+          {showAudienceCard ? <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: '10px', padding: '12px', background: '#FBFAF7' }}>
             <div style={{ color: COLORS.muted, fontSize: '12px', fontWeight: 800 }}>Strongest audience segment</div>
             <div style={{ color: COLORS.green, fontWeight: 900, marginTop: '5px' }}>
               {strongestAudience
                 ? `${strongestAudience.dimension} · ${strongestAudience.segment}`
                 : 'Upload a report with audience breakdown columns'}
             </div>
-          </div>
+          </div> : null}
         </div>
 
         {audienceRows.length ? (
@@ -2396,12 +2411,12 @@ function AudienceActionInsights({ data }) {
               )
             })}
           </div>
-        ) : (
+        ) : !hideEmpty ? (
           <EmptyState
             title="Audience breakdowns are ready for import"
             text="Upload a Meta CSV containing Age, Gender, Country, Region, City, Device platform, Publisher platform, or Placement columns. The dashboard will chart the available segments automatically."
           />
-        )}
+        ) : null}
 
         {actionBreakdowns.length ? (
           <div style={{ display: 'grid', gap: '8px' }}>
@@ -2645,18 +2660,20 @@ function ReportView({ data, platform, range, setView, insightsText, isSharedView
             clicks={totalClicks}
             conversions={totalConversions}
             convertedCount={data?.conversionMetrics?.convertedCount}
+            hideEmpty={isSharedView}
           />
-          <TrendCharts daily={dailyChartData} targetCPA={targetCPA} />
+          <TrendCharts daily={dailyChartData} targetCPA={targetCPA} hideEmpty={isSharedView} />
           <PlatformContribution
             rows={campaignRows}
             totalSpend={totalSpend}
             totalClicks={totalClicks}
             totalConversions={totalConversions}
+            hideEmpty={isSharedView}
           />
-          <AudienceActionInsights data={data} />
+          <AudienceActionInsights data={data} hideEmpty={isSharedView} />
           <ContentPerformanceStudio report={data?.contentPerformance} isSharedView={isSharedView} />
           <StatusBanner text={nextActionText} />
-          <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />
+          <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} hideUnavailable={isSharedView} />
         </div>
         <DashboardFooter />
       </div>
@@ -3549,10 +3566,15 @@ export default function App() {
   const totalClicks = parseNumberString(summaryCards.find((c) => c.label === 'Clicks')?.value)
   const totalConversions = parseNumberString(getSummaryCardValue(summaryCards, 'Results'))
   const executiveMetricLabels = ['Total Spend', 'Reach', 'Clicks', 'Leads', 'Cost per Lead', 'Converted Leads', 'Cost per Converted Lead']
-  const executiveSummaryCards = summaryCards.filter((card) => executiveMetricLabels.includes(card.label))
+  const executiveSummaryCards = summaryCards.filter((card) => (
+    executiveMetricLabels.includes(card.label) && (!isSharedView || hasClientDisplayValue(card.value))
+  ))
   const frequency = totalReach > 0 ? totalImpressions / totalReach : null
   const supportingSummaryCards = [
-    ...summaryCards.filter((card) => ['Impressions', 'CTR', 'Lead Rate', 'Lead Conversion Rate', 'Form Submissions', 'Direct Messages', 'Website Leads', 'WhatsApp Leads'].includes(card.label)),
+    ...summaryCards.filter((card) => (
+      ['Impressions', 'CTR', 'Lead Rate', 'Lead Conversion Rate', 'Form Submissions', 'Direct Messages', 'Website Leads', 'WhatsApp Leads'].includes(card.label) &&
+      (!isSharedView || hasClientDisplayValue(card.value))
+    )),
     ...(frequency == null ? [] : [{ label: 'Frequency', value: frequency.toFixed(2) }])
   ]
 
@@ -3949,7 +3971,7 @@ export default function App() {
                   ))}
                 </div>
               ) : null}
-              {data?.dataQuality?.sheetConversionsConfigured ? (
+              {data?.dataQuality?.sheetConversionsConfigured && (!isSharedView || data?.dataQuality?.sheetConversionsStatus === 'loaded') ? (
                 <div
                   style={{
                     marginTop: '12px',
@@ -4140,6 +4162,7 @@ export default function App() {
                 conversions={totalConversions}
                 convertedCount={data?.conversionMetrics?.convertedCount}
                 compact={true}
+                hideEmpty={isSharedView}
               />
             </div>
 
@@ -4150,7 +4173,7 @@ export default function App() {
             ) : null}
 
             <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
-              <TrendCharts daily={dailyChartData} targetCPA={targetCPA} compact={true} />
+              <TrendCharts daily={dailyChartData} targetCPA={targetCPA} compact={true} hideEmpty={isSharedView} />
 
               <ContentPerformanceStudio
                 report={data?.contentPerformance}
@@ -4164,11 +4187,12 @@ export default function App() {
                   totalClicks={totalClicks}
                   totalConversions={totalConversions}
                   compact={true}
+                  hideEmpty={isSharedView}
                 />
                 <StatusBanner text={nextActionText} />
               </div>
 
-              <AudienceActionInsights data={data} />
+              <AudienceActionInsights data={data} hideEmpty={isSharedView} />
 
               {showAdvanced ? (
                 <AdvancedTable rows={campaignRows} googleDiagnostics={googleDiagnostics} />

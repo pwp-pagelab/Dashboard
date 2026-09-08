@@ -14,6 +14,9 @@ function safeLink(value) {
 }
 
 function ConnectionStatus({ connections, kind, isSharedView }) {
+  // Connection and authorization details are operational diagnostics for the
+  // agency. A client report should only show content that is actually ready.
+  if (isSharedView) return null
   const issues = connections.filter((item) => item.kind === kind && item.status !== 'loaded')
   if (!issues.length) return null
   return <details style={{ marginTop: 14, background: '#FFF8E4', borderRadius: 8, padding: 10 }}>
@@ -39,12 +42,32 @@ export default function ContentPerformanceStudio({ report, isSharedView = false 
   const shownPosts = posts.filter((post) => effectiveChannel === 'all' || post.channel === effectiveChannel)
   const postAccess = connections.some((item) => item.kind === 'posts' && ['loaded', 'partial'].includes(item.status))
   const adAccess = connections.some((item) => item.kind === 'ads' && ['loaded', 'partial'].includes(item.status))
+  const showPosts = posts.length > 0 || !isSharedView
+  const showAds = ads.length > 0 || !isSharedView
+  const allAdColumns = [
+    {
+      key: 'name', label: 'Ad name', available: true, render: (ad) => <>
+        <strong>{ad.name || `Ad ${ad.adId || ''}`.trim()}</strong>
+        {ad.adId ? <div style={{ ...label, fontSize: 10, marginTop: 4 }}>Ad ID: {ad.adId}{ad.nameSource === 'headline' ? ' · Headline' : ''}</div> : null}
+      </>
+    },
+    { key: 'channel', label: 'Channel / campaign', available: true, render: (ad) => <>{names[ad.platform] || ad.platform}{ad.campaign || ad.accountName ? <div style={{ ...label, fontSize: 10 }}>{ad.campaign || ad.accountName}</div> : null}</> },
+    { key: 'spend', label: 'Spend', available: ads.some((ad) => ad.spend != null && ad.currencyCode), render: (ad) => ad.spend != null && ad.currencyCode ? money(ad.spend, ad.currencyCode) : '' },
+    { key: 'impressions', label: 'Impressions', available: ads.some((ad) => ad.impressions != null), render: (ad) => ad.impressions != null ? number(ad.impressions) : '' },
+    { key: 'clicks', label: 'Clicks', available: ads.some((ad) => ad.clicks != null), render: (ad) => ad.clicks != null ? number(ad.clicks) : '' },
+    { key: 'leads', label: 'Leads', available: ads.some((ad) => ad.leads != null), render: (ad) => ad.leads != null ? <span title={ad.leadNote || ''}>{number(ad.leads)}{ad.leadNote ? '*' : ''}</span> : '' },
+    { key: 'cpl', label: 'Cost per lead', available: ads.some((ad) => ad.leads > 0 && ad.spend != null && ad.currencyCode), render: (ad) => ad.leads > 0 && ad.spend != null && ad.currencyCode ? money(ad.spend / ad.leads, ad.currencyCode) : '' }
+  ]
+  const adColumns = isSharedView ? allAdColumns.filter((column) => column.available) : allAdColumns
+
+  if (!showPosts && !showAds) return null
+
   return <div id="content-performance" style={{ display: 'grid', gap: 14, scrollMarginTop: 20 }}>
-    <section style={panel}>
+    {showPosts ? <section style={panel}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 17 }}>Published content <span style={{ color: '#635BFF', fontSize: 11 }}>ACCOUNT SYNC</span></h3>
-          <p style={{ ...label, margin: '5px 0 0' }}>Published posts in the selected reporting dates. Post metrics are lifetime values where available; they are not added to paid totals. Snapchat coverage currently includes Spotlights only.</p>
+          <p style={{ ...label, margin: '5px 0 0' }}>Published posts in the selected reporting dates. Post metrics are lifetime values where available; they are not added to paid totals.{channels.includes('Snapchat') ? ' Snapchat coverage includes Spotlights only.' : ''}</p>
         </div>
         <select aria-label="Published content channel" value={effectiveChannel} onChange={(e) => { setChannel(e.target.value); setPostLimit(12) }} style={control}>
           <option value="all">All channels</option>{channels.map((item) => <option key={item}>{item}</option>)}
@@ -63,7 +86,7 @@ export default function ContentPerformanceStudio({ report, isSharedView = false 
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, ...label }}>
                 {post.views != null ? <span><strong>{number(post.views)}</strong> views</span> : null}
                 {post.engagements != null ? <span><strong>{number(post.engagements)}</strong> engagements</span> : null}
-                {post.views == null && post.engagements == null ? <span>Performance metrics not provided by this endpoint.</span> : null}
+                {!isSharedView && post.views == null && post.engagements == null ? <span>Performance metrics not provided by this endpoint.</span> : null}
               </div>
               {post.metricNote ? <div style={{ ...label, marginTop: 5, fontSize: 10 }}>{post.metricNote}</div> : null}
             </div>
@@ -74,33 +97,24 @@ export default function ContentPerformanceStudio({ report, isSharedView = false 
       </div>}
       {shownPosts.length > postLimit ? <button onClick={() => setPostLimit(postLimit + 12)} style={{ ...control, marginTop: 12 }}>Show more posts</button> : null}
       <ConnectionStatus connections={connections} kind="posts" isSharedView={isSharedView} />
-    </section>
+    </section> : null}
 
-    <section style={panel}>
+    {showAds ? <section style={panel}>
       <h3 style={{ margin: 0, fontSize: 17 }}>Best-performing ads <span style={{ color: '#635BFF', fontSize: 11 }}>AD-LEVEL DATA</span></h3>
       <p style={{ ...label, margin: '5px 0 14px' }}>Actual ads ranked by reported leads, then cost per lead within the same currency, then clicks. Campaign/account totals and Sheet conversions are not used as ad results.</p>
       {ads.length ? <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
-          <thead><tr>{['Ad name', 'Channel / campaign', 'Spend', 'Impressions', 'Clicks', 'Leads', 'Cost per lead'].map((item) => <th key={item} style={{ padding: '10px 8px', color: '#717784', whiteSpace: 'nowrap', borderBottom: '1px solid #E5E7EB' }}>{item}</th>)}</tr></thead>
+          <thead><tr>{adColumns.map((column) => <th key={column.key} style={{ padding: '10px 8px', color: '#717784', whiteSpace: 'nowrap', borderBottom: '1px solid #E5E7EB' }}>{column.label}</th>)}</tr></thead>
           <tbody>{ads.slice(0, adLimit).map((ad) => <tr key={ad.id}>
-            <td style={{ padding: '12px 8px', borderBottom: '1px solid #F0F1F4', minWidth: 170, maxWidth: 300, overflowWrap: 'anywhere' }}>
-              <strong>{ad.name || 'Ad name unavailable'}</strong>
-              <div style={{ ...label, fontSize: 10, marginTop: 4 }}>Ad ID: {ad.adId}{ad.nameSource === 'headline' ? ' · Headline (ad has no name)' : ''}</div>
-            </td>
-            <td style={{ padding: 8, minWidth: 130 }}>{names[ad.platform] || ad.platform}<div style={{ ...label, fontSize: 10 }}>{ad.campaign || ad.accountName}</div></td>
-            <td style={{ padding: 8, whiteSpace: 'nowrap' }}>{money(ad.spend, ad.currencyCode)}</td>
-            <td style={{ padding: 8 }}>{number(ad.impressions)}</td>
-            <td style={{ padding: 8 }}>{number(ad.clicks)}</td>
-            <td title={ad.leadNote || ''} style={{ padding: 8 }}>{number(ad.leads)}{ad.leadNote ? '*' : ''}</td>
-            <td style={{ padding: 8, whiteSpace: 'nowrap' }}>{ad.leads > 0 && ad.spend != null ? money(ad.spend / ad.leads, ad.currencyCode) : 'N/A'}</td>
+            {adColumns.map((column) => <td key={column.key} style={{ padding: column.key === 'name' ? '12px 8px' : 8, borderBottom: '1px solid #F0F1F4', minWidth: column.key === 'name' ? 170 : undefined, maxWidth: column.key === 'name' ? 300 : undefined, overflowWrap: 'anywhere', whiteSpace: ['spend', 'cpl'].includes(column.key) ? 'nowrap' : undefined }}>{column.render(ad)}</td>)}
           </tr>)}</tbody>
         </table>
       </div> : <div style={{ ...label, background: '#F7F7F9', borderRadius: 10, padding: 20 }}>
         {adAccess ? 'No ads with delivery were returned for this reporting period.' : 'Ad-level reporting is unavailable. Check account authorization below; no account totals are substituted.'}
       </div>}
       {ads.length > adLimit ? <button onClick={() => setAdLimit(adLimit + 10)} style={{ ...control, marginTop: 12 }}>Show more ads</button> : null}
-      <div style={{ ...label, marginTop: 10, fontSize: 11 }}>N/A means the API did not supply that metric. Spend uses each ad account’s currency. * TikTok leads currently include instant forms only.</div>
+      {!isSharedView ? <div style={{ ...label, marginTop: 10, fontSize: 11 }}>N/A means the API did not supply that metric. Spend uses each ad account’s currency. * TikTok leads currently include instant forms only.</div> : null}
       <ConnectionStatus connections={connections} kind="ads" isSharedView={isSharedView} />
-    </section>
+    </section> : null}
   </div>
 }
